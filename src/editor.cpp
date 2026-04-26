@@ -61,7 +61,7 @@ int main() {
     Text text("./engine/assets/arial.ttf", 48);
     text.setText("Hello, BlazeBolt");
     text.setColor(1, 1, 1, 1);
-    text.setPosition(1.0f, 1.0f);
+    text.setPosition(0.0f, -1.0f);
     text.setScale(1.0f);
     text.setScreenSize(window.getWidth(), window.getHeight());
 
