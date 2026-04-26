@@ -298,8 +298,8 @@ public:
     int getFrameCount() const { return static_cast<int>(m_frames.size()); }
     int getCurrentFrame() const { return m_currentFrame; }
     
-    void setPosition(float x, float y) { m_position.x = x; m_position.y = y; }
-    void setPosition(const Vector2& pos) { m_position = pos; }
+    void setPosition(float x, float y) { m_position.x = x; m_position.y = y; updateTransform();}
+    void setPosition(const Vector2& pos) { m_position = pos; updateTransform();}
     Vector2 getPosition() const { return m_position; }
     
     void setSize(float width, float height) { m_size.x = width; m_size.y = height; generateQuadMesh(); }

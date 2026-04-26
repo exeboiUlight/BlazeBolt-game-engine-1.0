@@ -1,4 +1,9 @@
 #define STB_IMAGE_IMPLEMENTATION
+#include <stb_image/stb_image.h>
+
+#include <iostream>
+#include <vector>
+#include <string>
 
 #include <graphics/window.h>
 #include <graphics/mesh.h>
@@ -17,6 +22,7 @@
 int main() {
     Window window(1200, 600, u8"BlazeBolt game engine");
     window.setClearColor(192/255.0f, 192/255.0f, 192/255.0f, 1.0f);
+    window.setIcon("./icon.png");
 
     Audio audio;
     audio.init();
@@ -40,6 +46,12 @@ int main() {
         anim.play();
     }
 
+    Sprite2D sprite1;
+    sprite1.setPosition(1.0f, 1.0f);
+    sprite1.setSize(1.0f, 1.0f);
+    sprite1.setTexture("icon.png");
+    sprite1.setColor(1.0, 1.0, 1.0);
+
     Sprite2D sprite;
     sprite.setPosition(0, 0);
     sprite.setSize(1.0f, 1.0f);
@@ -49,7 +61,7 @@ int main() {
     Text text("./engine/assets/arial.ttf", 48);
     text.setText("Hello, BlazeBolt");
     text.setColor(1, 1, 1, 1);
-    text.setPosition(100, 100);
+    text.setPosition(1.0f, 1.0f);
     text.setScale(1.0f);
     text.setScreenSize(window.getWidth(), window.getHeight());
 
@@ -77,6 +89,7 @@ int main() {
         window.clear();
         
         sprite.draw();
+        sprite1.draw();
         anim.draw();
         text.draw();
 

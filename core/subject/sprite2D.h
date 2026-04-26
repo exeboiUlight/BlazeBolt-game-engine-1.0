@@ -3,7 +3,6 @@
 #include <graphics/mesh.h>
 #include <graphics/shader.h>
 #include <utils/math/vector.h>
-#include <stb_image/stb_image.h>
 #include <iostream>
 
 class Sprite2D {
@@ -163,10 +162,12 @@ public:
     void setPosition(float x, float y) {
         m_position.x = x;
         m_position.y = y;
+        updateTransform();
     }
     
     void setPosition(const Vector2& position) {
         m_position = position;
+        updateTransform();
     }
     
     Vector2 getPosition() const {
