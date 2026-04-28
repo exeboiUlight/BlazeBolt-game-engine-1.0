@@ -15,9 +15,11 @@
 #include <subject/animatad2D.h>
 
 #include <utils/input/input.h>
+
+#include <world.h>
+
 #include <chrono>
 #include <iostream>
-#include <libtcc.h>
 
 int main() {
     Window window(1200, 600, u8"BlazeBolt game engine");
