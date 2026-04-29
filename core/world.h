@@ -9,47 +9,58 @@ typedef uint32_t Entity;
 template<typename T>
 class World {
 private:
-    std::vector<std::pair<T, bool>> entities = std::vector<std::pair<T, bool>>();
-    std::vector<Entity> freeEntities = std::vector<Entity>();
+    std::vector<std::pair<T*, bool>> entities;
+    std::vector<Entity> freeEntities;
+    
 public:
     World() {}
-    ~World() {}
-
-    // template<typename T>
-    static World<T> &getInstance() {
-        static World<T> world;
-        return world;
+    
+    ~World() {
+        for (auto& pair : entities) {
+            if (pair.first) {
+                delete pair.first;
+                pair.first = nullptr;
+            }
+        }
     }
     
-    Entity spawn(const T &object) {
-        if (!this->freeEntities.empty()) {
-            Entity entity = this->freeEntities[this->freeEntities.size() - 1];
-            this->entities[entity - 1].first = object;
-            this->entities[entity - 1].second = false;
-            this->freeEntities.pop_back();
-            
+    // Запрещаем копирование
+    World(const World&) = delete;
+    World& operator=(const World&) = delete;
+    
+    // Spawn принимает указатель
+    Entity spawn(T* object) {
+        if (!object) return 0;
+        
+        if (!freeEntities.empty()) {
+            Entity entity = freeEntities.back();
+            entities[entity - 1].first = object;
+            entities[entity - 1].second = false;
+            freeEntities.pop_back();
             return entity;
         }
         
-        this->entities.emplace_back(object, false);
-        return this->entities.size();
-    }
-    void destroy(Entity &entity) {
-        if (entity == 0 || this->entities.size() + 1 <= entity) return;
-        this->entities[entity - 1].second = true;
-        this->freeEntities.push_back(entity);
-        entity = 0;
+        entities.emplace_back(object, false);
+        return entities.size();
     }
     
-    T *getEntity(Entity entity) {
-        if (entity == 0 || this->entities.size() + 1 <= entity) return nullptr;
-        std::pair<T, bool> &sprite = this->entities[entity - 1];
-        if (sprite.second) return nullptr;
-        
-        return &sprite.first;
+    void destroy(Entity entity) {
+        if (entity == 0 || entity > entities.size()) return;
+        if (entities[entity - 1].first) {
+            delete entities[entity - 1].first;
+            entities[entity - 1].first = nullptr;
+        }
+        entities[entity - 1].second = true;
+        freeEntities.push_back(entity);
     }
-
-    const std::vector<std::pair<T, bool>> &getAllEntities() const {
-        return this->entities;
+    
+    T* getEntity(Entity entity) {
+        if (entity == 0 || entity > entities.size()) return nullptr;
+        if (entities[entity - 1].second) return nullptr;
+        return entities[entity - 1].first;
+    }
+    
+    const std::vector<std::pair<T*, bool>>& getAllEntities() const {
+        return entities;
     }
 };

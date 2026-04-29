@@ -1,3 +1,4 @@
+// text.h
 #pragma once
 
 #include <graphics/mesh.h>
@@ -13,8 +14,8 @@
 
 struct Character {
     GLuint TextureID;
-    Vector2 Size;
-    Vector2 Bearing;
+    float SizeX, SizeY;
+    float BearingX, BearingY;
     unsigned int Advance;
 };
 
@@ -23,9 +24,9 @@ private:
     std::map<char, Character> m_characters;
     Shader* m_shader;
     std::vector<Mesh2D*> m_glyphMeshes;
-    Vector2 m_position;
+    float m_posX, m_posY;
     float m_scale;
-    Vector4 m_color;
+    float m_colorR, m_colorG, m_colorB, m_colorA;
     std::string m_text;
     bool m_visible;
     bool m_ownsShader;
@@ -89,9 +90,11 @@ private:
             
             Character character = {
                 texture,
-                Vector2(face->glyph->bitmap.width, face->glyph->bitmap.rows),
-                Vector2(face->glyph->bitmap_left, face->glyph->bitmap_top),
-                static_cast<unsigned int>(face->glyph->advance.x)
+                (float)face->glyph->bitmap.width,
+                (float)face->glyph->bitmap.rows,
+                (float)face->glyph->bitmap_left,
+                (float)face->glyph->bitmap_top,
+                (unsigned int)face->glyph->advance.x
             };
             m_characters.insert(std::pair<char, Character>(c, character));
         }
@@ -108,8 +111,8 @@ private:
 
         if (m_screenWidth == 0 || m_screenHeight == 0) return;
 
-        float x = m_position.x;
-        float y = m_position.y;
+        float x = m_posX;
+        float y = m_posY;
 
         for (size_t i = 0; i < m_text.length(); i++) {
             char c = m_text[i];
@@ -117,12 +120,10 @@ private:
 
             Character ch = m_characters[c];
 
-            float xpos = x + ch.Bearing.x * m_scale;
-
-            float ypos = y - ch.Bearing.y * m_scale;
-
-            float w = ch.Size.x * m_scale;
-            float h = ch.Size.y * m_scale;
+            float xpos = x + ch.BearingX * m_scale;
+            float ypos = y - ch.BearingY * m_scale;
+            float w = ch.SizeX * m_scale;
+            float h = ch.SizeY * m_scale;
 
             float xpos_ndc = toNDCX(xpos);
             float ypos_ndc = toNDCY(ypos);
@@ -147,23 +148,46 @@ private:
     }
 
     void initDefaultShader() {
-        m_shader = new Shader(vertexShaderSource, fragmentShaderSource);
+        const char* vertSrc = R"(
+            #version 330 core
+            layout (location = 0) in vec2 aPos;
+            layout (location = 1) in vec2 aTexCoord;
+            out vec2 TexCoord;
+            void main() {
+                gl_Position = vec4(aPos.x, aPos.y, 0.0, 1.0);
+                TexCoord = aTexCoord;
+            }
+        )";
+        
+        const char* fragSrc = R"(
+            #version 330 core
+            out vec4 FragColor;
+            in vec2 TexCoord;
+            uniform sampler2D uTextTexture;
+            uniform vec4 uColor;
+            void main() {
+                float alpha = texture(uTextTexture, TexCoord).r;
+                FragColor = vec4(uColor.rgb, uColor.a * alpha);
+            }
+        )";
+        
+        m_shader = new Shader(vertSrc, fragSrc);
         m_ownsShader = true;
     }
     
 public:
     Text(const std::string& fontPath, unsigned int fontSize = 48)
-        : m_shader(nullptr), m_position(0, 0), 
-          m_scale(1.0f), m_color(1, 1, 1, 1), m_visible(true), 
-          m_ownsShader(false), m_screenWidth(1200), m_screenHeight(600) {
+        : m_shader(nullptr), m_posX(0), m_posY(0), 
+          m_scale(1.0f), m_colorR(1), m_colorG(1), m_colorB(1), m_colorA(1),
+          m_visible(true), m_ownsShader(false), m_screenWidth(1200), m_screenHeight(600) {
         initDefaultShader();
         initFreeType(fontPath, fontSize);
     }
     
     Text(Shader* shader, const std::string& fontPath, unsigned int fontSize = 48)
-        : m_shader(shader), m_position(0, 0),
-          m_scale(1.0f), m_color(1, 1, 1, 1), m_visible(true), 
-          m_ownsShader(false), m_screenWidth(1200), m_screenHeight(600) {
+        : m_shader(shader), m_posX(0), m_posY(0),
+          m_scale(1.0f), m_colorR(1), m_colorG(1), m_colorB(1), m_colorA(1),
+          m_visible(true), m_ownsShader(false), m_screenWidth(1200), m_screenHeight(600) {
         initFreeType(fontPath, fontSize);
     }
     
@@ -191,17 +215,18 @@ public:
     std::string getText() const { return m_text; }
     
     void setPosition(float x, float y) {
-        m_position.x = x;
-        m_position.y = y;
+        m_posX = x;
+        m_posY = y;
         regenerateMeshes();
     }
     
     void setPosition(const Vector2& position) {
-        m_position = position;
+        m_posX = position.x;
+        m_posY = position.y;
         regenerateMeshes();
     }
     
-    Vector2 getPosition() const { return m_position; }
+    Vector2 getPosition() const { return Vector2(m_posX, m_posY); }
     
     void setScale(float scale) {
         m_scale = scale;
@@ -211,14 +236,20 @@ public:
     float getScale() const { return m_scale; }
     
     void setColor(float r, float g, float b, float a = 1.0f) {
-        m_color = Vector4(r, g, b, a);
+        m_colorR = r;
+        m_colorG = g;
+        m_colorB = b;
+        m_colorA = a;
     }
     
     void setColor(const Vector4& color) {
-        m_color = color;
+        m_colorR = color.x;
+        m_colorG = color.y;
+        m_colorB = color.z;
+        m_colorA = color.w;
     }
     
-    Vector4 getColor() const { return m_color; }
+    Vector4 getColor() const { return Vector4(m_colorR, m_colorG, m_colorB, m_colorA); }
     
     void setVisible(bool visible) { m_visible = visible; }
     bool isVisible() const { return m_visible; }
@@ -227,7 +258,7 @@ public:
         if (!m_visible || !m_shader || m_glyphMeshes.empty()) return;
         
         m_shader->use();
-        m_shader->setVec4("uColor", m_color.x, m_color.y, m_color.z, m_color.w);
+        m_shader->setVec4("uColor", m_colorR, m_colorG, m_colorB, m_colorA);
         
         glEnable(GL_BLEND);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -247,31 +278,3 @@ public:
         glBindTexture(GL_TEXTURE_2D, 0);
     }
 };
-
-const char* Text::vertexShaderSource = R"(
-#version 330 core
-layout (location = 0) in vec2 aPos;
-layout (location = 1) in vec2 aTexCoord;
-
-out vec2 TexCoord;
-
-void main() {
-    gl_Position = vec4(aPos.x, aPos.y, 0.0, 1.0);
-    TexCoord = aTexCoord;
-}
-)";
-
-const char* Text::fragmentShaderSource = R"(
-#version 330 core
-out vec4 FragColor;
-
-in vec2 TexCoord;
-
-uniform sampler2D uTextTexture;
-uniform vec4 uColor;
-
-void main() {
-    float alpha = texture(uTextTexture, TexCoord).r;
-    FragColor = vec4(uColor.rgb, uColor.a * alpha);
-}
-)";

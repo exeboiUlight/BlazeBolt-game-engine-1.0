@@ -281,7 +281,12 @@ namespace LuaEngine {
             float x = luaL_optnumber(state, 2, 0);
             float y = luaL_optnumber(state, 3, 0);
             
+            std::cout << "NewSprite: Creating sprite with texture: " << texturePath << " at (" << x << ", " << y << ")" << std::endl;
+            
             Entity entity = engine->createSprite(texturePath, Vector2(x, y));
+            
+            std::cout << "NewSprite: Entity ID = " << entity << std::endl;
+            
             lua_pushinteger(state, entity);
             return 1;
         }
@@ -1098,19 +1103,128 @@ namespace LuaEngine {
         
         // Key constants
         lua_newtable(state);
-        lua_pushinteger(state, GLFW_KEY_SPACE); lua_setfield(state, -2, "SPACE");
+        
+        // Буквы A-Z
+        lua_pushinteger(state, GLFW_KEY_A); lua_setfield(state, -2, "A");
+        lua_pushinteger(state, GLFW_KEY_B); lua_setfield(state, -2, "B");
+        lua_pushinteger(state, GLFW_KEY_C); lua_setfield(state, -2, "C");
+        lua_pushinteger(state, GLFW_KEY_D); lua_setfield(state, -2, "D");
+        lua_pushinteger(state, GLFW_KEY_E); lua_setfield(state, -2, "E");
+        lua_pushinteger(state, GLFW_KEY_F); lua_setfield(state, -2, "F");
+        lua_pushinteger(state, GLFW_KEY_G); lua_setfield(state, -2, "G");
+        lua_pushinteger(state, GLFW_KEY_H); lua_setfield(state, -2, "H");
+        lua_pushinteger(state, GLFW_KEY_I); lua_setfield(state, -2, "I");
+        lua_pushinteger(state, GLFW_KEY_J); lua_setfield(state, -2, "J");
+        lua_pushinteger(state, GLFW_KEY_K); lua_setfield(state, -2, "K");
+        lua_pushinteger(state, GLFW_KEY_L); lua_setfield(state, -2, "L");
+        lua_pushinteger(state, GLFW_KEY_M); lua_setfield(state, -2, "M");
+        lua_pushinteger(state, GLFW_KEY_N); lua_setfield(state, -2, "N");
+        lua_pushinteger(state, GLFW_KEY_O); lua_setfield(state, -2, "O");
+        lua_pushinteger(state, GLFW_KEY_P); lua_setfield(state, -2, "P");
+        lua_pushinteger(state, GLFW_KEY_Q); lua_setfield(state, -2, "Q");
+        lua_pushinteger(state, GLFW_KEY_R); lua_setfield(state, -2, "R");
+        lua_pushinteger(state, GLFW_KEY_S); lua_setfield(state, -2, "S");
+        lua_pushinteger(state, GLFW_KEY_T); lua_setfield(state, -2, "T");
+        lua_pushinteger(state, GLFW_KEY_U); lua_setfield(state, -2, "U");
+        lua_pushinteger(state, GLFW_KEY_V); lua_setfield(state, -2, "V");
+        lua_pushinteger(state, GLFW_KEY_W); lua_setfield(state, -2, "W");
+        lua_pushinteger(state, GLFW_KEY_X); lua_setfield(state, -2, "X");
+        lua_pushinteger(state, GLFW_KEY_Y); lua_setfield(state, -2, "Y");
+        lua_pushinteger(state, GLFW_KEY_Z); lua_setfield(state, -2, "Z");
+        
+        // Цифры 0-9
+        lua_pushinteger(state, GLFW_KEY_0); lua_setfield(state, -2, "NUM0");
+        lua_pushinteger(state, GLFW_KEY_1); lua_setfield(state, -2, "NUM1");
+        lua_pushinteger(state, GLFW_KEY_2); lua_setfield(state, -2, "NUM2");
+        lua_pushinteger(state, GLFW_KEY_3); lua_setfield(state, -2, "NUM3");
+        lua_pushinteger(state, GLFW_KEY_4); lua_setfield(state, -2, "NUM4");
+        lua_pushinteger(state, GLFW_KEY_5); lua_setfield(state, -2, "NUM5");
+        lua_pushinteger(state, GLFW_KEY_6); lua_setfield(state, -2, "NUM6");
+        lua_pushinteger(state, GLFW_KEY_7); lua_setfield(state, -2, "NUM7");
+        lua_pushinteger(state, GLFW_KEY_8); lua_setfield(state, -2, "NUM8");
+        lua_pushinteger(state, GLFW_KEY_9); lua_setfield(state, -2, "NUM9");
+        
+        // Функциональные клавиши F1-F25
+        lua_pushinteger(state, GLFW_KEY_F1); lua_setfield(state, -2, "F1");
+        lua_pushinteger(state, GLFW_KEY_F2); lua_setfield(state, -2, "F2");
+        lua_pushinteger(state, GLFW_KEY_F3); lua_setfield(state, -2, "F3");
+        lua_pushinteger(state, GLFW_KEY_F4); lua_setfield(state, -2, "F4");
+        lua_pushinteger(state, GLFW_KEY_F5); lua_setfield(state, -2, "F5");
+        lua_pushinteger(state, GLFW_KEY_F6); lua_setfield(state, -2, "F6");
+        lua_pushinteger(state, GLFW_KEY_F7); lua_setfield(state, -2, "F7");
+        lua_pushinteger(state, GLFW_KEY_F8); lua_setfield(state, -2, "F8");
+        lua_pushinteger(state, GLFW_KEY_F9); lua_setfield(state, -2, "F9");
+        lua_pushinteger(state, GLFW_KEY_F10); lua_setfield(state, -2, "F10");
+        lua_pushinteger(state, GLFW_KEY_F11); lua_setfield(state, -2, "F11");
+        lua_pushinteger(state, GLFW_KEY_F12); lua_setfield(state, -2, "F12");
+        lua_pushinteger(state, GLFW_KEY_F13); lua_setfield(state, -2, "F13");
+        lua_pushinteger(state, GLFW_KEY_F14); lua_setfield(state, -2, "F14");
+        lua_pushinteger(state, GLFW_KEY_F15); lua_setfield(state, -2, "F15");
+        lua_pushinteger(state, GLFW_KEY_F16); lua_setfield(state, -2, "F16");
+        lua_pushinteger(state, GLFW_KEY_F17); lua_setfield(state, -2, "F17");
+        lua_pushinteger(state, GLFW_KEY_F18); lua_setfield(state, -2, "F18");
+        lua_pushinteger(state, GLFW_KEY_F19); lua_setfield(state, -2, "F19");
+        lua_pushinteger(state, GLFW_KEY_F20); lua_setfield(state, -2, "F20");
+        lua_pushinteger(state, GLFW_KEY_F21); lua_setfield(state, -2, "F21");
+        lua_pushinteger(state, GLFW_KEY_F22); lua_setfield(state, -2, "F22");
+        lua_pushinteger(state, GLFW_KEY_F23); lua_setfield(state, -2, "F23");
+        lua_pushinteger(state, GLFW_KEY_F24); lua_setfield(state, -2, "F24");
+        lua_pushinteger(state, GLFW_KEY_F25); lua_setfield(state, -2, "F25");
+        
+        // Клавиши со стрелками
         lua_pushinteger(state, GLFW_KEY_UP); lua_setfield(state, -2, "UP");
         lua_pushinteger(state, GLFW_KEY_DOWN); lua_setfield(state, -2, "DOWN");
         lua_pushinteger(state, GLFW_KEY_LEFT); lua_setfield(state, -2, "LEFT");
         lua_pushinteger(state, GLFW_KEY_RIGHT); lua_setfield(state, -2, "RIGHT");
-        lua_pushinteger(state, GLFW_KEY_W); lua_setfield(state, -2, "W");
-        lua_pushinteger(state, GLFW_KEY_A); lua_setfield(state, -2, "A");
-        lua_pushinteger(state, GLFW_KEY_S); lua_setfield(state, -2, "S");
-        lua_pushinteger(state, GLFW_KEY_D); lua_setfield(state, -2, "D");
+        
+        // Модификаторы
+        lua_pushinteger(state, GLFW_KEY_LEFT_SHIFT); lua_setfield(state, -2, "LEFT_SHIFT");
+        lua_pushinteger(state, GLFW_KEY_RIGHT_SHIFT); lua_setfield(state, -2, "RIGHT_SHIFT");
+        lua_pushinteger(state, GLFW_KEY_LEFT_CONTROL); lua_setfield(state, -2, "LEFT_CONTROL");
+        lua_pushinteger(state, GLFW_KEY_RIGHT_CONTROL); lua_setfield(state, -2, "RIGHT_CONTROL");
+        lua_pushinteger(state, GLFW_KEY_LEFT_ALT); lua_setfield(state, -2, "LEFT_ALT");
+        lua_pushinteger(state, GLFW_KEY_RIGHT_ALT); lua_setfield(state, -2, "RIGHT_ALT");
+        lua_pushinteger(state, GLFW_KEY_LEFT_SUPER); lua_setfield(state, -2, "LEFT_SUPER");
+        lua_pushinteger(state, GLFW_KEY_RIGHT_SUPER); lua_setfield(state, -2, "RIGHT_SUPER");
+        
+        // Клавиши цифровой клавиатуры
+        lua_pushinteger(state, GLFW_KEY_KP_0); lua_setfield(state, -2, "KP_0");
+        lua_pushinteger(state, GLFW_KEY_KP_1); lua_setfield(state, -2, "KP_1");
+        lua_pushinteger(state, GLFW_KEY_KP_2); lua_setfield(state, -2, "KP_2");
+        lua_pushinteger(state, GLFW_KEY_KP_3); lua_setfield(state, -2, "KP_3");
+        lua_pushinteger(state, GLFW_KEY_KP_4); lua_setfield(state, -2, "KP_4");
+        lua_pushinteger(state, GLFW_KEY_KP_5); lua_setfield(state, -2, "KP_5");
+        lua_pushinteger(state, GLFW_KEY_KP_6); lua_setfield(state, -2, "KP_6");
+        lua_pushinteger(state, GLFW_KEY_KP_7); lua_setfield(state, -2, "KP_7");
+        lua_pushinteger(state, GLFW_KEY_KP_8); lua_setfield(state, -2, "KP_8");
+        lua_pushinteger(state, GLFW_KEY_KP_9); lua_setfield(state, -2, "KP_9");
+        lua_pushinteger(state, GLFW_KEY_KP_DECIMAL); lua_setfield(state, -2, "KP_DECIMAL");
+        lua_pushinteger(state, GLFW_KEY_KP_DIVIDE); lua_setfield(state, -2, "KP_DIVIDE");
+        lua_pushinteger(state, GLFW_KEY_KP_MULTIPLY); lua_setfield(state, -2, "KP_MULTIPLY");
+        lua_pushinteger(state, GLFW_KEY_KP_SUBTRACT); lua_setfield(state, -2, "KP_SUBTRACT");
+        lua_pushinteger(state, GLFW_KEY_KP_ADD); lua_setfield(state, -2, "KP_ADD");
+        lua_pushinteger(state, GLFW_KEY_KP_ENTER); lua_setfield(state, -2, "KP_ENTER");
+        lua_pushinteger(state, GLFW_KEY_KP_EQUAL); lua_setfield(state, -2, "KP_EQUAL");
+        
+        // Специальные клавиши
         lua_pushinteger(state, GLFW_KEY_ENTER); lua_setfield(state, -2, "ENTER");
         lua_pushinteger(state, GLFW_KEY_ESCAPE); lua_setfield(state, -2, "ESCAPE");
+        lua_pushinteger(state, GLFW_KEY_SPACE); lua_setfield(state, -2, "SPACE");
         lua_pushinteger(state, GLFW_KEY_TAB); lua_setfield(state, -2, "TAB");
         lua_pushinteger(state, GLFW_KEY_BACKSPACE); lua_setfield(state, -2, "BACKSPACE");
+        lua_pushinteger(state, GLFW_KEY_DELETE); lua_setfield(state, -2, "DELETE");
+        lua_pushinteger(state, GLFW_KEY_INSERT); lua_setfield(state, -2, "INSERT");
+        lua_pushinteger(state, GLFW_KEY_HOME); lua_setfield(state, -2, "HOME");
+        lua_pushinteger(state, GLFW_KEY_END); lua_setfield(state, -2, "END");
+        lua_pushinteger(state, GLFW_KEY_PAGE_UP); lua_setfield(state, -2, "PAGE_UP");
+        lua_pushinteger(state, GLFW_KEY_PAGE_DOWN); lua_setfield(state, -2, "PAGE_DOWN");
+        lua_pushinteger(state, GLFW_KEY_CAPS_LOCK); lua_setfield(state, -2, "CAPS_LOCK");
+        lua_pushinteger(state, GLFW_KEY_NUM_LOCK); lua_setfield(state, -2, "NUM_LOCK");
+        lua_pushinteger(state, GLFW_KEY_SCROLL_LOCK); lua_setfield(state, -2, "SCROLL_LOCK");
+        lua_pushinteger(state, GLFW_KEY_PRINT_SCREEN); lua_setfield(state, -2, "PRINT_SCREEN");
+        lua_pushinteger(state, GLFW_KEY_PAUSE); lua_setfield(state, -2, "PAUSE");
+        lua_pushinteger(state, GLFW_KEY_MENU); lua_setfield(state, -2, "MENU");
+        
         lua_setglobal(state, "Keys");
         
         // Mouse button constants
@@ -1289,18 +1403,22 @@ namespace LuaEngine {
         sprite->setTexture(texturePath);
         sprite->setPosition(position);
         
-        Entity entity = spriteWorld.spawn(*sprite);
-        delete sprite;
+        Entity entity = spriteWorld.spawn(sprite);
         
-        objectMap[entity] = RegisteredObject(RegisteredObject::SPRITE, 
-            spriteWorld.getEntity(entity), entity);
+        objectMap[entity] = RegisteredObject(RegisteredObject::SPRITE, sprite, entity);
+        
+        std::cout << "createSprite: Created entity " << entity << " with texture " << texturePath << std::endl;
         
         return entity;
     }
     
     void LuaEngine::spriteSetPosition(Entity entity, const Vector2& pos) {
         Sprite2D* sprite = spriteWorld.getEntity(entity);
-        if (sprite) sprite->setPosition(pos);
+        if (sprite) {
+            sprite->setPosition(pos);
+        } else {
+            std::cerr << "spriteSetPosition: Entity " << entity << " not found!" << std::endl;
+        }
     }
     
     Vector2 LuaEngine::spriteGetPosition(Entity entity) {
@@ -1342,8 +1460,8 @@ namespace LuaEngine {
     
     void LuaEngine::drawAllSprites() {
         for (const auto& pair : spriteWorld.getAllEntities()) {
-            if (!pair.second) {
-                const_cast<Sprite2D&>(pair.first).draw();
+            if (!pair.second && pair.first) {
+                pair.first->draw();
             }
         }
     }
@@ -1359,13 +1477,12 @@ namespace LuaEngine {
             anim->setPosition(position);
             anim->play();
         }
-        Entity entity = animationWorld.spawn(*anim);
-        delete anim;
+        Entity entity = animationWorld.spawn(anim);
         if (loaded) {
-            objectMap[entity] = RegisteredObject(RegisteredObject::ANIMATION, 
-                animationWorld.getEntity(entity), entity);
+            objectMap[entity] = RegisteredObject(RegisteredObject::ANIMATION, anim, entity);
             return entity;
         }
+        delete anim;
         return 0;
     }
     
@@ -1376,10 +1493,8 @@ namespace LuaEngine {
         anim->loadFromSpriteSheet(texturePath, frameWidth, frameHeight, totalFrames, framesPerRow, frameDelayMs);
         anim->setPosition(position);
         anim->play();
-        Entity entity = animationWorld.spawn(*anim);
-        delete anim;
-        objectMap[entity] = RegisteredObject(RegisteredObject::ANIMATION, 
-            animationWorld.getEntity(entity), entity);
+        Entity entity = animationWorld.spawn(anim);
+        objectMap[entity] = RegisteredObject(RegisteredObject::ANIMATION, anim, entity);
         return entity;
     }
     
@@ -1442,16 +1557,16 @@ namespace LuaEngine {
     
     void LuaEngine::updateAllAnimations(float dt) {
         for (const auto& pair : animationWorld.getAllEntities()) {
-            if (!pair.second) {
-                const_cast<Animation2D&>(pair.first).update(dt);
+            if (!pair.second && pair.first) {
+                pair.first->update(dt);
             }
         }
     }
     
     void LuaEngine::drawAllAnimations() {
         for (const auto& pair : animationWorld.getAllEntities()) {
-            if (!pair.second) {
-                const_cast<Animation2D&>(pair.first).draw();
+            if (!pair.second && pair.first) {
+                pair.first->draw();
             }
         }
     }
@@ -1462,10 +1577,8 @@ namespace LuaEngine {
         Text* textObj = new Text(fontPath, fontSize);
         textObj->setText(text);
         textObj->setPosition(position);
-        Entity entity = textWorld.spawn(*textObj);
-        delete textObj;
-        objectMap[entity] = RegisteredObject(RegisteredObject::TEXT, 
-            textWorld.getEntity(entity), entity);
+        Entity entity = textWorld.spawn(textObj);
+        objectMap[entity] = RegisteredObject(RegisteredObject::TEXT, textObj, entity);
         return entity;
     }
     
@@ -1502,16 +1615,16 @@ namespace LuaEngine {
     
     void LuaEngine::drawAllTexts() {
         for (const auto& pair : textWorld.getAllEntities()) {
-            if (!pair.second) {
-                const_cast<Text&>(pair.first).draw();
+            if (!pair.second && pair.first) {
+                pair.first->draw();
             }
         }
     }
     
     void LuaEngine::setTextScreenSize(int width, int height) {
         for (const auto& pair : textWorld.getAllEntities()) {
-            if (!pair.second) {
-                const_cast<Text&>(pair.first).setScreenSize(width, height);
+            if (!pair.second && pair.first) {
+                pair.first->setScreenSize(width, height);
             }
         }
     }
@@ -1519,10 +1632,8 @@ namespace LuaEngine {
     // Mesh implementations
     Entity LuaEngine::createMesh() {
         Mesh2D* mesh = new Mesh2D();
-        Entity entity = meshWorld.spawn(*mesh);
-        delete mesh;
-        objectMap[entity] = RegisteredObject(RegisteredObject::MESH, 
-            meshWorld.getEntity(entity), entity);
+        Entity entity = meshWorld.spawn(mesh);
+        objectMap[entity] = RegisteredObject(RegisteredObject::MESH, mesh, entity);
         return entity;
     }
     
@@ -1538,8 +1649,8 @@ namespace LuaEngine {
     
     void LuaEngine::drawAllMeshes() {
         for (const auto& pair : meshWorld.getAllEntities()) {
-            if (!pair.second) {
-                const_cast<Mesh2D&>(pair.first).draw();
+            if (!pair.second && pair.first) {
+                pair.first->draw();
             }
         }
     }

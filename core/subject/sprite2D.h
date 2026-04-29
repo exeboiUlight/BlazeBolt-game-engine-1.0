@@ -149,6 +149,9 @@ public:
     
     void setTexture(const std::string& filepath) {
         loadTexture(filepath);
+        if (m_texture == 0) {
+            std::cerr << "Warning: Could not load texture, using color only" << std::endl;
+        }
     }
     
     void setShader(Shader* shader) {
