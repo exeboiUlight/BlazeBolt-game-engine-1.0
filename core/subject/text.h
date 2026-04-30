@@ -33,9 +33,6 @@ private:
     int m_screenWidth;
     int m_screenHeight;
     
-    static const char* vertexShaderSource;
-    static const char* fragmentShaderSource;
-    
     float toNDCX(float pixelX) const {
         return (pixelX / m_screenWidth) * 2.0f - 1.0f;
     }
@@ -96,7 +93,7 @@ private:
                 (float)face->glyph->bitmap_top,
                 (unsigned int)face->glyph->advance.x
             };
-            m_characters.insert(std::pair<char, Character>(c, character));
+            m_characters[c] = character;
         }
         
         FT_Done_Face(face);
@@ -116,25 +113,26 @@ private:
 
         for (size_t i = 0; i < m_text.length(); i++) {
             char c = m_text[i];
-            if (m_characters.find(c) == m_characters.end()) continue;
+            auto it = m_characters.find(c);
+            if (it == m_characters.end()) continue;
 
-            Character ch = m_characters[c];
+            Character ch = it->second;
 
             float xpos = x + ch.BearingX * m_scale;
             float ypos = y - ch.BearingY * m_scale;
             float w = ch.SizeX * m_scale;
             float h = ch.SizeY * m_scale;
 
-            float xpos_ndc = toNDCX(xpos);
-            float ypos_ndc = toNDCY(ypos);
-            float xpos_w_ndc = toNDCX(xpos + w);
-            float ypos_h_ndc = toNDCY(ypos + h);
+            float left = toNDCX(xpos);
+            float right = toNDCX(xpos + w);
+            float top = toNDCY(ypos);
+            float bottom = toNDCY(ypos + h);
 
             std::vector<Mesh2D::Vertex> vertices = {
-                {xpos_ndc,     ypos_ndc,     0.0f, 0.0f},
-                {xpos_w_ndc,   ypos_ndc,     1.0f, 0.0f},
-                {xpos_w_ndc,   ypos_h_ndc,   1.0f, 1.0f},
-                {xpos_ndc,     ypos_h_ndc,   0.0f, 1.0f}
+                {left,  top,    0.0f, 0.0f},
+                {right, top,    1.0f, 0.0f},
+                {right, bottom, 1.0f, 1.0f},
+                {left,  bottom, 0.0f, 1.0f}
             };
 
             std::vector<GLuint> indices = {0, 1, 2, 2, 3, 0};
@@ -176,6 +174,10 @@ private:
     }
     
 public:
+    Text() : m_shader(nullptr), m_posX(0), m_posY(0), 
+             m_scale(1.0f), m_colorR(1), m_colorG(1), m_colorB(1), m_colorA(1),
+             m_visible(true), m_ownsShader(false), m_screenWidth(1200), m_screenHeight(600) {}
+    
     Text(const std::string& fontPath, unsigned int fontSize = 48)
         : m_shader(nullptr), m_posX(0), m_posY(0), 
           m_scale(1.0f), m_colorR(1), m_colorG(1), m_colorB(1), m_colorA(1),
@@ -265,16 +267,38 @@ public:
         
         for (size_t i = 0; i < m_text.length() && i < m_glyphMeshes.size(); i++) {
             char c = m_text[i];
-            if (m_characters.find(c) != m_characters.end()) {
+            auto it = m_characters.find(c);
+            if (it != m_characters.end()) {
                 glActiveTexture(GL_TEXTURE0);
-                glBindTexture(GL_TEXTURE_2D, m_characters.at(c).TextureID);
+                glBindTexture(GL_TEXTURE_2D, it->second.TextureID);
                 m_shader->setInt("uTextTexture", 0);
-                
                 m_glyphMeshes[i]->draw();
             }
         }
         
         glDisable(GL_BLEND);
         glBindTexture(GL_TEXTURE_2D, 0);
+    }
+    
+    float getTextHeight() const {
+        float maxHeight = 0;
+        for (char c : m_text) {
+            auto it = m_characters.find(c);
+            if (it != m_characters.end()) {
+                maxHeight = std::max(maxHeight, it->second.SizeY);
+            }
+        }
+        return maxHeight * m_scale;
+    }
+    
+    float getTextWidth() const {
+        float width = 0;
+        for (char c : m_text) {
+            auto it = m_characters.find(c);
+            if (it != m_characters.end()) {
+                width += (it->second.Advance >> 6) * m_scale;
+            }
+        }
+        return width;
     }
 };
