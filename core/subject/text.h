@@ -32,6 +32,7 @@ private:
     bool m_ownsShader;
     int m_screenWidth;
     int m_screenHeight;
+    float m_maxAscent;
     
     float toNDCX(float pixelX) const {
         return (pixelX / m_screenWidth) * 2.0f - 1.0f;
@@ -59,6 +60,8 @@ private:
         
         glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
         
+        m_maxAscent = 0;
+        
         for (unsigned char c = 0; c < 128; c++) {
             if (FT_Load_Char(face, c, FT_LOAD_RENDER)) {
                 std::cerr << "ERROR::FREETYPE: Failed to load Glyph: " << c << std::endl;
@@ -85,12 +88,17 @@ private:
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
             
+            float bearingY = (float)face->glyph->bitmap_top;
+            if (bearingY > m_maxAscent) {
+                m_maxAscent = bearingY;
+            }
+            
             Character character = {
                 texture,
                 (float)face->glyph->bitmap.width,
                 (float)face->glyph->bitmap.rows,
                 (float)face->glyph->bitmap_left,
-                (float)face->glyph->bitmap_top,
+                bearingY,
                 (unsigned int)face->glyph->advance.x
             };
             m_characters[c] = character;
@@ -109,7 +117,7 @@ private:
         if (m_screenWidth == 0 || m_screenHeight == 0) return;
 
         float x = m_posX;
-        float y = m_posY;
+        float y = m_posY + m_maxAscent * m_scale;
 
         for (size_t i = 0; i < m_text.length(); i++) {
             char c = m_text[i];
@@ -176,12 +184,12 @@ private:
 public:
     Text() : m_shader(nullptr), m_posX(0), m_posY(0), 
              m_scale(1.0f), m_colorR(1), m_colorG(1), m_colorB(1), m_colorA(1),
-             m_visible(true), m_ownsShader(false), m_screenWidth(1200), m_screenHeight(600) {}
+             m_visible(true), m_ownsShader(false), m_screenWidth(1200), m_screenHeight(600), m_maxAscent(0) {}
     
     Text(const std::string& fontPath, unsigned int fontSize = 48)
         : m_shader(nullptr), m_posX(0), m_posY(0), 
           m_scale(1.0f), m_colorR(1), m_colorG(1), m_colorB(1), m_colorA(1),
-          m_visible(true), m_ownsShader(false), m_screenWidth(1200), m_screenHeight(600) {
+          m_visible(true), m_ownsShader(false), m_screenWidth(1200), m_screenHeight(600), m_maxAscent(0) {
         initDefaultShader();
         initFreeType(fontPath, fontSize);
     }
@@ -189,7 +197,7 @@ public:
     Text(Shader* shader, const std::string& fontPath, unsigned int fontSize = 48)
         : m_shader(shader), m_posX(0), m_posY(0),
           m_scale(1.0f), m_colorR(1), m_colorG(1), m_colorB(1), m_colorA(1),
-          m_visible(true), m_ownsShader(false), m_screenWidth(1200), m_screenHeight(600) {
+          m_visible(true), m_ownsShader(false), m_screenWidth(1200), m_screenHeight(600), m_maxAscent(0) {
         initFreeType(fontPath, fontSize);
     }
     

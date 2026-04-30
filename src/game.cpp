@@ -4,6 +4,7 @@
 #include <iostream>
 #include <vector>
 #include <string>
+#include <memory>
 
 #include <graphics/window.h>
 #include <graphics/mesh.h>
@@ -20,60 +21,136 @@
 #include <engine/lua.h>
 
 #include <chrono>
-#include <iostream>
+#include <thread>
 
-int main() {
-    Window window(1200, 600, "BlazeBolt Game Engine");
+class GameEngine {
+private:
+    std::unique_ptr<Window> mainWindow;
+    std::unique_ptr<LuaEngine::LuaEngine> luaEngine;
+    bool isRunning;
+    float deltaTime;
+    std::chrono::steady_clock::time_point lastTime;
+    int windowWidth;
+    int windowHeight;
     
-    if (!window.getGLFWwindow()) {
-        std::cerr << "Failed to create window" << std::endl;
-        return -1;
+public:
+    GameEngine() : isRunning(true), deltaTime(0.0f), windowWidth(1200), windowHeight(600) {}
+    
+    ~GameEngine() {
+        shutdown();
     }
     
-    Input::getInstance().init(window.getGLFWwindow());
-    
-    LuaEngine::LuaEngine engine;
-    engine.Init();
-    
-    engine.setTextScreenSize(window.getWidth(), window.getHeight());
-    
-    if (!engine.loadScriptsFromList("engine/scripts.list")) {
-        std::cerr << "Failed to load scripts" << std::endl;
-        return -1;
-    }
-    
-    engine.callFunction("Start");
-    
-    auto lastTime = std::chrono::high_resolution_clock::now();
-    float deltaTime = 0.0f;
-    
-    std::cout << "Game loop started" << std::endl;
-    
-    while (!window.shouldClose()) {
-        auto currentTime = std::chrono::high_resolution_clock::now();
-        deltaTime = std::chrono::duration<float>(currentTime - lastTime).count();
-        lastTime = currentTime;
+    bool init(int width, int height, const char* title) {
+        windowWidth = width;
+        windowHeight = height;
         
-        if (deltaTime > 0.033f) {
-            deltaTime = 0.033f;
+        mainWindow = std::make_unique<Window>(width, height, title);
+        
+        if (!mainWindow->getGLFWwindow()) {
+            std::cerr << "Failed to create window" << std::endl;
+            return false;
         }
         
-        window.pollEvents();
-        Input::getInstance().update();
+        Input::getInstance().init(mainWindow->getGLFWwindow());
         
-        engine.callUpdate(deltaTime);
-        engine.updateAll(deltaTime);
+        luaEngine = std::make_unique<LuaEngine::LuaEngine>();
+        luaEngine->Init();
         
-        window.clear();
-        window.setClearColor(0.1f, 0.1f, 0.15f, 1.0f);
+        // Устанавливаем указатель на главное окно в LuaEngine
+        luaEngine->setMainWindow(mainWindow.get());
         
-        engine.callDraw();
-        engine.drawAll();
+        luaEngine->setTextScreenSize(width, height);
         
-        window.swapBuffers();
+        if (!luaEngine->loadScriptsFromList("engine/scripts.list")) {
+            std::cerr << "Failed to load scripts" << std::endl;
+            return false;
+        }
+        
+        // Вызываем Start с передачей размеров экрана
+        luaEngine->callFunction("Start");
+        
+        lastTime = std::chrono::steady_clock::now();
+        
+        std::cout << "Game Engine initialized successfully" << std::endl;
+        std::cout << "Screen size: " << width << "x" << height << std::endl;
+        return true;
     }
     
-    std::cout << "Game loop ended" << std::endl;
+    void run() {
+        while (isRunning && !mainWindow->shouldClose()) {
+            auto currentTime = std::chrono::steady_clock::now();
+            deltaTime = std::chrono::duration<float>(currentTime - lastTime).count();
+            lastTime = currentTime;
+            
+            if (deltaTime > 0.033f) {
+                deltaTime = 0.033f;
+            }
+            
+            // Проверяем, не изменился ли размер окна
+            int newWidth = mainWindow->getWidth();
+            int newHeight = mainWindow->getHeight();
+            if (newWidth != windowWidth || newHeight != windowHeight) {
+                windowWidth = newWidth;
+                windowHeight = newHeight;
+                luaEngine->setTextScreenSize(windowWidth, windowHeight);
+                std::cout << "Window resized to: " << windowWidth << "x" << windowHeight << std::endl;
+            }
+            
+            update();
+            render();
+            
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        }
+    }
+    
+    void update() {
+        mainWindow->pollEvents();
+        Input::getInstance().update();
+        
+        luaEngine->callUpdate(deltaTime);
+        luaEngine->updateAll(deltaTime);
+        
+        if (Input::getInstance().isKeyJustPressed(GLFW_KEY_ESCAPE)) {
+            shutdown();
+        }
+    }
+    
+    void render() {
+        mainWindow->clear();
+        mainWindow->setClearColor(0.1f, 0.1f, 0.15f, 1.0f);
+        
+        luaEngine->callDraw();
+        luaEngine->drawAll();
+        
+        mainWindow->swapBuffers();
+    }
+    
+    void shutdown() {
+        isRunning = false;
+        
+        if (luaEngine) {
+            luaEngine->callEnd();
+            luaEngine->shutdown();
+            luaEngine.reset();
+        }
+        
+        std::cout << "Game Engine shut down" << std::endl;
+    }
+    
+    int getScreenWidth() const { return windowWidth; }
+    int getScreenHeight() const { return windowHeight; }
+};
+
+int main(int argc, char* argv[]) {
+    
+    GameEngine game;
+    
+    if (!game.init(1200, 600, "BlazeBolt Game Engine")) {
+        std::cerr << "Failed to initialize game engine" << std::endl;
+        return -1;
+    }
+    
+    game.run();
     
     return 0;
 }

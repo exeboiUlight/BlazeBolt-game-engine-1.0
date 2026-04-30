@@ -1,3 +1,4 @@
+// lua.h - исправленная версия с функциями получения размера экрана
 #pragma once
 
 #include <lua.hpp>
@@ -10,6 +11,7 @@
 #include <subject/audio.h>
 #include <graphics/mesh.h>
 #include <utils/input/input.h>
+#include <graphics/window.h>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -17,31 +19,61 @@
 #include <iostream>
 #include <fstream>
 #include <filesystem>
+#include <memory>
+#include <algorithm>
 
 namespace LuaEngine {
     
-    // Forward declarations
+    // Forward declaration
     class LuaEngine;
     
     // Helper structure to track registered objects
     struct RegisteredObject {
-        enum Type { SPRITE, ANIMATION, TEXT, MESH, UNKNOWN } type;
+        enum Type { SPRITE, ANIMATION, TEXT, MESH, WINDOW, UNKNOWN } type;
         void* ptr;
         Entity entity;
+        std::shared_ptr<Window> windowPtr;
         
         RegisteredObject() : type(UNKNOWN), ptr(nullptr), entity(0) {}
         RegisteredObject(Type t, void* p, Entity e = 0) : type(t), ptr(p), entity(e) {}
+        RegisteredObject(std::shared_ptr<Window> w) : type(WINDOW), ptr(nullptr), entity(0), windowPtr(w) {}
     };
     
-    // Script info structure
+    // Script info structure with scene support
     struct ScriptInfo {
         std::string name;
         std::string path;
         bool enabled;
         bool loaded;
+        bool isScene;
+        std::vector<std::string> dependencies;
         
-        ScriptInfo() : enabled(true), loaded(false) {}
-        ScriptInfo(const std::string& n, const std::string& p) : name(n), path(p), enabled(true), loaded(false) {}
+        ScriptInfo() : enabled(true), loaded(false), isScene(false) {}
+        ScriptInfo(const std::string& n, const std::string& p) : name(n), path(p), enabled(true), loaded(false), isScene(false) {}
+    };
+    
+    // Scene manager (forward declared, implemented after LuaEngine)
+    class SceneManager {
+    private:
+        std::string currentScene;
+        std::string nextScene;
+        std::unordered_map<std::string, ScriptInfo> scenes;
+        LuaEngine* engine;
+        bool transitioning;
+        float transitionTimer;
+        
+    public:
+        SceneManager(LuaEngine* eng);
+        
+        void registerScene(const std::string& name, const std::string& path);
+        bool loadScene(const std::string& name);
+        void update(float dt);
+        void performSceneSwitch();
+        void callSceneLoad(const std::string& scene);
+        void callSceneUnload(const std::string& scene);
+        
+        std::string getCurrentScene() const { return currentScene; }
+        bool isTransitioning() const { return transitioning; }
     };
     
     // ==================== LUA ENGINE CLASS ====================
@@ -66,6 +98,15 @@ namespace LuaEngine {
         std::vector<ScriptInfo> scripts;
         std::string scriptsListPath;
         
+        // Scene management
+        std::unique_ptr<SceneManager> sceneManager;
+        
+        // Additional windows
+        std::vector<std::shared_ptr<Window>> additionalWindows;
+        
+        // Main window pointer
+        Window* mainWindow;
+        
         void registerCFunctions();
         bool parseScriptsList(const std::string& listPath);
         
@@ -76,6 +117,12 @@ namespace LuaEngine {
         int Init();
         void shutdown();
         
+        // Main window management
+        void setMainWindow(Window* window) { mainWindow = window; }
+        Window* getMainWindow() const { return mainWindow; }
+        int getScreenWidth() const { return mainWindow ? mainWindow->getWidth() : 0; }
+        int getScreenHeight() const { return mainWindow ? mainWindow->getHeight() : 0; }
+        
         // Script management
         bool loadScriptsFromList(const std::string& listPath);
         bool loadScript(const std::string& scriptPath);
@@ -85,13 +132,19 @@ namespace LuaEngine {
         bool isScriptLoaded(const std::string& scriptName) const;
         std::vector<std::string> getLoadedScripts() const;
         
+        // Scene management
+        SceneManager* getSceneManager() { return sceneManager.get(); }
+        bool loadScene(const std::string& sceneName);
+        
         // Lua callbacks
         bool callFunction(const std::string& funcName);
         bool callUpdate(float dt);
         bool callDraw();
+        bool callEnd();
         
         // Sprite management
         Entity createSprite(const std::string& texturePath, const Vector2& position);
+        void spriteSetTexture(Entity entity, const std::string& texturePath);
         void spriteSetPosition(Entity entity, const Vector2& pos);
         Vector2 spriteGetPosition(Entity entity);
         void spriteSetSize(Entity entity, const Vector2& size);
@@ -151,8 +204,19 @@ namespace LuaEngine {
         void stopAllSounds();
         void updateAudio();
         
-        // General
+        // Window management
+        std::shared_ptr<Window> createWindow(int width, int height, const std::string& title);
+        void destroyWindow(std::shared_ptr<Window> window);
+        void setWindowTitle(std::shared_ptr<Window> window, const std::string& title);
+        void setWindowSize(std::shared_ptr<Window> window, int width, int height);
+        void setWindowPosition(std::shared_ptr<Window> window, int x, int y);
+        void setWindowIcon(std::shared_ptr<Window> window, const std::string& iconPath);
+        
+        // Object deletion
         void destroyEntity(Entity entity);
+        void destroyAllEntities();
+        
+        // General
         float getDeltaTime() const;
         void setDeltaTime(float dt);
         lua_State* getState();
@@ -161,7 +225,74 @@ namespace LuaEngine {
         
         void drawAll();
         void updateAll(float dt);
+        
+        void addConsoleMessage(const std::string& msg, int type = 0);
     };
+    
+    // ==================== SCENE MANAGER IMPLEMENTATION ====================
+    inline SceneManager::SceneManager(LuaEngine* eng) : engine(eng), transitioning(false), transitionTimer(0) {}
+    
+    inline void SceneManager::registerScene(const std::string& name, const std::string& path) {
+        ScriptInfo info(name, path);
+        info.isScene = true;
+        scenes[name] = info;
+    }
+    
+    inline bool SceneManager::loadScene(const std::string& name) {
+        auto it = scenes.find(name);
+        if (it == scenes.end()) return false;
+        nextScene = name;
+        transitioning = true;
+        transitionTimer = 0;
+        return true;
+    }
+    
+    inline void SceneManager::update(float dt) {
+        if (transitioning) {
+            transitionTimer += dt;
+            if (transitionTimer >= 0.5f) {
+                performSceneSwitch();
+                transitioning = false;
+            }
+        }
+    }
+    
+    inline void SceneManager::performSceneSwitch() {
+        if (!nextScene.empty()) {
+            if (!currentScene.empty()) {
+                callSceneUnload(currentScene);
+            }
+            currentScene = nextScene;
+            callSceneLoad(currentScene);
+            nextScene.clear();
+        }
+    }
+    
+    inline void SceneManager::callSceneLoad(const std::string& scene) {
+        if (!engine) return;
+        lua_State* state = engine->getState();
+        if (!state) return;
+        
+        std::string funcName = "On" + scene + "Load";
+        lua_getglobal(state, funcName.c_str());
+        if (lua_isfunction(state, -1)) {
+            lua_pcall(state, 0, 0, 0);
+        }
+        lua_pop(state, 1);
+    }
+    
+    inline void SceneManager::callSceneUnload(const std::string& scene) {
+        if (!engine) return;
+        lua_State* state = engine->getState();
+        if (!state) return;
+        
+        std::string funcName = "On" + scene + "Unload";
+        lua_getglobal(state, funcName.c_str());
+        if (lua_isfunction(state, -1)) {
+            lua_pcall(state, 0, 0, 0);
+        }
+        lua_pop(state, 1);
+    }
     
     // ==================== FUNCTIONS CLASS ====================
     class _functions {
@@ -174,16 +305,32 @@ namespace LuaEngine {
         }
         
     public:
+        // Screen size functions
+        static int GetScreenWidth(lua_State* state) {
+            LuaEngine* engine = getEngine(state);
+            if (!engine || !engine->getMainWindow()) {
+                lua_pushinteger(state, 0);
+                return 1;
+            }
+            lua_pushinteger(state, engine->getMainWindow()->getWidth());
+            return 1;
+        }
+        
+        static int GetScreenHeight(lua_State* state) {
+            LuaEngine* engine = getEngine(state);
+            if (!engine || !engine->getMainWindow()) {
+                lua_pushinteger(state, 0);
+                return 1;
+            }
+            lua_pushinteger(state, engine->getMainWindow()->getHeight());
+            return 1;
+        }
+        
         // Script management functions
         static int LoadScript(lua_State* state) {
             const char* scriptPath = luaL_checkstring(state, 1);
-            
             LuaEngine* engine = getEngine(state);
-            if (!engine) {
-                lua_pushboolean(state, false);
-                return 1;
-            }
-            
+            if (!engine) { lua_pushboolean(state, false); return 1; }
             bool result = engine->loadScript(scriptPath);
             lua_pushboolean(state, result);
             return 1;
@@ -191,13 +338,8 @@ namespace LuaEngine {
         
         static int LoadScriptsFromList(lua_State* state) {
             const char* listPath = luaL_checkstring(state, 1);
-            
             LuaEngine* engine = getEngine(state);
-            if (!engine) {
-                lua_pushboolean(state, false);
-                return 1;
-            }
-            
+            if (!engine) { lua_pushboolean(state, false); return 1; }
             bool result = engine->loadScriptsFromList(listPath);
             lua_pushboolean(state, result);
             return 1;
@@ -205,13 +347,8 @@ namespace LuaEngine {
         
         static int ReloadScript(lua_State* state) {
             const char* scriptPath = luaL_checkstring(state, 1);
-            
             LuaEngine* engine = getEngine(state);
-            if (!engine) {
-                lua_pushboolean(state, false);
-                return 1;
-            }
-            
+            if (!engine) { lua_pushboolean(state, false); return 1; }
             bool result = engine->reloadScript(scriptPath);
             lua_pushboolean(state, result);
             return 1;
@@ -219,11 +356,7 @@ namespace LuaEngine {
         
         static int ReloadAllScripts(lua_State* state) {
             LuaEngine* engine = getEngine(state);
-            if (!engine) {
-                lua_pushboolean(state, false);
-                return 1;
-            }
-            
+            if (!engine) { lua_pushboolean(state, false); return 1; }
             bool result = engine->reloadAllScripts();
             lua_pushboolean(state, result);
             return 1;
@@ -232,34 +365,23 @@ namespace LuaEngine {
         static int EnableScript(lua_State* state) {
             const char* scriptName = luaL_checkstring(state, 1);
             bool enabled = lua_toboolean(state, 2);
-            
             LuaEngine* engine = getEngine(state);
             if (!engine) return 0;
-            
             engine->enableScript(scriptName, enabled);
             return 0;
         }
         
         static int IsScriptLoaded(lua_State* state) {
             const char* scriptName = luaL_checkstring(state, 1);
-            
             LuaEngine* engine = getEngine(state);
-            if (!engine) {
-                lua_pushboolean(state, false);
-                return 1;
-            }
-            
+            if (!engine) { lua_pushboolean(state, false); return 1; }
             lua_pushboolean(state, engine->isScriptLoaded(scriptName));
             return 1;
         }
         
         static int GetLoadedScripts(lua_State* state) {
             LuaEngine* engine = getEngine(state);
-            if (!engine) {
-                lua_pushnil(state);
-                return 1;
-            }
-            
+            if (!engine) { lua_pushnil(state); return 1; }
             std::vector<std::string> scripts = engine->getLoadedScripts();
             lua_newtable(state);
             for (size_t i = 0; i < scripts.size(); i++) {
@@ -269,60 +391,93 @@ namespace LuaEngine {
             return 1;
         }
         
+        // Scene management
+        static int LoadScene(lua_State* state) {
+            const char* sceneName = luaL_checkstring(state, 1);
+            LuaEngine* engine = getEngine(state);
+            if (!engine) { lua_pushboolean(state, false); return 1; }
+            bool result = engine->loadScene(sceneName);
+            lua_pushboolean(state, result);
+            return 1;
+        }
+        
+        static int GetCurrentScene(lua_State* state) {
+            LuaEngine* engine = getEngine(state);
+            if (!engine || !engine->getSceneManager()) {
+                lua_pushstring(state, "");
+                return 1;
+            }
+            lua_pushstring(state, engine->getSceneManager()->getCurrentScene().c_str());
+            return 1;
+        }
+        
         // Sprite functions
         static int NewSprite(lua_State* state) {
             LuaEngine* engine = getEngine(state);
-            if (!engine) {
-                lua_pushnil(state);
-                return 1;
-            }
-            
+            if (!engine) { lua_pushnil(state); return 1; }
             const char* texturePath = luaL_checkstring(state, 1);
             float x = luaL_optnumber(state, 2, 0);
             float y = luaL_optnumber(state, 3, 0);
-            
-            std::cout << "NewSprite: Creating sprite with texture: " << texturePath << " at (" << x << ", " << y << ")" << std::endl;
-            
             Entity entity = engine->createSprite(texturePath, Vector2(x, y));
-            
-            std::cout << "NewSprite: Entity ID = " << entity << std::endl;
-            
             lua_pushinteger(state, entity);
             return 1;
+        }
+        
+        static int SpriteSetTexture(lua_State* state) {
+            Entity entity = luaL_checkinteger(state, 1);
+            const char* texturePath = luaL_checkstring(state, 2);
+            LuaEngine* engine = getEngine(state);
+            if (!engine) return 0;
+            engine->spriteSetTexture(entity, texturePath);
+            return 0;
         }
         
         static int SpriteSetPosition(lua_State* state) {
             Entity entity = luaL_checkinteger(state, 1);
             float x = luaL_checknumber(state, 2);
             float y = luaL_checknumber(state, 3);
-            
             LuaEngine* engine = getEngine(state);
             if (!engine) return 0;
-            
             engine->spriteSetPosition(entity, Vector2(x, y));
             return 0;
+        }
+        
+        static int SpriteGetPosition(lua_State* state) {
+            Entity entity = luaL_checkinteger(state, 1);
+            LuaEngine* engine = getEngine(state);
+            if (!engine) { lua_pushnil(state); lua_pushnil(state); return 2; }
+            Vector2 pos = engine->spriteGetPosition(entity);
+            lua_pushnumber(state, pos.x);
+            lua_pushnumber(state, pos.y);
+            return 2;
         }
         
         static int SpriteSetSize(lua_State* state) {
             Entity entity = luaL_checkinteger(state, 1);
             float w = luaL_checknumber(state, 2);
             float h = luaL_checknumber(state, 3);
-            
             LuaEngine* engine = getEngine(state);
             if (!engine) return 0;
-            
             engine->spriteSetSize(entity, Vector2(w, h));
             return 0;
+        }
+        
+        static int SpriteGetSize(lua_State* state) {
+            Entity entity = luaL_checkinteger(state, 1);
+            LuaEngine* engine = getEngine(state);
+            if (!engine) { lua_pushnil(state); lua_pushnil(state); return 2; }
+            Vector2 size = engine->spriteGetSize(entity);
+            lua_pushnumber(state, size.x);
+            lua_pushnumber(state, size.y);
+            return 2;
         }
         
         static int SpriteSetOrigin(lua_State* state) {
             Entity entity = luaL_checkinteger(state, 1);
             float x = luaL_checknumber(state, 2);
             float y = luaL_checknumber(state, 3);
-            
             LuaEngine* engine = getEngine(state);
             if (!engine) return 0;
-            
             engine->spriteSetOrigin(entity, Vector2(x, y));
             return 0;
         }
@@ -330,10 +485,8 @@ namespace LuaEngine {
         static int SpriteSetRotation(lua_State* state) {
             Entity entity = luaL_checkinteger(state, 1);
             float rotation = luaL_checknumber(state, 2);
-            
             LuaEngine* engine = getEngine(state);
             if (!engine) return 0;
-            
             engine->spriteSetRotation(entity, rotation);
             return 0;
         }
@@ -344,10 +497,8 @@ namespace LuaEngine {
             float g = luaL_checknumber(state, 3);
             float b = luaL_checknumber(state, 4);
             float a = luaL_optnumber(state, 5, 1.0f);
-            
             LuaEngine* engine = getEngine(state);
             if (!engine) return 0;
-            
             engine->spriteSetColor(entity, Vector4(r, g, b, a));
             return 0;
         }
@@ -355,225 +506,21 @@ namespace LuaEngine {
         static int SpriteSetVisible(lua_State* state) {
             Entity entity = luaL_checkinteger(state, 1);
             bool visible = lua_toboolean(state, 2);
-            
             LuaEngine* engine = getEngine(state);
             if (!engine) return 0;
-            
             engine->spriteSetVisible(entity, visible);
-            return 0;
-        }
-        
-        static int SpriteGetPosition(lua_State* state) {
-            Entity entity = luaL_checkinteger(state, 1);
-            
-            LuaEngine* engine = getEngine(state);
-            if (!engine) {
-                lua_pushnil(state);
-                lua_pushnil(state);
-                return 2;
-            }
-            
-            Vector2 pos = engine->spriteGetPosition(entity);
-            lua_pushnumber(state, pos.x);
-            lua_pushnumber(state, pos.y);
-            return 2;
-        }
-        
-        static int SpriteGetSize(lua_State* state) {
-            Entity entity = luaL_checkinteger(state, 1);
-            
-            LuaEngine* engine = getEngine(state);
-            if (!engine) {
-                lua_pushnil(state);
-                lua_pushnil(state);
-                return 2;
-            }
-            
-            Vector2 size = engine->spriteGetSize(entity);
-            lua_pushnumber(state, size.x);
-            lua_pushnumber(state, size.y);
-            return 2;
-        }
-        
-        // Animation functions
-        static int NewAnimation(lua_State* state) {
-            LuaEngine* engine = getEngine(state);
-            if (!engine) {
-                lua_pushnil(state);
-                return 1;
-            }
-            
-            const char* path = luaL_checkstring(state, 1);
-            bool isGif = lua_toboolean(state, 2);
-            float x = luaL_optnumber(state, 3, 0);
-            float y = luaL_optnumber(state, 4, 0);
-            
-            Entity entity = engine->createAnimation(path, isGif, Vector2(x, y));
-            lua_pushinteger(state, entity);
-            return 1;
-        }
-        
-        static int NewAnimationFromSheet(lua_State* state) {
-            LuaEngine* engine = getEngine(state);
-            if (!engine) {
-                lua_pushnil(state);
-                return 1;
-            }
-            
-            const char* texturePath = luaL_checkstring(state, 1);
-            int frameWidth = luaL_checkinteger(state, 2);
-            int frameHeight = luaL_checkinteger(state, 3);
-            int totalFrames = luaL_checkinteger(state, 4);
-            int framesPerRow = luaL_checkinteger(state, 5);
-            int frameDelayMs = luaL_optinteger(state, 6, 100);
-            float x = luaL_optnumber(state, 7, 0);
-            float y = luaL_optnumber(state, 8, 0);
-            
-            Entity entity = engine->createAnimationFromSheet(texturePath, frameWidth, frameHeight, 
-                                                              totalFrames, framesPerRow, frameDelayMs, 
-                                                              Vector2(x, y));
-            
-            lua_pushinteger(state, entity);
-            return 1;
-        }
-        
-        static int AnimationPlay(lua_State* state) {
-            Entity entity = luaL_checkinteger(state, 1);
-            
-            LuaEngine* engine = getEngine(state);
-            if (!engine) return 0;
-            
-            engine->animationPlay(entity);
-            return 0;
-        }
-        
-        static int AnimationPause(lua_State* state) {
-            Entity entity = luaL_checkinteger(state, 1);
-            
-            LuaEngine* engine = getEngine(state);
-            if (!engine) return 0;
-            
-            engine->animationPause(entity);
-            return 0;
-        }
-        
-        static int AnimationStop(lua_State* state) {
-            Entity entity = luaL_checkinteger(state, 1);
-            
-            LuaEngine* engine = getEngine(state);
-            if (!engine) return 0;
-            
-            engine->animationStop(entity);
-            return 0;
-        }
-        
-        static int AnimationRestart(lua_State* state) {
-            Entity entity = luaL_checkinteger(state, 1);
-            
-            LuaEngine* engine = getEngine(state);
-            if (!engine) return 0;
-            
-            engine->animationRestart(entity);
-            return 0;
-        }
-        
-        static int AnimationSetLooping(lua_State* state) {
-            Entity entity = luaL_checkinteger(state, 1);
-            bool loop = lua_toboolean(state, 2);
-            
-            LuaEngine* engine = getEngine(state);
-            if (!engine) return 0;
-            
-            engine->animationSetLooping(entity, loop);
-            return 0;
-        }
-        
-        static int AnimationSetSpeed(lua_State* state) {
-            Entity entity = luaL_checkinteger(state, 1);
-            float speed = luaL_checknumber(state, 2);
-            
-            LuaEngine* engine = getEngine(state);
-            if (!engine) return 0;
-            
-            engine->animationSetSpeed(entity, speed);
-            return 0;
-        }
-        
-        static int AnimationSetFrame(lua_State* state) {
-            Entity entity = luaL_checkinteger(state, 1);
-            int frame = luaL_checkinteger(state, 2);
-            
-            LuaEngine* engine = getEngine(state);
-            if (!engine) return 0;
-            
-            engine->animationSetFrame(entity, frame);
-            return 0;
-        }
-        
-        static int AnimationGetFrameCount(lua_State* state) {
-            Entity entity = luaL_checkinteger(state, 1);
-            
-            LuaEngine* engine = getEngine(state);
-            if (!engine) {
-                lua_pushinteger(state, 0);
-                return 1;
-            }
-            
-            lua_pushinteger(state, engine->animationGetFrameCount(entity));
-            return 1;
-        }
-        
-        static int AnimationIsPlaying(lua_State* state) {
-            Entity entity = luaL_checkinteger(state, 1);
-            
-            LuaEngine* engine = getEngine(state);
-            if (!engine) {
-                lua_pushboolean(state, false);
-                return 1;
-            }
-            
-            lua_pushboolean(state, engine->animationIsPlaying(entity));
-            return 1;
-        }
-        
-        static int AnimationSetPosition(lua_State* state) {
-            Entity entity = luaL_checkinteger(state, 1);
-            float x = luaL_checknumber(state, 2);
-            float y = luaL_checknumber(state, 3);
-            
-            LuaEngine* engine = getEngine(state);
-            if (!engine) return 0;
-            
-            engine->animationSetPosition(entity, Vector2(x, y));
-            return 0;
-        }
-        
-        static int AnimationSetSize(lua_State* state) {
-            Entity entity = luaL_checkinteger(state, 1);
-            float w = luaL_checknumber(state, 2);
-            float h = luaL_checknumber(state, 3);
-            
-            LuaEngine* engine = getEngine(state);
-            if (!engine) return 0;
-            
-            engine->animationSetSize(entity, Vector2(w, h));
             return 0;
         }
         
         // Text functions
         static int NewText(lua_State* state) {
             LuaEngine* engine = getEngine(state);
-            if (!engine) {
-                lua_pushnil(state);
-                return 1;
-            }
-            
+            if (!engine) { lua_pushnil(state); return 1; }
             const char* fontPath = luaL_checkstring(state, 1);
             const char* text = luaL_checkstring(state, 2);
             float x = luaL_optnumber(state, 3, 0);
             float y = luaL_optnumber(state, 4, 0);
             int fontSize = luaL_optinteger(state, 5, 48);
-            
             Entity entity = engine->createText(fontPath, text, Vector2(x, y), fontSize);
             lua_pushinteger(state, entity);
             return 1;
@@ -582,23 +529,16 @@ namespace LuaEngine {
         static int TextSetString(lua_State* state) {
             Entity entity = luaL_checkinteger(state, 1);
             const char* text = luaL_checkstring(state, 2);
-            
             LuaEngine* engine = getEngine(state);
             if (!engine) return 0;
-            
             engine->textSetString(entity, text);
             return 0;
         }
         
         static int TextGetString(lua_State* state) {
             Entity entity = luaL_checkinteger(state, 1);
-            
             LuaEngine* engine = getEngine(state);
-            if (!engine) {
-                lua_pushstring(state, "");
-                return 1;
-            }
-            
+            if (!engine) { lua_pushstring(state, ""); return 1; }
             lua_pushstring(state, engine->textGetString(entity).c_str());
             return 1;
         }
@@ -607,10 +547,8 @@ namespace LuaEngine {
             Entity entity = luaL_checkinteger(state, 1);
             float x = luaL_checknumber(state, 2);
             float y = luaL_checknumber(state, 3);
-            
             LuaEngine* engine = getEngine(state);
             if (!engine) return 0;
-            
             engine->textSetPosition(entity, Vector2(x, y));
             return 0;
         }
@@ -621,10 +559,8 @@ namespace LuaEngine {
             float g = luaL_checknumber(state, 3);
             float b = luaL_checknumber(state, 4);
             float a = luaL_optnumber(state, 5, 1.0f);
-            
             LuaEngine* engine = getEngine(state);
             if (!engine) return 0;
-            
             engine->textSetColor(entity, Vector4(r, g, b, a));
             return 0;
         }
@@ -632,10 +568,8 @@ namespace LuaEngine {
         static int TextSetScale(lua_State* state) {
             Entity entity = luaL_checkinteger(state, 1);
             float scale = luaL_checknumber(state, 2);
-            
             LuaEngine* engine = getEngine(state);
             if (!engine) return 0;
-            
             engine->textSetScale(entity, scale);
             return 0;
         }
@@ -643,22 +577,142 @@ namespace LuaEngine {
         static int TextSetVisible(lua_State* state) {
             Entity entity = luaL_checkinteger(state, 1);
             bool visible = lua_toboolean(state, 2);
-            
             LuaEngine* engine = getEngine(state);
             if (!engine) return 0;
-            
             engine->textSetVisible(entity, visible);
+            return 0;
+        }
+        
+        // Animation functions
+        static int NewAnimation(lua_State* state) {
+            LuaEngine* engine = getEngine(state);
+            if (!engine) { lua_pushnil(state); return 1; }
+            const char* path = luaL_checkstring(state, 1);
+            bool isGif = lua_toboolean(state, 2);
+            float x = luaL_optnumber(state, 3, 0);
+            float y = luaL_optnumber(state, 4, 0);
+            Entity entity = engine->createAnimation(path, isGif, Vector2(x, y));
+            lua_pushinteger(state, entity);
+            return 1;
+        }
+        
+        static int NewAnimationFromSheet(lua_State* state) {
+            LuaEngine* engine = getEngine(state);
+            if (!engine) { lua_pushnil(state); return 1; }
+            const char* texturePath = luaL_checkstring(state, 1);
+            int frameWidth = luaL_checkinteger(state, 2);
+            int frameHeight = luaL_checkinteger(state, 3);
+            int totalFrames = luaL_checkinteger(state, 4);
+            int framesPerRow = luaL_checkinteger(state, 5);
+            int frameDelayMs = luaL_optinteger(state, 6, 100);
+            float x = luaL_optnumber(state, 7, 0);
+            float y = luaL_optnumber(state, 8, 0);
+            Entity entity = engine->createAnimationFromSheet(texturePath, frameWidth, frameHeight, 
+                                                              totalFrames, framesPerRow, frameDelayMs, 
+                                                              Vector2(x, y));
+            lua_pushinteger(state, entity);
+            return 1;
+        }
+        
+        static int AnimationPlay(lua_State* state) {
+            Entity entity = luaL_checkinteger(state, 1);
+            LuaEngine* engine = getEngine(state);
+            if (!engine) return 0;
+            engine->animationPlay(entity);
+            return 0;
+        }
+        
+        static int AnimationPause(lua_State* state) {
+            Entity entity = luaL_checkinteger(state, 1);
+            LuaEngine* engine = getEngine(state);
+            if (!engine) return 0;
+            engine->animationPause(entity);
+            return 0;
+        }
+        
+        static int AnimationStop(lua_State* state) {
+            Entity entity = luaL_checkinteger(state, 1);
+            LuaEngine* engine = getEngine(state);
+            if (!engine) return 0;
+            engine->animationStop(entity);
+            return 0;
+        }
+        
+        static int AnimationRestart(lua_State* state) {
+            Entity entity = luaL_checkinteger(state, 1);
+            LuaEngine* engine = getEngine(state);
+            if (!engine) return 0;
+            engine->animationRestart(entity);
+            return 0;
+        }
+        
+        static int AnimationSetLooping(lua_State* state) {
+            Entity entity = luaL_checkinteger(state, 1);
+            bool loop = lua_toboolean(state, 2);
+            LuaEngine* engine = getEngine(state);
+            if (!engine) return 0;
+            engine->animationSetLooping(entity, loop);
+            return 0;
+        }
+        
+        static int AnimationSetSpeed(lua_State* state) {
+            Entity entity = luaL_checkinteger(state, 1);
+            float speed = luaL_checknumber(state, 2);
+            LuaEngine* engine = getEngine(state);
+            if (!engine) return 0;
+            engine->animationSetSpeed(entity, speed);
+            return 0;
+        }
+        
+        static int AnimationSetFrame(lua_State* state) {
+            Entity entity = luaL_checkinteger(state, 1);
+            int frame = luaL_checkinteger(state, 2);
+            LuaEngine* engine = getEngine(state);
+            if (!engine) return 0;
+            engine->animationSetFrame(entity, frame);
+            return 0;
+        }
+        
+        static int AnimationGetFrameCount(lua_State* state) {
+            Entity entity = luaL_checkinteger(state, 1);
+            LuaEngine* engine = getEngine(state);
+            if (!engine) { lua_pushinteger(state, 0); return 1; }
+            lua_pushinteger(state, engine->animationGetFrameCount(entity));
+            return 1;
+        }
+        
+        static int AnimationIsPlaying(lua_State* state) {
+            Entity entity = luaL_checkinteger(state, 1);
+            LuaEngine* engine = getEngine(state);
+            if (!engine) { lua_pushboolean(state, false); return 1; }
+            lua_pushboolean(state, engine->animationIsPlaying(entity));
+            return 1;
+        }
+        
+        static int AnimationSetPosition(lua_State* state) {
+            Entity entity = luaL_checkinteger(state, 1);
+            float x = luaL_checknumber(state, 2);
+            float y = luaL_checknumber(state, 3);
+            LuaEngine* engine = getEngine(state);
+            if (!engine) return 0;
+            engine->animationSetPosition(entity, Vector2(x, y));
+            return 0;
+        }
+        
+        static int AnimationSetSize(lua_State* state) {
+            Entity entity = luaL_checkinteger(state, 1);
+            float w = luaL_checknumber(state, 2);
+            float h = luaL_checknumber(state, 3);
+            LuaEngine* engine = getEngine(state);
+            if (!engine) return 0;
+            engine->animationSetSize(entity, Vector2(w, h));
             return 0;
         }
         
         // Mesh functions
         static int NewMesh(lua_State* state) {
             LuaEngine* engine = getEngine(state);
-            if (!engine) {
-                lua_pushnil(state);
-                return 1;
-            }
-            
+            if (!engine) { lua_pushnil(state); return 1; }
             Entity entity = engine->createMesh();
             lua_pushinteger(state, entity);
             return 1;
@@ -666,50 +720,56 @@ namespace LuaEngine {
         
         static int MeshSetData(lua_State* state) {
             Entity entity = luaL_checkinteger(state, 1);
-            
             luaL_checktype(state, 2, LUA_TTABLE);
             std::vector<Mesh2D::Vertex> vertices;
-            
             int vertexCount = lua_rawlen(state, 2);
             for (int i = 1; i <= vertexCount; i++) {
                 lua_rawgeti(state, 2, i);
                 if (lua_istable(state, -1)) {
                     Mesh2D::Vertex vert;
-                    
                     lua_getfield(state, -1, "x"); vert.x = luaL_checknumber(state, -1); lua_pop(state, 1);
                     lua_getfield(state, -1, "y"); vert.y = luaL_checknumber(state, -1); lua_pop(state, 1);
                     lua_getfield(state, -1, "u"); vert.u = luaL_optnumber(state, -1, 0); lua_pop(state, 1);
                     lua_getfield(state, -1, "v"); vert.v = luaL_optnumber(state, -1, 0); lua_pop(state, 1);
-                    
                     vertices.push_back(vert);
                 }
                 lua_pop(state, 1);
             }
-            
             luaL_checktype(state, 3, LUA_TTABLE);
             std::vector<GLuint> indices;
-            
             int indexCount = lua_rawlen(state, 3);
             for (int i = 1; i <= indexCount; i++) {
                 lua_rawgeti(state, 3, i);
                 indices.push_back(luaL_checkinteger(state, -1));
                 lua_pop(state, 1);
             }
-            
             LuaEngine* engine = getEngine(state);
             if (!engine) return 0;
-            
             engine->meshSetData(entity, vertices, indices);
             return 0;
         }
         
         static int MeshDraw(lua_State* state) {
             Entity entity = luaL_checkinteger(state, 1);
-            
             LuaEngine* engine = getEngine(state);
             if (!engine) return 0;
-            
             engine->meshDraw(entity);
+            return 0;
+        }
+        
+        // Object deletion
+        static int Destroy(lua_State* state) {
+            Entity entity = luaL_checkinteger(state, 1);
+            LuaEngine* engine = getEngine(state);
+            if (!engine) return 0;
+            engine->destroyEntity(entity);
+            return 0;
+        }
+        
+        static int DestroyAll(lua_State* state) {
+            LuaEngine* engine = getEngine(state);
+            if (!engine) return 0;
+            engine->destroyAllEntities();
             return 0;
         }
         
@@ -718,13 +778,8 @@ namespace LuaEngine {
             const char* filename = luaL_checkstring(state, 1);
             const char* soundName = luaL_checkstring(state, 2);
             bool loop = lua_toboolean(state, 3);
-            
             LuaEngine* engine = getEngine(state);
-            if (!engine) {
-                lua_pushinteger(state, -1);
-                return 1;
-            }
-            
+            if (!engine) { lua_pushinteger(state, -1); return 1; }
             int soundId = engine->loadSound(filename, soundName, loop);
             lua_pushinteger(state, soundId);
             return 1;
@@ -732,106 +787,111 @@ namespace LuaEngine {
         
         static int PlaySound(lua_State* state) {
             const char* soundName = luaL_checkstring(state, 1);
-            
             LuaEngine* engine = getEngine(state);
             if (!engine) return 0;
-            
             engine->playSound(soundName);
             return 0;
         }
         
         static int PlaySoundById(lua_State* state) {
             int soundId = luaL_checkinteger(state, 1);
-            
             LuaEngine* engine = getEngine(state);
             if (!engine) return 0;
-            
             engine->playSoundById(soundId);
             return 0;
         }
         
         static int StopSound(lua_State* state) {
             const char* soundName = luaL_checkstring(state, 1);
-            
             LuaEngine* engine = getEngine(state);
             if (!engine) return 0;
-            
             engine->stopSound(soundName);
             return 0;
         }
         
-        static int StopSoundById(lua_State* state) {
-            int soundId = luaL_checkinteger(state, 1);
-            
+        static int StopAllSounds(lua_State* state) {
             LuaEngine* engine = getEngine(state);
             if (!engine) return 0;
-            
-            engine->stopSoundById(soundId);
+            engine->stopAllSounds();
             return 0;
         }
         
         static int SetSoundVolume(lua_State* state) {
             const char* soundName = luaL_checkstring(state, 1);
             float volume = luaL_checknumber(state, 2);
-            
             LuaEngine* engine = getEngine(state);
             if (!engine) return 0;
-            
             engine->setSoundVolume(soundName, volume);
-            return 0;
-        }
-        
-        static int SetSoundVolumeById(lua_State* state) {
-            int soundId = luaL_checkinteger(state, 1);
-            float volume = luaL_checknumber(state, 2);
-            
-            LuaEngine* engine = getEngine(state);
-            if (!engine) return 0;
-            
-            engine->setSoundVolumeById(soundId, volume);
             return 0;
         }
         
         static int IsSoundPlaying(lua_State* state) {
             const char* soundName = luaL_checkstring(state, 1);
-            
             LuaEngine* engine = getEngine(state);
-            if (!engine) {
-                lua_pushboolean(state, false);
-                return 1;
-            }
-            
+            if (!engine) { lua_pushboolean(state, false); return 1; }
             lua_pushboolean(state, engine->isSoundPlaying(soundName));
             return 1;
         }
         
-        static int StopAllSounds(lua_State* state) {
+        // Window management
+        static int CreateWindow(lua_State* state) {
+            int width = luaL_checkinteger(state, 1);
+            int height = luaL_checkinteger(state, 2);
+            const char* title = luaL_checkstring(state, 3);
+            LuaEngine* engine = getEngine(state);
+            if (!engine) { lua_pushnil(state); return 1; }
+            auto window = engine->createWindow(width, height, title);
+            lua_pushlightuserdata(state, window.get());
+            return 1;
+        }
+        
+        static int SetWindowTitle(lua_State* state) {
+            void* windowPtr = lua_touserdata(state, 1);
+            const char* title = luaL_checkstring(state, 2);
             LuaEngine* engine = getEngine(state);
             if (!engine) return 0;
-            
-            engine->stopAllSounds();
+            auto window = std::shared_ptr<Window>(static_cast<Window*>(windowPtr), [](Window*){});
+            engine->setWindowTitle(window, title);
+            return 0;
+        }
+        
+        static int SetWindowSize(lua_State* state) {
+            void* windowPtr = lua_touserdata(state, 1);
+            int width = luaL_checkinteger(state, 2);
+            int height = luaL_checkinteger(state, 3);
+            LuaEngine* engine = getEngine(state);
+            if (!engine) return 0;
+            auto window = std::shared_ptr<Window>(static_cast<Window*>(windowPtr), [](Window*){});
+            engine->setWindowSize(window, width, height);
+            return 0;
+        }
+        
+        static int SetWindowIcon(lua_State* state) {
+            void* windowPtr = lua_touserdata(state, 1);
+            const char* iconPath = luaL_checkstring(state, 2);
+            LuaEngine* engine = getEngine(state);
+            if (!engine) return 0;
+            auto window = std::shared_ptr<Window>(static_cast<Window*>(windowPtr), [](Window*){});
+            engine->setWindowIcon(window, iconPath);
             return 0;
         }
         
         // Input functions
         static int IsKeyPressed(lua_State* state) {
             int key = luaL_checkinteger(state, 1);
-            bool pressed = Input::getInstance().isKeyPressed(key);
-            lua_pushboolean(state, pressed);
+            lua_pushboolean(state, Input::getInstance().isKeyPressed(key));
             return 1;
         }
         
         static int IsKeyJustPressed(lua_State* state) {
             int key = luaL_checkinteger(state, 1);
-            bool pressed = Input::getInstance().isKeyJustPressed(key);
-            lua_pushboolean(state, pressed);
+            lua_pushboolean(state, Input::getInstance().isKeyJustPressed(key));
             return 1;
         }
         
         static int IsKeyJustReleased(lua_State* state) {
             int key = luaL_checkinteger(state, 1);
-            bool released = Input::getInstance().isKeyJustReleased(key);
-            lua_pushboolean(state, released);
+            lua_pushboolean(state, Input::getInstance().isKeyJustReleased(key));
             return 1;
         }
         
@@ -857,15 +917,13 @@ namespace LuaEngine {
         
         static int IsMouseButtonPressed(lua_State* state) {
             int button = luaL_checkinteger(state, 1);
-            bool pressed = Input::getInstance().isMouseButtonPressed(button);
-            lua_pushboolean(state, pressed);
+            lua_pushboolean(state, Input::getInstance().isMouseButtonPressed(button));
             return 1;
         }
         
         static int IsMouseButtonJustPressed(lua_State* state) {
             int button = luaL_checkinteger(state, 1);
-            bool pressed = Input::getInstance().isMouseButtonJustPressed(button);
-            lua_pushboolean(state, pressed);
+            lua_pushboolean(state, Input::getInstance().isMouseButtonJustPressed(button));
             return 1;
         }
         
@@ -879,8 +937,7 @@ namespace LuaEngine {
             int n = lua_gettop(state);
             for (int i = 1; i <= n; i++) {
                 if (lua_isstring(state, i)) {
-                    const char* str = lua_tostring(state, i);
-                    std::cout << str;
+                    std::cout << lua_tostring(state, i);
                 } else if (lua_isnumber(state, i)) {
                     std::cout << lua_tonumber(state, i);
                 } else if (lua_isboolean(state, i)) {
@@ -900,27 +957,9 @@ namespace LuaEngine {
         
         static int GetDeltaTime(lua_State* state) {
             LuaEngine* engine = getEngine(state);
-            if (!engine) {
-                lua_pushnumber(state, 0);
-                return 1;
-            }
+            if (!engine) { lua_pushnumber(state, 0); return 1; }
             lua_pushnumber(state, engine->getDeltaTime());
             return 1;
-        }
-        
-        static int DestroyEntity(lua_State* state) {
-            Entity entity = luaL_checkinteger(state, 1);
-            
-            LuaEngine* engine = getEngine(state);
-            if (!engine) return 0;
-            
-            engine->destroyEntity(entity);
-            return 0;
-        }
-        
-        static int Quit(lua_State* state) {
-            exit(0);
-            return 0;
         }
         
         static int GetTime(lua_State* state) {
@@ -949,6 +988,21 @@ namespace LuaEngine {
             srand(seed);
             return 0;
         }
+        
+        static int Quit(lua_State* state) {
+            exit(0);
+            return 0;
+        }
+        
+        static int AddConsoleMessage(lua_State* state) {
+            const char* msg = luaL_checkstring(state, 1);
+            int type = luaL_optinteger(state, 2, 0);
+            LuaEngine* engine = getEngine(state);
+            if (engine) {
+                engine->addConsoleMessage(msg, type);
+            }
+            return 0;
+        }
     };
     
     // ==================== LUA REGISTRATION TABLE ====================
@@ -962,16 +1016,24 @@ namespace LuaEngine {
         {"IsScriptLoaded", _functions::IsScriptLoaded},
         {"GetLoadedScripts", _functions::GetLoadedScripts},
         
+        // Scene management
+        {"LoadScene", _functions::LoadScene},
+        {"GetCurrentScene", _functions::GetCurrentScene},
+        
+        // Screen size functions (global, not in table)
+        // These will be registered separately in registerCFunctions()
+        
         // Sprite functions
         {"NewSprite", _functions::NewSprite},
+        {"SpriteSetTexture", _functions::SpriteSetTexture},
         {"SpriteSetPosition", _functions::SpriteSetPosition},
+        {"SpriteGetPosition", _functions::SpriteGetPosition},
         {"SpriteSetSize", _functions::SpriteSetSize},
+        {"SpriteGetSize", _functions::SpriteGetSize},
         {"SpriteSetOrigin", _functions::SpriteSetOrigin},
         {"SpriteSetRotation", _functions::SpriteSetRotation},
         {"SpriteSetColor", _functions::SpriteSetColor},
         {"SpriteSetVisible", _functions::SpriteSetVisible},
-        {"SpriteGetPosition", _functions::SpriteGetPosition},
-        {"SpriteGetSize", _functions::SpriteGetSize},
         
         // Animation functions
         {"NewAnimation", _functions::NewAnimation},
@@ -1002,16 +1064,24 @@ namespace LuaEngine {
         {"MeshSetData", _functions::MeshSetData},
         {"MeshDraw", _functions::MeshDraw},
         
+        // Object deletion
+        {"Destroy", _functions::Destroy},
+        {"DestroyAll", _functions::DestroyAll},
+        
         // Audio functions
         {"LoadSound", _functions::LoadSound},
         {"PlaySound", _functions::PlaySound},
         {"PlaySoundById", _functions::PlaySoundById},
         {"StopSound", _functions::StopSound},
-        {"StopSoundById", _functions::StopSoundById},
-        {"SetSoundVolume", _functions::SetSoundVolume},
-        {"SetSoundVolumeById", _functions::SetSoundVolumeById},
-        {"IsSoundPlaying", _functions::IsSoundPlaying},
         {"StopAllSounds", _functions::StopAllSounds},
+        {"SetSoundVolume", _functions::SetSoundVolume},
+        {"IsSoundPlaying", _functions::IsSoundPlaying},
+        
+        // Window functions
+        {"CreateWindow", _functions::CreateWindow},
+        {"SetWindowTitle", _functions::SetWindowTitle},
+        {"SetWindowSize", _functions::SetWindowSize},
+        {"SetWindowIcon", _functions::SetWindowIcon},
         
         // Input functions
         {"IsKeyPressed", _functions::IsKeyPressed},
@@ -1028,12 +1098,14 @@ namespace LuaEngine {
         // Utility functions
         {"Print", _functions::Print},
         {"GetDeltaTime", _functions::GetDeltaTime},
-        {"Destroy", _functions::DestroyEntity},
-        {"Quit", _functions::Quit},
         {"GetTime", _functions::GetTime},
         {"Random", _functions::Random},
         {"RandomInt", _functions::RandomInt},
         {"SetRandomSeed", _functions::SetRandomSeed},
+        {"Quit", _functions::Quit},
+        
+        // Console
+        {"AddConsoleMessage", _functions::AddConsoleMessage},
         
         {nullptr, nullptr}
     };
@@ -1042,15 +1114,14 @@ namespace LuaEngine {
 // ==================== IMPLEMENTATION ====================
 namespace LuaEngine {
     
-    // Constructor
-    LuaEngine::LuaEngine() : state(nullptr), deltaTime(0), initialized(false), audioInitialized(false) {}
+    LuaEngine::LuaEngine() : state(nullptr), deltaTime(0), initialized(false), audioInitialized(false), mainWindow(nullptr) {
+        sceneManager = std::make_unique<SceneManager>(this);
+    }
     
-    // Destructor
     LuaEngine::~LuaEngine() {
         shutdown();
     }
     
-    // Parse scripts list
     bool LuaEngine::parseScriptsList(const std::string& listPath) {
         std::ifstream file(listPath);
         if (!file.is_open()) {
@@ -1062,22 +1133,34 @@ namespace LuaEngine {
         std::string line;
         
         while (std::getline(file, line)) {
-            // Remove whitespace
             line.erase(0, line.find_first_not_of(" \t\r\n"));
             line.erase(line.find_last_not_of(" \t\r\n") + 1);
-            
-            // Skip empty lines and comments
             if (line.empty() || line[0] == '#') continue;
             
-            // Parse format: "name=path" or just "path"
-            size_t eqPos = line.find('=');
+            bool isScene = false;
+            std::string processedLine = line;
+            
+            if (line[0] == '@') {
+                isScene = true;
+                processedLine = line.substr(1);
+            }
+            
+            size_t eqPos = processedLine.find('=');
+            ScriptInfo info;
+            info.isScene = isScene;
+            
             if (eqPos != std::string::npos) {
-                std::string name = line.substr(0, eqPos);
-                std::string path = line.substr(eqPos + 1);
-                scripts.emplace_back(name, path);
+                info.name = processedLine.substr(0, eqPos);
+                info.path = processedLine.substr(eqPos + 1);
             } else {
-                std::string name = std::filesystem::path(line).stem().string();
-                scripts.emplace_back(name, line);
+                info.name = std::filesystem::path(processedLine).stem().string();
+                info.path = processedLine;
+            }
+            
+            scripts.push_back(info);
+            
+            if (isScene && sceneManager) {
+                sceneManager->registerScene(info.name, info.path);
             }
         }
         
@@ -1086,148 +1169,44 @@ namespace LuaEngine {
         return true;
     }
     
-    // Register C functions
     void LuaEngine::registerCFunctions() {
         lua_newtable(state);
-        
         for (const luaL_Reg* reg = BlazeBolt; reg->name != nullptr; ++reg) {
             lua_pushcfunction(state, reg->func);
             lua_setfield(state, -2, reg->name);
         }
-        
         lua_setglobal(state, "BlazeBolt");
         
-        // Store engine pointer
+        // Register global functions for screen size
+        lua_pushcfunction(state, _functions::GetScreenWidth);
+        lua_setglobal(state, "GetScreenWidth");
+        
+        lua_pushcfunction(state, _functions::GetScreenHeight);
+        lua_setglobal(state, "GetScreenHeight");
+        
         lua_pushlightuserdata(state, this);
         lua_setglobal(state, "__lua_engine");
         
-        // Key constants
+        // Keyboard constants
         lua_newtable(state);
-        
-        // Буквы A-Z
-        lua_pushinteger(state, GLFW_KEY_A); lua_setfield(state, -2, "A");
-        lua_pushinteger(state, GLFW_KEY_B); lua_setfield(state, -2, "B");
-        lua_pushinteger(state, GLFW_KEY_C); lua_setfield(state, -2, "C");
-        lua_pushinteger(state, GLFW_KEY_D); lua_setfield(state, -2, "D");
-        lua_pushinteger(state, GLFW_KEY_E); lua_setfield(state, -2, "E");
-        lua_pushinteger(state, GLFW_KEY_F); lua_setfield(state, -2, "F");
-        lua_pushinteger(state, GLFW_KEY_G); lua_setfield(state, -2, "G");
-        lua_pushinteger(state, GLFW_KEY_H); lua_setfield(state, -2, "H");
-        lua_pushinteger(state, GLFW_KEY_I); lua_setfield(state, -2, "I");
-        lua_pushinteger(state, GLFW_KEY_J); lua_setfield(state, -2, "J");
-        lua_pushinteger(state, GLFW_KEY_K); lua_setfield(state, -2, "K");
-        lua_pushinteger(state, GLFW_KEY_L); lua_setfield(state, -2, "L");
-        lua_pushinteger(state, GLFW_KEY_M); lua_setfield(state, -2, "M");
-        lua_pushinteger(state, GLFW_KEY_N); lua_setfield(state, -2, "N");
-        lua_pushinteger(state, GLFW_KEY_O); lua_setfield(state, -2, "O");
-        lua_pushinteger(state, GLFW_KEY_P); lua_setfield(state, -2, "P");
-        lua_pushinteger(state, GLFW_KEY_Q); lua_setfield(state, -2, "Q");
-        lua_pushinteger(state, GLFW_KEY_R); lua_setfield(state, -2, "R");
-        lua_pushinteger(state, GLFW_KEY_S); lua_setfield(state, -2, "S");
-        lua_pushinteger(state, GLFW_KEY_T); lua_setfield(state, -2, "T");
-        lua_pushinteger(state, GLFW_KEY_U); lua_setfield(state, -2, "U");
-        lua_pushinteger(state, GLFW_KEY_V); lua_setfield(state, -2, "V");
-        lua_pushinteger(state, GLFW_KEY_W); lua_setfield(state, -2, "W");
-        lua_pushinteger(state, GLFW_KEY_X); lua_setfield(state, -2, "X");
-        lua_pushinteger(state, GLFW_KEY_Y); lua_setfield(state, -2, "Y");
-        lua_pushinteger(state, GLFW_KEY_Z); lua_setfield(state, -2, "Z");
-        
-        // Цифры 0-9
-        lua_pushinteger(state, GLFW_KEY_0); lua_setfield(state, -2, "NUM0");
-        lua_pushinteger(state, GLFW_KEY_1); lua_setfield(state, -2, "NUM1");
-        lua_pushinteger(state, GLFW_KEY_2); lua_setfield(state, -2, "NUM2");
-        lua_pushinteger(state, GLFW_KEY_3); lua_setfield(state, -2, "NUM3");
-        lua_pushinteger(state, GLFW_KEY_4); lua_setfield(state, -2, "NUM4");
-        lua_pushinteger(state, GLFW_KEY_5); lua_setfield(state, -2, "NUM5");
-        lua_pushinteger(state, GLFW_KEY_6); lua_setfield(state, -2, "NUM6");
-        lua_pushinteger(state, GLFW_KEY_7); lua_setfield(state, -2, "NUM7");
-        lua_pushinteger(state, GLFW_KEY_8); lua_setfield(state, -2, "NUM8");
-        lua_pushinteger(state, GLFW_KEY_9); lua_setfield(state, -2, "NUM9");
-        
-        // Функциональные клавиши F1-F25
-        lua_pushinteger(state, GLFW_KEY_F1); lua_setfield(state, -2, "F1");
-        lua_pushinteger(state, GLFW_KEY_F2); lua_setfield(state, -2, "F2");
-        lua_pushinteger(state, GLFW_KEY_F3); lua_setfield(state, -2, "F3");
-        lua_pushinteger(state, GLFW_KEY_F4); lua_setfield(state, -2, "F4");
-        lua_pushinteger(state, GLFW_KEY_F5); lua_setfield(state, -2, "F5");
-        lua_pushinteger(state, GLFW_KEY_F6); lua_setfield(state, -2, "F6");
-        lua_pushinteger(state, GLFW_KEY_F7); lua_setfield(state, -2, "F7");
-        lua_pushinteger(state, GLFW_KEY_F8); lua_setfield(state, -2, "F8");
-        lua_pushinteger(state, GLFW_KEY_F9); lua_setfield(state, -2, "F9");
-        lua_pushinteger(state, GLFW_KEY_F10); lua_setfield(state, -2, "F10");
-        lua_pushinteger(state, GLFW_KEY_F11); lua_setfield(state, -2, "F11");
-        lua_pushinteger(state, GLFW_KEY_F12); lua_setfield(state, -2, "F12");
-        lua_pushinteger(state, GLFW_KEY_F13); lua_setfield(state, -2, "F13");
-        lua_pushinteger(state, GLFW_KEY_F14); lua_setfield(state, -2, "F14");
-        lua_pushinteger(state, GLFW_KEY_F15); lua_setfield(state, -2, "F15");
-        lua_pushinteger(state, GLFW_KEY_F16); lua_setfield(state, -2, "F16");
-        lua_pushinteger(state, GLFW_KEY_F17); lua_setfield(state, -2, "F17");
-        lua_pushinteger(state, GLFW_KEY_F18); lua_setfield(state, -2, "F18");
-        lua_pushinteger(state, GLFW_KEY_F19); lua_setfield(state, -2, "F19");
-        lua_pushinteger(state, GLFW_KEY_F20); lua_setfield(state, -2, "F20");
-        lua_pushinteger(state, GLFW_KEY_F21); lua_setfield(state, -2, "F21");
-        lua_pushinteger(state, GLFW_KEY_F22); lua_setfield(state, -2, "F22");
-        lua_pushinteger(state, GLFW_KEY_F23); lua_setfield(state, -2, "F23");
-        lua_pushinteger(state, GLFW_KEY_F24); lua_setfield(state, -2, "F24");
-        lua_pushinteger(state, GLFW_KEY_F25); lua_setfield(state, -2, "F25");
-        
-        // Клавиши со стрелками
-        lua_pushinteger(state, GLFW_KEY_UP); lua_setfield(state, -2, "UP");
-        lua_pushinteger(state, GLFW_KEY_DOWN); lua_setfield(state, -2, "DOWN");
-        lua_pushinteger(state, GLFW_KEY_LEFT); lua_setfield(state, -2, "LEFT");
-        lua_pushinteger(state, GLFW_KEY_RIGHT); lua_setfield(state, -2, "RIGHT");
-        
-        // Модификаторы
-        lua_pushinteger(state, GLFW_KEY_LEFT_SHIFT); lua_setfield(state, -2, "LEFT_SHIFT");
-        lua_pushinteger(state, GLFW_KEY_RIGHT_SHIFT); lua_setfield(state, -2, "RIGHT_SHIFT");
-        lua_pushinteger(state, GLFW_KEY_LEFT_CONTROL); lua_setfield(state, -2, "LEFT_CONTROL");
-        lua_pushinteger(state, GLFW_KEY_RIGHT_CONTROL); lua_setfield(state, -2, "RIGHT_CONTROL");
-        lua_pushinteger(state, GLFW_KEY_LEFT_ALT); lua_setfield(state, -2, "LEFT_ALT");
-        lua_pushinteger(state, GLFW_KEY_RIGHT_ALT); lua_setfield(state, -2, "RIGHT_ALT");
-        lua_pushinteger(state, GLFW_KEY_LEFT_SUPER); lua_setfield(state, -2, "LEFT_SUPER");
-        lua_pushinteger(state, GLFW_KEY_RIGHT_SUPER); lua_setfield(state, -2, "RIGHT_SUPER");
-        
-        // Клавиши цифровой клавиатуры
-        lua_pushinteger(state, GLFW_KEY_KP_0); lua_setfield(state, -2, "KP_0");
-        lua_pushinteger(state, GLFW_KEY_KP_1); lua_setfield(state, -2, "KP_1");
-        lua_pushinteger(state, GLFW_KEY_KP_2); lua_setfield(state, -2, "KP_2");
-        lua_pushinteger(state, GLFW_KEY_KP_3); lua_setfield(state, -2, "KP_3");
-        lua_pushinteger(state, GLFW_KEY_KP_4); lua_setfield(state, -2, "KP_4");
-        lua_pushinteger(state, GLFW_KEY_KP_5); lua_setfield(state, -2, "KP_5");
-        lua_pushinteger(state, GLFW_KEY_KP_6); lua_setfield(state, -2, "KP_6");
-        lua_pushinteger(state, GLFW_KEY_KP_7); lua_setfield(state, -2, "KP_7");
-        lua_pushinteger(state, GLFW_KEY_KP_8); lua_setfield(state, -2, "KP_8");
-        lua_pushinteger(state, GLFW_KEY_KP_9); lua_setfield(state, -2, "KP_9");
-        lua_pushinteger(state, GLFW_KEY_KP_DECIMAL); lua_setfield(state, -2, "KP_DECIMAL");
-        lua_pushinteger(state, GLFW_KEY_KP_DIVIDE); lua_setfield(state, -2, "KP_DIVIDE");
-        lua_pushinteger(state, GLFW_KEY_KP_MULTIPLY); lua_setfield(state, -2, "KP_MULTIPLY");
-        lua_pushinteger(state, GLFW_KEY_KP_SUBTRACT); lua_setfield(state, -2, "KP_SUBTRACT");
-        lua_pushinteger(state, GLFW_KEY_KP_ADD); lua_setfield(state, -2, "KP_ADD");
-        lua_pushinteger(state, GLFW_KEY_KP_ENTER); lua_setfield(state, -2, "KP_ENTER");
-        lua_pushinteger(state, GLFW_KEY_KP_EQUAL); lua_setfield(state, -2, "KP_EQUAL");
-        
-        // Специальные клавиши
-        lua_pushinteger(state, GLFW_KEY_ENTER); lua_setfield(state, -2, "ENTER");
-        lua_pushinteger(state, GLFW_KEY_ESCAPE); lua_setfield(state, -2, "ESCAPE");
-        lua_pushinteger(state, GLFW_KEY_SPACE); lua_setfield(state, -2, "SPACE");
-        lua_pushinteger(state, GLFW_KEY_TAB); lua_setfield(state, -2, "TAB");
-        lua_pushinteger(state, GLFW_KEY_BACKSPACE); lua_setfield(state, -2, "BACKSPACE");
-        lua_pushinteger(state, GLFW_KEY_DELETE); lua_setfield(state, -2, "DELETE");
-        lua_pushinteger(state, GLFW_KEY_INSERT); lua_setfield(state, -2, "INSERT");
-        lua_pushinteger(state, GLFW_KEY_HOME); lua_setfield(state, -2, "HOME");
-        lua_pushinteger(state, GLFW_KEY_END); lua_setfield(state, -2, "END");
-        lua_pushinteger(state, GLFW_KEY_PAGE_UP); lua_setfield(state, -2, "PAGE_UP");
-        lua_pushinteger(state, GLFW_KEY_PAGE_DOWN); lua_setfield(state, -2, "PAGE_DOWN");
-        lua_pushinteger(state, GLFW_KEY_CAPS_LOCK); lua_setfield(state, -2, "CAPS_LOCK");
-        lua_pushinteger(state, GLFW_KEY_NUM_LOCK); lua_setfield(state, -2, "NUM_LOCK");
-        lua_pushinteger(state, GLFW_KEY_SCROLL_LOCK); lua_setfield(state, -2, "SCROLL_LOCK");
-        lua_pushinteger(state, GLFW_KEY_PRINT_SCREEN); lua_setfield(state, -2, "PRINT_SCREEN");
-        lua_pushinteger(state, GLFW_KEY_PAUSE); lua_setfield(state, -2, "PAUSE");
-        lua_pushinteger(state, GLFW_KEY_MENU); lua_setfield(state, -2, "MENU");
-        
+        #define ADD_KEY(name) lua_pushinteger(state, GLFW_KEY_##name); lua_setfield(state, -2, #name)
+        ADD_KEY(A); ADD_KEY(B); ADD_KEY(C); ADD_KEY(D); ADD_KEY(E); ADD_KEY(F); ADD_KEY(G);
+        ADD_KEY(H); ADD_KEY(I); ADD_KEY(J); ADD_KEY(K); ADD_KEY(L); ADD_KEY(M); ADD_KEY(N);
+        ADD_KEY(O); ADD_KEY(P); ADD_KEY(Q); ADD_KEY(R); ADD_KEY(S); ADD_KEY(T); ADD_KEY(U);
+        ADD_KEY(V); ADD_KEY(W); ADD_KEY(X); ADD_KEY(Y); ADD_KEY(Z);
+        ADD_KEY(0); ADD_KEY(1); ADD_KEY(2); ADD_KEY(3); ADD_KEY(4); ADD_KEY(5); ADD_KEY(6); ADD_KEY(7); ADD_KEY(8); ADD_KEY(9);
+        ADD_KEY(UP); ADD_KEY(DOWN); ADD_KEY(LEFT); ADD_KEY(RIGHT);
+        ADD_KEY(SPACE); ADD_KEY(ENTER); ADD_KEY(ESCAPE);
+        ADD_KEY(TAB); ADD_KEY(BACKSPACE); ADD_KEY(DELETE);
+        ADD_KEY(LEFT_SHIFT); ADD_KEY(RIGHT_SHIFT);
+        ADD_KEY(LEFT_CONTROL); ADD_KEY(RIGHT_CONTROL);
+        ADD_KEY(LEFT_ALT); ADD_KEY(RIGHT_ALT);
+        ADD_KEY(F1); ADD_KEY(F2); ADD_KEY(F3); ADD_KEY(F4); ADD_KEY(F5); ADD_KEY(F6);
+        ADD_KEY(F7); ADD_KEY(F8); ADD_KEY(F9); ADD_KEY(F10); ADD_KEY(F11); ADD_KEY(F12);
+        #undef ADD_KEY
         lua_setglobal(state, "Keys");
         
-        // Mouse button constants
+        // Mouse constants
         lua_newtable(state);
         lua_pushinteger(state, GLFW_MOUSE_BUTTON_LEFT); lua_setfield(state, -2, "LEFT");
         lua_pushinteger(state, GLFW_MOUSE_BUTTON_RIGHT); lua_setfield(state, -2, "RIGHT");
@@ -1235,7 +1214,6 @@ namespace LuaEngine {
         lua_setglobal(state, "MouseButtons");
     }
     
-    // Initialize
     int LuaEngine::Init() {
         if (initialized) return 0;
         
@@ -1258,12 +1236,13 @@ namespace LuaEngine {
         return 0;
     }
     
-    // Shutdown
     void LuaEngine::shutdown() {
         if (audioInitialized) {
             audioEngine.shutdown();
             audioInitialized = false;
         }
+        
+        destroyAllEntities();
         
         if (state) {
             lua_close(state);
@@ -1272,29 +1251,21 @@ namespace LuaEngine {
         initialized = false;
     }
     
-    // Load scripts from list
     bool LuaEngine::loadScriptsFromList(const std::string& listPath) {
-        if (!initialized) {
-            std::cerr << "Engine not initialized" << std::endl;
-            return false;
-        }
+        if (!initialized) return false;
         
         scriptsListPath = listPath;
-        
-        if (!parseScriptsList(listPath)) {
-            return false;
-        }
+        if (!parseScriptsList(listPath)) return false;
         
         bool allSuccess = true;
         for (auto& script : scripts) {
-            if (script.enabled) {
+            if (!script.isScene && script.enabled) {
                 if (loadScript(script.path)) {
                     script.loaded = true;
-                    std::cout << "Loaded script: " << script.name << " (" << script.path << ")" << std::endl;
+                    std::cout << "Loaded script: " << script.name << std::endl;
                 } else {
                     script.loaded = false;
                     allSuccess = false;
-                    std::cerr << "Failed to load script: " << script.name << std::endl;
                 }
             }
         }
@@ -1302,72 +1273,49 @@ namespace LuaEngine {
         return allSuccess;
     }
     
-    // Load single script
     bool LuaEngine::loadScript(const std::string& scriptPath) {
-        if (!initialized) {
-            std::cerr << "Engine not initialized" << std::endl;
-            return false;
-        }
+        if (!initialized) return false;
         
         if (luaL_dofile(state, scriptPath.c_str()) != LUA_OK) {
-            std::cerr << "Error loading script " << scriptPath << ": " << lua_tostring(state, -1) << std::endl;
+            std::cerr << "Error loading script: " << lua_tostring(state, -1) << std::endl;
             lua_pop(state, 1);
             return false;
         }
-        
         return true;
     }
     
-    // Reload script
     bool LuaEngine::reloadScript(const std::string& scriptPath) {
         for (auto& script : scripts) {
             if (script.path == scriptPath || script.name == scriptPath) {
-                if (!script.enabled) {
-                    std::cout << "Script " << script.name << " is disabled, skipping reload" << std::endl;
-                    return false;
-                }
-                
-                std::cout << "Reloading script: " << script.name << std::endl;
+                if (!script.enabled) return false;
                 return loadScript(script.path);
             }
         }
-        
-        std::cout << "Reloading script: " << scriptPath << std::endl;
         return loadScript(scriptPath);
     }
     
-    // Reload all scripts
     bool LuaEngine::reloadAllScripts() {
-        if (scripts.empty()) {
-            std::cerr << "No scripts list loaded, call loadScriptsFromList first" << std::endl;
-            return false;
-        }
-        
-        std::cout << "Reloading all scripts..." << std::endl;
+        if (scripts.empty()) return false;
         
         bool allSuccess = true;
         for (auto& script : scripts) {
-            if (script.enabled) {
+            if (!script.isScene && script.enabled) {
                 if (loadScript(script.path)) {
                     script.loaded = true;
-                    std::cout << "Reloaded script: " << script.name << std::endl;
                 } else {
                     script.loaded = false;
                     allSuccess = false;
-                    std::cerr << "Failed to reload script: " << script.name << std::endl;
                 }
             }
         }
-        
         return allSuccess;
     }
     
-    // Enable/disable script
     void LuaEngine::enableScript(const std::string& scriptName, bool enabled) {
         for (auto& script : scripts) {
             if (script.name == scriptName) {
                 script.enabled = enabled;
-                if (enabled && !script.loaded) {
+                if (enabled && !script.loaded && !script.isScene) {
                     loadScript(script.path);
                     script.loaded = true;
                 }
@@ -1376,7 +1324,6 @@ namespace LuaEngine {
         }
     }
     
-    // Check if script is loaded
     bool LuaEngine::isScriptLoaded(const std::string& scriptName) const {
         for (const auto& script : scripts) {
             if (script.name == scriptName) {
@@ -1386,7 +1333,6 @@ namespace LuaEngine {
         return false;
     }
     
-    // Get loaded scripts
     std::vector<std::string> LuaEngine::getLoadedScripts() const {
         std::vector<std::string> loaded;
         for (const auto& script : scripts) {
@@ -1397,34 +1343,36 @@ namespace LuaEngine {
         return loaded;
     }
     
+    bool LuaEngine::loadScene(const std::string& sceneName) {
+        if (sceneManager) {
+            return sceneManager->loadScene(sceneName);
+        }
+        return false;
+    }
+    
     // Sprite implementations
     Entity LuaEngine::createSprite(const std::string& texturePath, const Vector2& position) {
         Sprite2D* sprite = new Sprite2D();
         sprite->setTexture(texturePath);
         sprite->setPosition(position);
-        
         Entity entity = spriteWorld.spawn(sprite);
-        
         objectMap[entity] = RegisteredObject(RegisteredObject::SPRITE, sprite, entity);
-        
-        std::cout << "createSprite: Created entity " << entity << " with texture " << texturePath << std::endl;
-        
         return entity;
+    }
+    
+    void LuaEngine::spriteSetTexture(Entity entity, const std::string& texturePath) {
+        Sprite2D* sprite = spriteWorld.getEntity(entity);
+        if (sprite) sprite->setTexture(texturePath);
     }
     
     void LuaEngine::spriteSetPosition(Entity entity, const Vector2& pos) {
         Sprite2D* sprite = spriteWorld.getEntity(entity);
-        if (sprite) {
-            sprite->setPosition(pos);
-        } else {
-            std::cerr << "spriteSetPosition: Entity " << entity << " not found!" << std::endl;
-        }
+        if (sprite) sprite->setPosition(pos);
     }
     
     Vector2 LuaEngine::spriteGetPosition(Entity entity) {
         Sprite2D* sprite = spriteWorld.getEntity(entity);
-        if (sprite) return sprite->getPosition();
-        return Vector2(0, 0);
+        return sprite ? sprite->getPosition() : Vector2(0, 0);
     }
     
     void LuaEngine::spriteSetSize(Entity entity, const Vector2& size) {
@@ -1434,8 +1382,7 @@ namespace LuaEngine {
     
     Vector2 LuaEngine::spriteGetSize(Entity entity) {
         Sprite2D* sprite = spriteWorld.getEntity(entity);
-        if (sprite) return sprite->getSize();
-        return Vector2(1, 1);
+        return sprite ? sprite->getSize() : Vector2(1, 1);
     }
     
     void LuaEngine::spriteSetOrigin(Entity entity, const Vector2& origin) {
@@ -1460,7 +1407,7 @@ namespace LuaEngine {
     
     void LuaEngine::drawAllSprites() {
         for (const auto& pair : spriteWorld.getAllEntities()) {
-            if (!pair.second && pair.first) {
+            if (pair.first && !pair.second) {
                 pair.first->draw();
             }
         }
@@ -1535,14 +1482,12 @@ namespace LuaEngine {
     
     int LuaEngine::animationGetFrameCount(Entity entity) {
         Animation2D* anim = animationWorld.getEntity(entity);
-        if (anim) return anim->getFrameCount();
-        return 0;
+        return anim ? anim->getFrameCount() : 0;
     }
     
     bool LuaEngine::animationIsPlaying(Entity entity) {
         Animation2D* anim = animationWorld.getEntity(entity);
-        if (anim) return anim->isPlaying();
-        return false;
+        return anim ? anim->isPlaying() : false;
     }
     
     void LuaEngine::animationSetPosition(Entity entity, const Vector2& pos) {
@@ -1557,7 +1502,7 @@ namespace LuaEngine {
     
     void LuaEngine::updateAllAnimations(float dt) {
         for (const auto& pair : animationWorld.getAllEntities()) {
-            if (!pair.second && pair.first) {
+            if (pair.first && !pair.second) {
                 pair.first->update(dt);
             }
         }
@@ -1565,7 +1510,7 @@ namespace LuaEngine {
     
     void LuaEngine::drawAllAnimations() {
         for (const auto& pair : animationWorld.getAllEntities()) {
-            if (!pair.second && pair.first) {
+            if (pair.first && !pair.second) {
                 pair.first->draw();
             }
         }
@@ -1589,8 +1534,7 @@ namespace LuaEngine {
     
     std::string LuaEngine::textGetString(Entity entity) {
         Text* txt = textWorld.getEntity(entity);
-        if (txt) return txt->getText();
-        return "";
+        return txt ? txt->getText() : "";
     }
     
     void LuaEngine::textSetPosition(Entity entity, const Vector2& pos) {
@@ -1615,7 +1559,7 @@ namespace LuaEngine {
     
     void LuaEngine::drawAllTexts() {
         for (const auto& pair : textWorld.getAllEntities()) {
-            if (!pair.second && pair.first) {
+            if (pair.first && !pair.second) {
                 pair.first->draw();
             }
         }
@@ -1623,7 +1567,7 @@ namespace LuaEngine {
     
     void LuaEngine::setTextScreenSize(int width, int height) {
         for (const auto& pair : textWorld.getAllEntities()) {
-            if (!pair.second && pair.first) {
+            if (pair.first && !pair.second) {
                 pair.first->setScreenSize(width, height);
             }
         }
@@ -1649,7 +1593,7 @@ namespace LuaEngine {
     
     void LuaEngine::drawAllMeshes() {
         for (const auto& pair : meshWorld.getAllEntities()) {
-            if (!pair.second && pair.first) {
+            if (pair.first && !pair.second) {
                 pair.first->draw();
             }
         }
@@ -1698,9 +1642,7 @@ namespace LuaEngine {
     bool LuaEngine::isSoundPlaying(const std::string& soundName) {
         if (!audioInitialized) return false;
         int id = audioEngine.getSourceIndex(soundName);
-        if (id >= 0) {
-            return audioEngine.isPlaying(id);
-        }
+        if (id >= 0) return audioEngine.isPlaying(id);
         return false;
     }
     
@@ -1715,14 +1657,94 @@ namespace LuaEngine {
         }
     }
     
-    // General implementations
+    // Window management
+    std::shared_ptr<Window> LuaEngine::createWindow(int width, int height, const std::string& title) {
+        auto window = std::make_shared<Window>(width, height, title.c_str());
+        additionalWindows.push_back(window);
+        return window;
+    }
+    
+    void LuaEngine::destroyWindow(std::shared_ptr<Window> window) {
+        auto it = std::find(additionalWindows.begin(), additionalWindows.end(), window);
+        if (it != additionalWindows.end()) {
+            additionalWindows.erase(it);
+        }
+    }
+    
+    void LuaEngine::setWindowTitle(std::shared_ptr<Window> window, const std::string& title) {
+        if (window) window->setTitle(title.c_str());
+    }
+    
+    void LuaEngine::setWindowSize(std::shared_ptr<Window> window, int width, int height) {
+        if (window) window->setSize(width, height);
+    }
+    
+    void LuaEngine::setWindowPosition(std::shared_ptr<Window> window, int x, int y) {
+        if (window) {
+            glfwSetWindowPos(window->getGLFWwindow(), x, y);
+        }
+    }
+    
+    void LuaEngine::setWindowIcon(std::shared_ptr<Window> window, const std::string& iconPath) {
+        if (window) window->setIcon(iconPath.c_str());
+    }
+    
+    // Object deletion
+    void LuaEngine::destroyEntity(Entity entity) {
+        auto it = objectMap.find(entity);
+        if (it != objectMap.end()) {
+            switch (it->second.type) {
+                case RegisteredObject::SPRITE:
+                    spriteWorld.destroy(entity);
+                    break;
+                case RegisteredObject::ANIMATION:
+                    animationWorld.destroy(entity);
+                    break;
+                case RegisteredObject::TEXT:
+                    textWorld.destroy(entity);
+                    break;
+                case RegisteredObject::MESH:
+                    meshWorld.destroy(entity);
+                    break;
+                default: break;
+            }
+            objectMap.erase(it);
+        }
+    }
+    
+    void LuaEngine::destroyAllEntities() {
+        for (const auto& pair : spriteWorld.getAllEntities()) {
+            if (pair.first) delete pair.first;
+        }
+        for (const auto& pair : animationWorld.getAllEntities()) {
+            if (pair.first) delete pair.first;
+        }
+        for (const auto& pair : textWorld.getAllEntities()) {
+            if (pair.first) delete pair.first;
+        }
+        for (const auto& pair : meshWorld.getAllEntities()) {
+            if (pair.first) delete pair.first;
+        }
+        objectMap.clear();
+    }
+    
+    // General
+    float LuaEngine::getDeltaTime() const { return deltaTime; }
+    void LuaEngine::setDeltaTime(float dt) { deltaTime = dt; }
+    lua_State* LuaEngine::getState() { return state; }
+    bool LuaEngine::isInitialized() const { return initialized; }
+    Audio& LuaEngine::getAudio() { return audioEngine; }
+    
+    void LuaEngine::addConsoleMessage(const std::string& msg, int type) {
+        std::cout << "[Lua] " << msg << std::endl;
+    }
+    
     bool LuaEngine::callFunction(const std::string& funcName) {
         if (!initialized) return false;
-        
         lua_getglobal(state, funcName.c_str());
         if (lua_isfunction(state, -1)) {
             if (lua_pcall(state, 0, 0, 0) != LUA_OK) {
-                std::cerr << "Error calling function " << funcName << ": " << lua_tostring(state, -1) << std::endl;
+                std::cerr << "Error in " << funcName << ": " << lua_tostring(state, -1) << std::endl;
                 lua_pop(state, 1);
                 return false;
             }
@@ -1750,7 +1772,6 @@ namespace LuaEngine {
     
     bool LuaEngine::callDraw() {
         if (!initialized) return false;
-        
         lua_getglobal(state, "Draw");
         if (lua_isfunction(state, -1)) {
             if (lua_pcall(state, 0, 0, 0) != LUA_OK) {
@@ -1764,34 +1785,20 @@ namespace LuaEngine {
         return false;
     }
     
-    void LuaEngine::destroyEntity(Entity entity) {
-        auto it = objectMap.find(entity);
-        if (it != objectMap.end()) {
-            switch (it->second.type) {
-                case RegisteredObject::SPRITE:
-                    spriteWorld.destroy(entity);
-                    break;
-                case RegisteredObject::ANIMATION:
-                    animationWorld.destroy(entity);
-                    break;
-                case RegisteredObject::TEXT:
-                    textWorld.destroy(entity);
-                    break;
-                case RegisteredObject::MESH:
-                    meshWorld.destroy(entity);
-                    break;
-                default:
-                    break;
+    bool LuaEngine::callEnd() {
+        if (!initialized) return false;
+        lua_getglobal(state, "End");
+        if (lua_isfunction(state, -1)) {
+            if (lua_pcall(state, 0, 0, 0) != LUA_OK) {
+                std::cerr << "Error in End: " << lua_tostring(state, -1) << std::endl;
+                lua_pop(state, 1);
+                return false;
             }
-            objectMap.erase(it);
+            return true;
         }
+        lua_pop(state, 1);
+        return false;
     }
-    
-    float LuaEngine::getDeltaTime() const { return deltaTime; }
-    void LuaEngine::setDeltaTime(float dt) { deltaTime = dt; }
-    lua_State* LuaEngine::getState() { return state; }
-    bool LuaEngine::isInitialized() const { return initialized; }
-    Audio& LuaEngine::getAudio() { return audioEngine; }
     
     void LuaEngine::drawAll() {
         drawAllSprites();
@@ -1804,5 +1811,8 @@ namespace LuaEngine {
         deltaTime = dt;
         updateAllAnimations(dt);
         updateAudio();
+        if (sceneManager) {
+            sceneManager->update(dt);
+        }
     }
 }

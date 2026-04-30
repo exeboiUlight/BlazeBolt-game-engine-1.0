@@ -3,10 +3,33 @@ import os
 debug = True
 
 if not debug:
-    DEBUG = " -Wl,-subsystem,windows"
+    DEBUG_FLAGS = " -Wl,-subsystem,windows"
 else:
-    DEBUG=""
+    DEBUG_FLAGS = " -g"
 
-# compile editor
-os.system(f"g++{DEBUG} -O2 src/editor.cpp include/glad/glad.c -I./include -I./core -L./lib -llua54 -lgdi32 -lopengl32 -lglfw3 -lopenal32 -lfreetype -o bin/editor.exe -static-libgcc -static-libstdc++")
-# os.system(f"g++{DEBUG} -O2 src/game.cpp include/glad/glad.c -I./include -I./core -L./lib -llua54 -lgdi32 -lopengl32 -lglfw3 -lopenal32 -lfreetype -o bin/game.exe -static-libgcc -static-libstdc++")
+def compile_game():
+    game_files = [
+        "src/game.cpp",
+        "include/glad/glad.c"
+    ]
+    game_files_str = " ".join(game_files)
+    compile_game_cmd = (
+        f"g++{DEBUG_FLAGS} {game_files_str} "
+        f"-O2 "
+        f"-I./include "
+        f"-I./core "
+        f"-L./lib "
+        f"-llua54 "
+        f"-lgdi32 "
+        f"-lopengl32 "
+        f"-lglfw3 "
+        f"-lopenal32 "
+        f"-lfreetype "
+        f"-o bin/versions/game.exe "
+        f"-static-libgcc "
+        f"-static-libstdc++"
+    )
+    print("\nCompiling game...")
+    os.system(compile_game_cmd)
+
+compile_game()

@@ -56,7 +56,7 @@ private:
         
         transform = Matrix3x3::rotation(m_rotation) * transform;
 
-        transform = Matrix3x3::scale(m_size.x*0.5f, m_size.y) * transform;
+        transform = Matrix3x3::scale(m_size.x, m_size.y) * transform;
         
         float transformArray[9];
         transform.toFloatArray(transformArray);

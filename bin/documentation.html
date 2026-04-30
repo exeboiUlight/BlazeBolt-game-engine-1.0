@@ -1,0 +1,1097 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BlazeBolt Engine - Complete Lua API Documentation</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Fira Code', 'Roboto Mono', monospace;
+            line-height: 1.6;
+            background: #0a0c10;
+            color: #e4e4e7;
+        }
+
+        :root {
+            --bg-primary: #0a0c10;
+            --bg-secondary: #14161c;
+            --bg-tertiary: #1a1d24;
+            --bg-card: #1e2128;
+            --border: #2a2e3a;
+            --text-primary: #e4e4e7;
+            --text-secondary: #a1a1aa;
+            --text-muted: #71717a;
+            --accent-primary: #8b5cf6;
+            --accent-secondary: #6366f1;
+            --accent-success: #10b981;
+            --accent-warning: #f59e0b;
+            --accent-error: #ef4444;
+            --accent-info: #3b82f6;
+            --code-bg: #0d1117;
+            --sidebar-width: 300px;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #1e1b4b 0%, #0f172a 100%);
+            border-bottom: 1px solid var(--border);
+            padding: 60px 20px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: radial-gradient(circle at 50% 50%, rgba(139, 92, 246, 0.1) 0%, transparent 50%);
+            pointer-events: none;
+        }
+
+        .header h1 {
+            font-size: 52px;
+            background: linear-gradient(135deg, #a78bfa, #818cf8);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            margin-bottom: 15px;
+        }
+
+        .header p {
+            font-size: 18px;
+            color: var(--text-secondary);
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .version {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(139, 92, 246, 0.15);
+            padding: 6px 16px;
+            border-radius: 50px;
+            margin-top: 20px;
+            font-size: 13px;
+            border: 1px solid rgba(139, 92, 246, 0.3);
+        }
+
+        .layout {
+            display: flex;
+            min-height: calc(100vh - 180px);
+        }
+
+        .sidebar {
+            width: var(--sidebar-width);
+            background: var(--bg-secondary);
+            border-right: 1px solid var(--border);
+            position: sticky;
+            top: 0;
+            height: 100vh;
+            overflow-y: auto;
+            padding: 20px 0;
+            z-index: 100;
+        }
+
+        .sidebar-header {
+            padding: 0 20px 20px;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 20px;
+        }
+
+        .sidebar-header h3 {
+            font-size: 18px;
+            color: var(--accent-primary);
+        }
+
+        .search-container {
+            padding: 0 16px 16px;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 16px;
+        }
+
+        .search-box {
+            width: 100%;
+            padding: 10px 14px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            color: var(--text-primary);
+            font-size: 13px;
+        }
+
+        .search-box:focus {
+            outline: none;
+            border-color: var(--accent-primary);
+        }
+
+        .sidebar-nav {
+            padding: 0 12px;
+        }
+
+        .sidebar-nav .section-title {
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--accent-primary);
+            padding: 12px 12px 6px;
+            margin-top: 10px;
+        }
+
+        .sidebar-nav a {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 16px;
+            color: var(--text-secondary);
+            text-decoration: none;
+            border-radius: 8px;
+            font-size: 13px;
+            transition: all 0.2s;
+        }
+
+        .sidebar-nav a:hover {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+        }
+
+        .sidebar-nav a.active {
+            background: rgba(139, 92, 246, 0.15);
+            color: var(--accent-primary);
+        }
+
+        .main-content {
+            flex: 1;
+            padding: 30px 40px;
+            max-width: calc(100% - var(--sidebar-width));
+        }
+
+        .section {
+            background: var(--bg-card);
+            border-radius: 16px;
+            padding: 28px;
+            margin-bottom: 30px;
+            border: 1px solid var(--border);
+        }
+
+        .section h2 {
+            font-size: 26px;
+            margin-bottom: 20px;
+            padding-bottom: 12px;
+            border-bottom: 2px solid var(--accent-primary);
+            display: inline-block;
+        }
+
+        .section h3 {
+            font-size: 20px;
+            margin: 24px 0 12px;
+            color: var(--accent-secondary);
+        }
+
+        .code-block {
+            background: var(--code-bg);
+            border-radius: 12px;
+            margin: 16px 0;
+            overflow: hidden;
+            border: 1px solid var(--border);
+        }
+
+        .code-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 16px;
+            background: var(--bg-tertiary);
+            border-bottom: 1px solid var(--border);
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        .copy-btn {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 12px;
+            transition: all 0.2s;
+        }
+
+        .copy-btn:hover {
+            background: var(--bg-secondary);
+            color: var(--accent-primary);
+        }
+
+        pre {
+            margin: 0;
+            padding: 20px;
+            overflow-x: auto;
+            font-family: 'Fira Code', 'Roboto Mono', monospace;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+
+        .inline-code {
+            background: var(--bg-tertiary);
+            padding: 2px 6px;
+            border-radius: 6px;
+            font-size: 13px;
+            color: var(--accent-secondary);
+        }
+
+        .api-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 16px 0;
+            font-size: 14px;
+        }
+
+        .api-table th {
+            text-align: left;
+            padding: 12px;
+            background: var(--bg-tertiary);
+            color: var(--accent-primary);
+            font-weight: 600;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .api-table td {
+            padding: 10px 12px;
+            border-bottom: 1px solid var(--border);
+            color: var(--text-secondary);
+        }
+
+        .param-name {
+            font-family: monospace;
+            color: var(--accent-warning);
+        }
+
+        .param-type {
+            color: var(--accent-info);
+            font-size: 12px;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+            margin-left: 8px;
+        }
+
+        .badge-new {
+            background: rgba(16, 185, 129, 0.2);
+            color: #10b981;
+            border: 1px solid rgba(16, 185, 129, 0.3);
+        }
+
+        .note {
+            background: rgba(59, 130, 246, 0.1);
+            border-left: 3px solid var(--accent-info);
+            padding: 16px 20px;
+            margin: 20px 0;
+            border-radius: 10px;
+        }
+
+        .tip {
+            background: rgba(16, 185, 129, 0.1);
+            border-left: 3px solid var(--accent-success);
+            padding: 16px 20px;
+            margin: 20px 0;
+            border-radius: 10px;
+        }
+
+        .warning {
+            background: rgba(245, 158, 11, 0.1);
+            border-left: 3px solid var(--accent-warning);
+            padding: 16px 20px;
+            margin: 20px 0;
+            border-radius: 10px;
+        }
+
+        .api-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 16px;
+            margin: 20px 0;
+        }
+
+        .api-card {
+            background: var(--bg-tertiary);
+            border-radius: 12px;
+            padding: 16px;
+            border: 1px solid var(--border);
+        }
+
+        .api-card .func-name {
+            font-family: monospace;
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--accent-primary);
+            margin-bottom: 8px;
+        }
+
+        .api-card .func-desc {
+            font-size: 13px;
+            color: var(--text-muted);
+        }
+
+        .footer {
+            text-align: center;
+            padding: 30px;
+            border-top: 1px solid var(--border);
+            color: var(--text-muted);
+            font-size: 13px;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--bg-secondary);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--accent-primary);
+        }
+
+        @media (max-width: 768px) {
+            .sidebar {
+                transform: translateX(-100%);
+                position: fixed;
+                z-index: 1000;
+                transition: transform 0.3s;
+            }
+
+            .sidebar.open {
+                transform: translateX(0);
+            }
+
+            .main-content {
+                padding: 20px;
+                max-width: 100%;
+            }
+
+            .menu-toggle {
+                display: block;
+                position: fixed;
+                bottom: 20px;
+                right: 20px;
+                width: 50px;
+                height: 50px;
+                border-radius: 25px;
+                background: var(--accent-primary);
+                border: none;
+                color: white;
+                font-size: 24px;
+                cursor: pointer;
+                z-index: 1001;
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            }
+        }
+
+        @media (min-width: 769px) {
+            .menu-toggle {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
+
+    <div class="header">
+        <h1>⚡ BlazeBolt Engine</h1>
+        <p>Complete Lua API Documentation for Game Development</p>
+        <div class="version">
+            <span>Lua 5.4</span> • <span>v2.0.0</span> • <span>OpenGL 3.3</span> • <span>With Scene System</span>
+        </div>
+    </div>
+
+    <div class="layout">
+        <div class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <h3>📚 Documentation</h3>
+                <p>BlazeBolt Lua API v2.0</p>
+            </div>
+            <div class="search-container">
+                <input type="text" class="search-box" id="searchInput" placeholder="🔍 Search functions...">
+            </div>
+            <div class="sidebar-nav" id="sidebarNav">
+                <div class="section-title">Getting Started</div>
+                <a href="#overview">Overview</a>
+                <a href="#callbacks">Callbacks (Start, Update, Draw, End)</a>
+                <a href="#scripts-list">Scripts List Format</a>
+
+                <div class="section-title">Scene System</div>
+                <a href="#scenes">Scenes Overview</a>
+                <a href="#scene-api">Scene Management API</a>
+
+                <div class="section-title">Core API</div>
+                <a href="#sprite-api">🎨 Sprite API</a>
+                <a href="#animation-api">🎬 Animation API</a>
+                <a href="#text-api">📝 Text API</a>
+                <a href="#mesh-api">📐 Mesh API</a>
+                <a href="#audio-api">🔊 Audio API</a>
+                <a href="#input-api">🎮 Input API</a>
+                <a href="#window-api">🪟 Window API</a>
+
+                <div class="section-title">Object Management</div>
+                <a href="#object-api">Object Creation & Deletion</a>
+
+                <div class="section-title">Utility</div>
+                <a href="#utility-api">Utility Functions</a>
+                <a href="#constants">Constants</a>
+
+                <div class="section-title">Examples</div>
+                <a href="#examples">Complete Examples</a>
+            </div>
+        </div>
+
+        <div class="main-content" id="mainContent">
+            <!-- Overview -->
+            <section id="overview" class="section">
+                <h2>🎯 Overview</h2>
+                <p>BlazeBolt is a professional 2D game engine with Lua scripting support. All engine functions are accessible through the global <span class="inline-code">BlazeBolt</span> table.</p>
+                
+                <div class="tip">
+                    <h4>💡 New in v2.0</h4>
+                    <ul style="margin-left: 20px; margin-top: 10px;">
+                        <li><strong>Scene System</strong> - Load and switch between game scenes</li>
+                        <li><strong>End Callback</strong> - Cleanup when game ends</li>
+                        <li><strong>Multiple Windows</strong> - Create and manage additional windows</li>
+                        <li><strong>Object Deletion</strong> - Destroy entities at runtime</li>
+                        <li><strong>Texture Hot-Swapping</strong> - Change sprite textures dynamically</li>
+                    </ul>
+                </div>
+
+                <div class="code-block">
+                    <div class="code-header">
+                        <span>main.lua - Basic Game Structure</span>
+                        <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                    </div>
+                    <pre><code><span class="comment">-- Called once when game starts</span>
+<span class="keyword">function</span> <span class="function">Start</span>()
+    <span class="function">BlazeBolt.Print</span>(<span class="string">"Game initialized!"</span>)
+<span class="keyword">end</span>
+
+<span class="comment">-- Called every frame (dt = delta time in seconds)</span>
+<span class="keyword">function</span> <span class="function">Update</span>(dt)
+    <span class="keyword">if</span> <span class="function">BlazeBolt.IsKeyPressed</span>(Keys.ESCAPE) <span class="keyword">then</span>
+        <span class="function">BlazeBolt.Quit</span>()
+    <span class="keyword">end</span>
+<span class="keyword">end</span>
+
+<span class="comment">-- Called after automatic drawing</span>
+<span class="keyword">function</span> <span class="function">Draw</span>()
+    <span class="comment">-- Custom drawing code here</span>
+<span class="keyword">end</span>
+
+<span class="comment">-- Called when game ends (NEW!)</span>
+<span class="keyword">function</span> <span class="function">End</span>()
+    <span class="function">BlazeBolt.Print</span>(<span class="string">"Game is shutting down..."</span>)
+    <span class="comment">-- Cleanup code here</span>
+<span class="keyword">end</span></code></pre>
+                </div>
+            </section>
+
+            <!-- Callbacks -->
+            <section id="callbacks" class="section">
+                <h2>🔄 Game Callbacks</h2>
+                <p>Define these functions in your Lua scripts:</p>
+                
+                <table class="api-table">
+                    <thead>
+                        <tr><th>Function</th><th>Parameters</th><th>When Called</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr><td><span class="inline-code">Start()</span></td><td>none</td><td>Once when game starts</td></tr>
+                        <tr><td><span class="inline-code">Update(dt)</span></td><td>dt (number)</td><td>Every frame (delta time in seconds)</td></tr>
+                        <tr><td><span class="inline-code">Draw()</span></td><td>none</td><td>After automatic rendering</td></tr>
+                        <tr><td><span class="inline-code">End()</span> <span class="badge badge-new">NEW</span></td><td>none</td><td>When game ends (cleanup)</td></tr>
+                    </tbody>
+                </table>
+            </section>
+
+            <!-- Scripts List -->
+            <section id="scripts-list" class="section">
+                <h2>📄 Scripts List Format (scripts.list)</h2>
+                <p>Define your scripts and scenes in <span class="inline-code">engine/scripts.list</span>:</p>
+                
+                <div class="code-block">
+                    <div class="code-header">
+                        <span>scripts.list</span>
+                        <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                    </div>
+                    <pre><code><span class="comment"># Regular scripts (loaded automatically)</span>
+main=scripts/main.lua
+player=scripts/player.lua
+ui=scripts/ui.lua
+
+<span class="comment"># Scenes (prefixed with @)</span>
+@menu=scenes/menu.lua
+@game=scenes/game.lua
+@settings=scenes/settings.lua
+
+<span class="comment"># Short form (name from filename)</span>
+scripts/enemies.lua</code></pre>
+                </div>
+
+                <div class="note">
+                    <h4>📌 Scene Script Structure</h4>
+                    <p>Each scene script should define:</p>
+                    <ul style="margin-left: 20px; margin-top: 10px;">
+                        <li><span class="inline-code">On[SceneName]Load()</span> - Called when scene loads</li>
+                        <li><span class="inline-code">On[SceneName]Unload()</span> - Called when scene unloads</li>
+                        <li><span class="inline-code">Update(dt)</span> - Scene update logic</li>
+                        <li><span class="inline-code">Draw()</span> - Scene drawing logic</li>
+                    </ul>
+                </div>
+            </section>
+
+            <!-- Scene System -->
+            <section id="scenes" class="section">
+                <h2>🎬 Scene System Overview</h2>
+                <p>Scenes allow you to organize your game into logical sections (menu, gameplay, settings, etc.)</p>
+
+                <div class="code-block">
+                    <div class="code-header">
+                        <span>scenes/menu.lua - Menu Scene Example</span>
+                        <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                    </div>
+                    <pre><code><span class="keyword">local</span> titleText, startButton
+
+<span class="keyword">function</span> <span class="function">OnMenuLoad</span>()
+    titleText = <span class="function">BlazeBolt.NewText</span>(<span class="string">"assets/font.ttf"</span>, <span class="string">"My Game"</span>, 400, 200, 64)
+    startButton = <span class="function">BlazeBolt.NewSprite</span>(<span class="string">"assets/button.png"</span>, 400, 300)
+    <span class="function">BlazeBolt.SpriteSetSize</span>(startButton, 200, 50)
+    <span class="function">BlazeBolt.Print</span>(<span class="string">"Menu loaded!"</span>)
+<span class="keyword">end</span>
+
+<span class="keyword">function</span> <span class="function">OnMenuUnload</span>()
+    <span class="function">BlazeBolt.Destroy</span>(titleText)
+    <span class="function">BlazeBolt.Destroy</span>(startButton)
+    <span class="function">BlazeBolt.Print</span>(<span class="string">"Menu unloaded!"</span>)
+<span class="keyword">end</span>
+
+<span class="keyword">function</span> <span class="function">Update</span>(dt)
+    <span class="keyword">local</span> mx, my = <span class="function">BlazeBolt.GetMouseX</span>(), <span class="function">BlazeBolt.GetMouseY</span>()
+    <span class="keyword">if</span> <span class="function">BlazeBolt.IsMouseButtonJustPressed</span>(MouseButtons.LEFT) <span class="keyword">then</span>
+        <span class="keyword">if</span> mx > 400 <span class="keyword">and</span> mx < 600 <span class="keyword">and</span> my > 300 <span class="keyword">and</span> my < 350 <span class="keyword">then</span>
+            <span class="function">BlazeBolt.LoadScene</span>(<span class="string">"game"</span>)
+        <span class="keyword">end</span>
+    <span class="keyword">end</span>
+<span class="keyword">end</span></code></pre>
+                </div>
+
+                <div class="code-block">
+                    <div class="code-header">
+                        <span>scenes/game.lua - Game Scene Example</span>
+                        <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                    </div>
+                    <pre><code><span class="keyword">local</span> player, score = 0, 0
+
+<span class="keyword">function</span> <span class="function">OnGameLoad</span>()
+    player = <span class="function">BlazeBolt.NewSprite</span>(<span class="string">"assets/player.png"</span>, 400, 300)
+    <span class="function">BlazeBolt.SpriteSetSize</span>(player, 64, 64)
+    <span class="function">BlazeBolt.Print</span>(<span class="string">"Game started!"</span>)
+<span class="keyword">end</span>
+
+<span class="keyword">function</span> <span class="function">OnGameUnload</span>()
+    <span class="function">BlazeBolt.Destroy</span>(player)
+    <span class="function">BlazeBolt.Print</span>(<span class="string">"Game saved!"</span>)
+<span class="keyword">end</span>
+
+<span class="keyword">function</span> <span class="function">Update</span>(dt)
+    <span class="keyword">local</span> x, y = <span class="function">BlazeBolt.SpriteGetPosition</span>(player)
+    <span class="keyword">local</span> speed = 300 * dt
+    
+    <span class="keyword">if</span> <span class="function">BlazeBolt.IsKeyPressed</span>(Keys.A) <span class="keyword">then</span> x = x - speed <span class="keyword">end</span>
+    <span class="keyword">if</span> <span class="function">BlazeBolt.IsKeyPressed</span>(Keys.D) <span class="keyword">then</span> x = x + speed <span class="keyword">end</span>
+    <span class="keyword">if</span> <span class="function">BlazeBolt.IsKeyPressed</span>(Keys.W) <span class="keyword">then</span> y = y - speed <span class="keyword">end</span>
+    <span class="keyword">if</span> <span class="function">BlazeBolt.IsKeyPressed</span>(Keys.S) <span class="keyword">then</span> y = y + speed <span class="keyword">end</span>
+    
+    <span class="function">BlazeBolt.SpriteSetPosition</span>(player, x, y)
+    
+    <span class="keyword">if</span> <span class="function">BlazeBolt.IsKeyJustPressed</span>(Keys.ESCAPE) <span class="keyword">then</span>
+        <span class="function">BlazeBolt.LoadScene</span>(<span class="string">"menu"</span>)
+    <span class="keyword">end</span>
+<span class="keyword">end</span></code></pre>
+                </div>
+            </section>
+
+            <!-- Scene API -->
+            <section id="scene-api" class="section">
+                <h2>🎬 Scene Management API</h2>
+                
+                <table class="api-table">
+                    <thead>
+                        <tr><th>Function</th><th>Parameters</th><th>Returns</th><th>Description</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr><td><span class="inline-code">LoadScene(name)</span></td><td>name (string)</td><td>boolean</td><td>Switch to another scene</td></tr>
+                        <tr><td><span class="inline-code">GetCurrentScene()</span></td><td>none</td><td>string</td><td>Get current scene name</td></tr>
+                    </tbody>
+                </table>
+            </section>
+
+            <!-- Sprite API -->
+            <section id="sprite-api" class="section">
+                <h2>🎨 Sprite API</h2>
+                
+                <div class="api-grid">
+                    <div class="api-card"><div class="func-name">NewSprite(path, x, y)</div><div class="func-desc">Create sprite with texture</div></div>
+                    <div class="api-card"><div class="func-name">SpriteSetTexture(id, path)</div><div class="func-desc">Change texture</div></div>
+                    <div class="api-card"><div class="func-name">SpriteSetPosition(id, x, y)</div><div class="func-desc">Set position</div></div>
+                    <div class="api-card"><div class="func-name">SpriteGetPosition(id)</div><div class="func-desc">Get position</div></div>
+                    <div class="api-card"><div class="func-name">SpriteSetSize(id, w, h)</div><div class="func-desc">Set size</div></div>
+                    <div class="api-card"><div class="func-name">SpriteSetColor(id, r, g, b, a)</div><div class="func-desc">Set color (0-1)</div></div>
+                </div>
+
+                <table class="api-table">
+                    <thead>
+                        <tr><th>Function</th><th>Parameters</th><th>Description</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr><td><span class="inline-code">NewSprite</span></td><td><span class="param-name">path</span>: string, <span class="param-name">x</span>: number, <span class="param-name">y</span>: number</td><td>Create new sprite, returns entity ID</td></tr>
+                        <tr><td><span class="inline-code">SpriteSetTexture</span> <span class="badge badge-new">NEW</span></td><td><span class="param-name">id</span>: number, <span class="param-name">path</span>: string</td><td>Change sprite texture at runtime</td></tr>
+                        <tr><td><span class="inline-code">SpriteSetPosition</span></td><td><span class="param-name">id</span>: number, <span class="param-name">x</span>: number, <span class="param-name">y</span>: number</td><td>Set sprite position</td></tr>
+                        <tr><td><span class="inline-code">SpriteGetPosition</span></td><td><span class="param-name">id</span>: number</td><td>Get sprite position (returns x, y)</td></tr>
+                        <tr><td><span class="inline-code">SpriteSetSize</span></td><td><span class="param-name">id</span>: number, <span class="param-name">w</span>: number, <span class="param-name">h</span>: number</td><td>Set sprite size</td></tr>
+                        <tr><td><span class="inline-code">SpriteSetOrigin</span></td><td><span class="param-name">id</span>: number, <span class="param-name">ox</span>: number, <span class="param-name">oy</span>: number</td><td>Set origin point (0-1)</td></tr>
+                        <tr><td><span class="inline-code">SpriteSetRotation</span></td><td><span class="param-name">id</span>: number, <span class="param-name">deg</span>: number</td><td>Set rotation in degrees</td></tr>
+                        <tr><td><span class="inline-code">SpriteSetColor</span></td><td><span class="param-name">id</span>: number, <span class="param-name">r,g,b,a</span>: number</td><td>Set color (0-1 range)</td></tr>
+                        <tr><td><span class="inline-code">SpriteSetVisible</span></td><td><span class="param-name">id</span>: number, <span class="param-name">visible</span>: boolean</td><td>Show/hide sprite</td></tr>
+                    </tbody>
+                </table>
+
+                <div class="code-block">
+                    <div class="code-header">
+                        <span>Sprite with texture switching example</span>
+                        <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                    </div>
+                    <pre><code><span class="keyword">local</span> player
+
+<span class="keyword">function</span> <span class="function">Start</span>()
+    player = <span class="function">BlazeBolt.NewSprite</span>(<span class="string">"assets/idle.png"</span>, 400, 300)
+    <span class="function">BlazeBolt.SpriteSetSize</span>(player, 64, 64)
+    <span class="function">BlazeBolt.SpriteSetOrigin</span>(player, 0.5, 0.5)
+<span class="keyword">end</span>
+
+<span class="keyword">function</span> <span class="function">Update</span>(dt)
+    <span class="keyword">if</span> <span class="function">BlazeBolt.IsKeyPressed</span>(Keys.W) <span class="keyword">then</span>
+        <span class="function">BlazeBolt.SpriteSetTexture</span>(player, <span class="string">"assets/walking.png"</span>)
+    <span class="keyword">else</span>
+        <span class="function">BlazeBolt.SpriteSetTexture</span>(player, <span class="string">"assets/idle.png"</span>)
+    <span class="keyword">end</span>
+<span class="keyword">end</span></code></pre>
+                </div>
+            </section>
+
+            <!-- Animation API -->
+            <section id="animation-api" class="section">
+                <h2>🎬 Animation API</h2>
+                
+                <table class="api-table">
+                    <thead>
+                        <tr><th>Function</th><th>Parameters</th><th>Description</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr><td><span class="inline-code">NewAnimation</span></td><td><span class="param-name">path</span>: string, <span class="param-name">isGif</span>: bool, <span class="param-name">x,y</span>: number</td><td>Load GIF animation</td></tr>
+                        <tr><td><span class="inline-code">NewAnimationFromSheet</span></td><td><span class="param-name">path</span>: string, <span class="param-name">fw,fh,total,row,delay,x,y</span></td><td>Load sprite sheet animation</td></tr>
+                        <tr><td><span class="inline-code">AnimationPlay</span></td><td><span class="param-name">id</span>: number</td><td>Play animation</td></tr>
+                        <tr><td><span class="inline-code">AnimationPause</span></td><td><span class="param-name">id</span>: number</td><td>Pause animation</td></tr>
+                        <tr><td><span class="inline-code">AnimationStop</span></td><td><span class="param-name">id</span>: number</td><td>Stop animation</td></tr>
+                        <tr><td><span class="inline-code">AnimationRestart</span></td><td><span class="param-name">id</span>: number</td><td>Restart animation</td></tr>
+                        <tr><td><span class="inline-code">AnimationSetLooping</span></td><td><span class="param-name">id</span>: number, <span class="param-name">loop</span>: bool</td><td>Set looping</td></tr>
+                        <tr><td><span class="inline-code">AnimationSetSpeed</span></td><td><span class="param-name">id</span>: number, <span class="param-name">speed</span>: number</td><td>Set playback speed multiplier</td></tr>
+                        <tr><td><span class="inline-code">AnimationIsPlaying</span></td><td><span class="param-name">id</span>: number</td><td>Check if playing</td></tr>
+                    </tbody>
+                </table>
+
+                <div class="code-block">
+                    <div class="code-header">
+                        <span>Animation example</span>
+                        <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                    </div>
+                    <pre><code><span class="keyword">local</span> playerAnim
+
+<span class="keyword">function</span> <span class="function">Start</span>()
+    playerAnim = <span class="function">BlazeBolt.NewAnimation</span>(<span class="string">"assets/player.gif"</span>, <span class="keyword">true</span>, 400, 300)
+    <span class="function">BlazeBolt.AnimationSetLooping</span>(playerAnim, <span class="keyword">true</span>)
+    <span class="function">BlazeBolt.AnimationPlay</span>(playerAnim)
+<span class="keyword">end</span></code></pre>
+                </div>
+            </section>
+
+            <!-- Text API -->
+            <section id="text-api" class="section">
+                <h2>📝 Text API</h2>
+                
+                <table class="api-table">
+                    <thead>
+                        <tr><th>Function</th><th>Parameters</th><th>Description</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr><td><span class="inline-code">NewText</span></td><td><span class="param-name">fontPath, text, x, y, fontSize</span></td><td>Create text</td></tr>
+                        <tr><td><span class="inline-code">TextSetString</span></td><td><span class="param-name">id, text</span></td><td>Change text content</td></tr>
+                        <tr><td><span class="inline-code">TextGetString</span></td><td><span class="param-name">id</span></td><td>Get text content</td></tr>
+                        <tr><td><span class="inline-code">TextSetPosition</span></td><td><span class="param-name">id, x, y</span></td><td>Set position</td></tr>
+                        <tr><td><span class="inline-code">TextSetColor</span></td><td><span class="param-name">id, r, g, b, a</span></td><td>Set color</td></tr>
+                        <tr><td><span class="inline-code">TextSetScale</span></td><td><span class="param-name">id, scale</span></td><td>Set scale</td></tr>
+                        <tr><td><span class="inline-code">TextSetVisible</span></td><td><span class="param-name">id, visible</span></td><td>Show/hide</td></tr>
+                    </tbody>
+                </table>
+            </section>
+
+            <!-- Mesh API -->
+            <section id="mesh-api" class="section">
+                <h2>📐 Mesh API (2D)</h2>
+                
+                <table class="api-table">
+                    <thead><tr><th>Function</th><th>Parameters</th><th>Description</th></tr></thead>
+                    <tbody>
+                        <tr><td><span class="inline-code">NewMesh</span></td><td>none</td><td>Create empty mesh</td></tr>
+                        <tr><td><span class="inline-code">MeshSetData</span></td><td><span class="param-name">id, vertices, indices</span></td><td>Set vertex/index data</td></tr>
+                        <tr><td><span class="inline-code">MeshDraw</span></td><td><span class="param-name">id</span></td><td>Draw mesh</td></tr>
+                    </tbody>
+                </table>
+            </section>
+
+            <!-- Audio API -->
+            <section id="audio-api" class="section">
+                <h2>🔊 Audio API</h2>
+                
+                <div class="warning">
+                    <h4>⚠️ Note</h4>
+                    <p>Audio files must be in <strong>WAV format (PCM)</strong>.</p>
+                </div>
+
+                <table class="api-table">
+                    <thead><tr><th>Function</th><th>Parameters</th><th>Description</th></tr></thead>
+                    <tbody>
+                        <tr><td><span class="inline-code">LoadSound</span></td><td><span class="param-name">filename, name, loop</span></td><td>Load sound file</td></tr>
+                        <tr><td><span class="inline-code">PlaySound</span></td><td><span class="param-name">name</span></td><td>Play by name</td></tr>
+                        <tr><td><span class="inline-code">PlaySoundById</span></td><td><span class="param-name">id</span></td><td>Play by ID</td></tr>
+                        <tr><td><span class="inline-code">StopSound</span></td><td><span class="param-name">name</span></td><td>Stop by name</td></tr>
+                        <tr><td><span class="inline-code">StopAllSounds</span></td><td>none</td><td>Stop all sounds</td></tr>
+                        <tr><td><span class="inline-code">SetSoundVolume</span></td><td><span class="param-name">name, volume</span></td><td>Set volume (0-1)</td></tr>
+                        <tr><td><span class="inline-code">IsSoundPlaying</span></td><td><span class="param-name">name</span></td><td>Check if playing</td></tr>
+                    </tbody>
+                </table>
+            </section>
+
+            <!-- Input API -->
+            <section id="input-api" class="section">
+                <h2>🎮 Input API</h2>
+
+                <table class="api-table">
+                    <thead><tr><th>Function</th><th>Returns</th><th>Description</th></tr></thead>
+                    <tbody>
+                        <tr><td><span class="inline-code">IsKeyPressed(key)</span></td><td>boolean</td><td>Key held down</td></tr>
+                        <tr><td><span class="inline-code">IsKeyJustPressed(key)</span></td><td>boolean</td><td>Key pressed this frame</td></tr>
+                        <tr><td><span class="inline-code">IsKeyJustReleased(key)</span></td><td>boolean</td><td>Key released this frame</td></tr>
+                        <tr><td><span class="inline-code">GetMouseX()</span></td><td>number</td><td>Mouse X position</td></tr>
+                        <tr><td><span class="inline-code">GetMouseY()</span></td><td>number</td><td>Mouse Y position</td></tr>
+                        <tr><td><span class="inline-code">GetMouseDeltaX()</span></td><td>number</td><td>Mouse X delta</td></tr>
+                        <tr><td><span class="inline-code">GetScrollY()</span></td><td>number</td><td>Scroll wheel delta</td></tr>
+                        <tr><td><span class="inline-code">IsMouseButtonPressed(btn)</span></td><td>boolean</td><td>Button held</td></tr>
+                        <tr><td><span class="inline-code">IsMouseButtonJustPressed(btn)</span></td><td>boolean</td><td>Button pressed this frame</td></tr>
+                    </tbody>
+                </table>
+            </section>
+
+            <!-- Window API -->
+            <section id="window-api" class="section">
+                <h2>🪟 Window API <span class="badge badge-new">NEW</span></h2>
+                <p>Create and manage multiple windows!</p>
+
+                <table class="api-table">
+                    <thead><tr><th>Function</th><th>Parameters</th><th>Description</th></tr></thead>
+                    <tbody>
+                        <tr><td><span class="inline-code">CreateWindow</span></td><td><span class="param-name">width, height, title</span></td><td>Create new window</td></tr>
+                        <tr><td><span class="inline-code">SetWindowTitle</span></td><td><span class="param-name">window, title</span></td><td>Change window title</td></tr>
+                        <tr><td><span class="inline-code">SetWindowSize</span></td><td><span class="param-name">window, width, height</span></td><td>Change window size</td></tr>
+                        <tr><td><span class="inline-code">SetWindowIcon</span></td><td><span class="param-name">window, iconPath</span></td><td>Set window icon</td></tr>
+                    </tbody>
+                </table>
+
+                <div class="code-block">
+                    <div class="code-header">
+                        <span>Multiple windows example</span>
+                        <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                    </div>
+                    <pre><code><span class="keyword">local</span> mainWindow, debugWindow
+
+<span class="keyword">function</span> <span class="function">Start</span>()
+    mainWindow = <span class="function">BlazeBolt.CreateWindow</span>(800, 600, <span class="string">"Main Game"</span>)
+    debugWindow = <span class="function">BlazeBolt.CreateWindow</span>(400, 300, <span class="string">"Debug Console"</span>)
+    
+    <span class="function">BlazeBolt.SetWindowIcon</span>(mainWindow, <span class="string">"assets/icon.png"</span>)
+    <span class="function">BlazeBolt.SetWindowSize</span>(debugWindow, 500, 400)
+<span class="keyword">end</span></code></pre>
+                </div>
+            </section>
+
+            <!-- Object Management -->
+            <section id="object-api" class="section">
+                <h2>🗑️ Object Management</h2>
+                
+                <table class="api-table">
+                    <thead><tr><th>Function</th><th>Parameters</th><th>Description</th></tr></thead>
+                    <tbody>
+                        <tr><td><span class="inline-code">Destroy</span> <span class="badge badge-new">NEW</span></td><td><span class="param-name">entity</span>: number</td><td>Delete an entity</td></tr>
+                        <tr><td><span class="inline-code">DestroyAll</span> <span class="badge badge-new">NEW</span></td><td>none</td><td>Delete all entities</td></tr>
+                    </tbody>
+                </table>
+
+                <div class="tip">
+                    <h4>💡 Best Practice</h4>
+                    <p>Always destroy entities when leaving scenes to prevent memory leaks!</p>
+                </div>
+            </section>
+
+            <!-- Utility API -->
+            <section id="utility-api" class="section">
+                <h2>🛠️ Utility Functions</h2>
+
+                <table class="api-table">
+                    <thead><tr><th>Function</th><th>Returns</th><th>Description</th></tr></thead>
+                    <tbody>
+                        <tr><td><span class="inline-code">Print(...)</span></td><td>void</td><td>Print to console</td></tr>
+                        <tr><td><span class="inline-code">GetDeltaTime()</span></td><td>number</td><td>Time since last frame</td></tr>
+                        <tr><td><span class="inline-code">GetTime()</span></td><td>number</td><td>Time since game started</td></tr>
+                        <tr><td><span class="inline-code">Random(min, max)</span></td><td>number</td><td>Random float</td></tr>
+                        <tr><td><span class="inline-code">RandomInt(min, max)</span></td><td>integer</td><td>Random integer</td></tr>
+                        <tr><td><span class="inline-code">SetRandomSeed(seed)</span></td><td>void</td><td>Set random seed</td></tr>
+                        <tr><td><span class="inline-code">Quit()</span></td><td>void</td><td>Exit game</td></tr>
+                        <tr><td><span class="inline-code">AddConsoleMessage(msg, type)</span></td><td>void</td><td>Add to console</td></tr>
+                    </tbody>
+                </table>
+            </section>
+
+            <!-- Constants -->
+            <section id="constants" class="section">
+                <h2>🔢 Key Constants</h2>
+
+                <div class="code-block">
+                    <div class="code-header"><span>Keyboard Keys</span></div>
+                    <pre><code>Keys.A, Keys.B, ..., Keys.Z
+Keys.0, Keys.1, ..., Keys.9
+Keys.UP, Keys.DOWN, Keys.LEFT, Keys.RIGHT
+Keys.SPACE, Keys.ENTER, Keys.ESCAPE
+Keys.TAB, Keys.BACKSPACE, Keys.DELETE
+Keys.LEFT_SHIFT, Keys.RIGHT_SHIFT
+Keys.LEFT_CONTROL, Keys.RIGHT_CONTROL
+Keys.F1, Keys.F2, ..., Keys.F12</code></pre>
+                </div>
+
+                <div class="code-block">
+                    <div class="code-header"><span>Mouse Buttons</span></div>
+                    <pre><code>MouseButtons.LEFT
+MouseButtons.RIGHT  
+MouseButtons.MIDDLE</code></pre>
+                </div>
+            </section>
+
+            <!-- Examples -->
+            <section id="examples" class="section">
+                <h2>🎮 Complete Examples</h2>
+
+                <h3>Full Game with Scene System</h3>
+                <div class="code-block">
+                    <div class="code-header">
+                        <span>main.lua - Game Entry Point</span>
+                        <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                    </div>
+                    <pre><code><span class="comment">-- scripts/main.lua</span>
+
+<span class="keyword">function</span> <span class="function">Start</span>()
+    <span class="function">BlazeBolt.Print</span>(<span class="string">"Loading menu scene..."</span>)
+    <span class="function">BlazeBolt.LoadScene</span>(<span class="string">"menu"</span>)
+<span class="keyword">end</span>
+
+<span class="keyword">function</span> <span class="function">Update</span>(dt)
+    <span class="comment">-- Global updates (input, etc.)</span>
+<span class="keyword">end</span>
+
+<span class="keyword">function</span> <span class="function">End</span>()
+    <span class="function">BlazeBolt.Print</span>(<span class="string">"Goodbye!"</span>)
+<span class="keyword">end</span></code></pre>
+                </div>
+
+                <div class="code-block">
+                    <div class="code-header">
+                        <span>player.lua - Player Controller Module</span>
+                        <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                    </div>
+                    <pre><code><span class="keyword">local</span> Player = {}
+
+<span class="keyword">function</span> <span class="function">Player.new</span>(x, y)
+    <span class="keyword">local</span> self = {
+        id = <span class="function">BlazeBolt.NewSprite</span>(<span class="string">"assets/player.png"</span>, x, y),
+        speed = 300,
+        hp = 100
+    }
+    <span class="function">BlazeBolt.SpriteSetSize</span>(self.id, 64, 64)
+    <span class="function">BlazeBolt.SpriteSetOrigin</span>(self.id, 0.5, 0.5)
+    <span class="keyword">return</span> self
+<span class="keyword">end</span>
+
+<span class="keyword">function</span> <span class="function">Player:update</span>(dt)
+    <span class="keyword">local</span> x, y = <span class="function">BlazeBolt.SpriteGetPosition</span>(self.id)
+    <span class="keyword">local</span> move = self.speed * dt
+    
+    <span class="keyword">if</span> <span class="function">BlazeBolt.IsKeyPressed</span>(Keys.A) <span class="keyword">then</span> x = x - move <span class="keyword">end</span>
+    <span class="keyword">if</span> <span class="function">BlazeBolt.IsKeyPressed</span>(Keys.D) <span class="keyword">then</span> x = x + move <span class="keyword">end</span>
+    <span class="keyword">if</span> <span class="function">BlazeBolt.IsKeyPressed</span>(Keys.W) <span class="keyword">then</span> y = y - move <span class="keyword">end</span>
+    <span class="keyword">if</span> <span class="function">BlazeBolt.IsKeyPressed</span>(Keys.S) <span class="keyword">then</span> y = y + move <span class="keyword">end</span>
+    
+    <span class="function">BlazeBolt.SpriteSetPosition</span>(self.id, x, y)
+<span class="keyword">end</span>
+
+<span class="keyword">return</span> Player</code></pre>
+                </div>
+
+                <div class="code-block">
+                    <div class="code-header">
+                        <span>game.lua - Game Scene</span>
+                        <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                    </div>
+                    <pre><code><span class="keyword">local</span> Player = <span class="function">require</span>(<span class="string">"scripts/player"</span>)
+<span class="keyword">local</span> player, score, scoreText
+
+<span class="keyword">function</span> <span class="function">OnGameLoad</span>()
+    player = <span class="function">Player.new</span>(400, 300)
+    score = 0
+    scoreText = <span class="function">BlazeBolt.NewText</span>(<span class="string">"assets/font.ttf"</span>, <span class="string">"Score: 0"</span>, 10, 10, 32)
+    <span class="function">BlazeBolt.Print</span>(<span class="string">"Game scene loaded!"</span>)
+<span class="keyword">end</span>
+
+<span class="keyword">function</span> <span class="function">OnGameUnload</span>()
+    <span class="function">BlazeBolt.Destroy</span>(player.id)
+    <span class="function">BlazeBolt.Destroy</span>(scoreText)
+    <span class="function">BlazeBolt.Print</span>(<span class="string">"Game scene unloaded!"</span>)
+<span class="keyword">end</span>
+
+<span class="keyword">function</span> <span class="function">Update</span>(dt)
+    <span class="function">player:update</span>(dt)
+    
+    score = score + 1
+    <span class="function">BlazeBolt.TextSetString</span>(scoreText, <span class="string">"Score: "</span> .. score)
+    
+    <span class="keyword">if</span> <span class="function">BlazeBolt.IsKeyJustPressed</span>(Keys.ESCAPE) <span class="keyword">then</span>
+        <span class="function">BlazeBolt.LoadScene</span>(<span class="string">"menu"</span>)
+    <span class="keyword">end</span>
+<span class="keyword">end</span></code></pre>
+                </div>
+
+                <div class="tip">
+                    <h4>📌 scripts.list for this example</h4>
+                    <pre><code># Core scripts
+player=scripts/player.lua
+
+# Scenes
+@menu=scenes/menu.lua
+@game=scenes/game.lua</code></pre>
+                </div>
+            </section>
+        </div>
+    </div>
+
+    <div class="footer">
+        <p>BlazeBolt Game Engine v2.0 | Complete Lua API Documentation</p>
+        <p style="font-size: 12px; margin-top: 8px;">Built with ❤️ for game developers</p>
+    </div>
+
+    <script>
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('open');
+        }
+
+        function copyCode(btn) {
+            const codeBlock = btn.closest('.code-block').querySelector('pre code');
+            const text = codeBlock.textContent;
+            
+            navigator.clipboard.writeText(text).then(() => {
+                const originalText = btn.textContent;
+                btn.textContent = 'Copied!';
+                setTimeout(() => btn.textContent = originalText, 2000);
+            });
+        }
+
+        const searchInput = document.getElementById('searchInput');
+        const sections = document.querySelectorAll('.section');
+        
+        function searchDocs() {
+            const query = searchInput.value.toLowerCase();
+            sections.forEach(section => {
+                const text = section.textContent.toLowerCase();
+                section.style.display = (!query || text.includes(query)) ? 'block' : 'none';
+            });
+        }
+        
+        searchInput.addEventListener('input', searchDocs);
+
+        document.addEventListener('click', (event) => {
+            const sidebar = document.getElementById('sidebar');
+            const menuBtn = document.querySelector('.menu-toggle');
+            if (sidebar.classList.contains('open') && 
+                !sidebar.contains(event.target) && 
+                !menuBtn.contains(event.target)) {
+                sidebar.classList.remove('open');
+            }
+        });
+
+        document.querySelectorAll('.sidebar-nav a').forEach(anchor => {
+            anchor.addEventListener('click', function(e) {
+                e.preventDefault();
+                const targetId = this.getAttribute('href').substring(1);
+                const target = document.getElementById(targetId);
+                if (target) {
+                    target.scrollIntoView({ behavior: 'smooth' });
+                    document.querySelectorAll('.sidebar-nav a').forEach(a => a.classList.remove('active'));
+                    this.classList.add('active');
+                    if (window.innerWidth <= 768) {
+                        document.getElementById('sidebar').classList.remove('open');
+                    }
+                }
+            });
+        });
+
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    const id = entry.target.getAttribute('id');
+                    document.querySelectorAll('.sidebar-nav a').forEach(link => {
+                        const href = link.getAttribute('href');
+                        if (href === '#' + id) link.classList.add('active');
+                        else link.classList.remove('active');
+                    });
+                }
+            });
+        }, { threshold: 0.5 });
+        
+        sections.forEach(section => observer.observe(section));
+    </script>
+</body>
+</html>
