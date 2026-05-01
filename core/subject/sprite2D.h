@@ -18,9 +18,18 @@ private:
     bool m_visible;
     std::string m_texturePath;
     bool m_ownsShader;
+    int m_screenWidth;
+    int m_screenHeight;
+    Matrix3x3 m_projection;
+    bool m_projectionDirty;
     
     static const char* vertexShaderSource;
     static const char* fragmentShaderSource;
+    
+    void updateProjection() {
+        m_projection = Matrix3x3::projection(m_screenWidth, m_screenHeight);
+        m_projectionDirty = true;
+    }
     
     void generateTexturedQuad() {
         float left = -m_size.x * m_origin.x;
@@ -50,16 +59,14 @@ private:
     void updateTransform() {
         if (!m_shader) return;
         
-        Matrix3x3 transform = Matrix3x3::identity();
+        Matrix3x3 world = Matrix3x3::identity();
+        world = world * Matrix3x3::rotation(m_rotation);
+        world = world * Matrix3x3::translation(m_position.x, m_position.y);
         
-        transform = Matrix3x3::translation(m_position.x, m_position.y) * transform;
-        
-        transform = Matrix3x3::rotation(m_rotation) * transform;
-
-        transform = Matrix3x3::scale(m_size.x, m_size.y) * transform;
+        Matrix3x3 final = m_projection * world;
         
         float transformArray[9];
-        transform.toFloatArray(transformArray);
+        final.toFloatArray(transformArray);
         
         m_shader->setMat3("uTransform", transformArray);
     }
@@ -122,8 +129,10 @@ public:
         : m_mesh(nullptr), m_shader(nullptr), m_texture(0), 
           m_position(0, 0), m_size(1, 1), m_origin(0.5f, 0.5f),
           m_rotation(0), m_color(1, 1, 1, 1), m_visible(true), 
-          m_ownsShader(false) {
+          m_ownsShader(false), m_screenWidth(1920), m_screenHeight(1080), 
+          m_projectionDirty(true) {
         initDefaultShader();
+        updateProjection();
         generateTexturedQuad();
     }
     
@@ -131,7 +140,9 @@ public:
         : m_mesh(nullptr), m_shader(shader), m_texture(0),
           m_position(0, 0), m_size(1, 1), m_origin(0.5f, 0.5f),
           m_rotation(0), m_color(1, 1, 1, 1), m_visible(true), 
-          m_ownsShader(false) {
+          m_ownsShader(false), m_screenWidth(1920), m_screenHeight(1080),
+          m_projectionDirty(true) {
+        updateProjection();
         generateTexturedQuad();
     }
     
@@ -146,6 +157,19 @@ public:
             delete m_shader;
         }
     }
+    
+    void setScreenSize(int width, int height) {
+        m_screenWidth = width;
+        m_screenHeight = height;
+        updateProjection();
+    }
+    
+    void setCachedTexture(GLuint texId, const std::string& path) {
+        m_texture = texId;
+        m_texturePath = path;
+    }
+    
+    GLuint getTextureID() const { return m_texture; }
     
     void setTexture(const std::string& filepath) {
         loadTexture(filepath);
@@ -165,12 +189,10 @@ public:
     void setPosition(float x, float y) {
         m_position.x = x;
         m_position.y = y;
-        updateTransform();
     }
     
     void setPosition(const Vector2& position) {
         m_position = position;
-        updateTransform();
     }
     
     Vector2 getPosition() const {
@@ -266,10 +288,6 @@ public:
         if (m_texture != 0) {
             glBindTexture(GL_TEXTURE_2D, 0);
         }
-    }
-    
-    GLuint getTextureID() const {
-        return m_texture;
     }
     
     bool hasTexture() const {

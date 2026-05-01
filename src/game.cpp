@@ -93,7 +93,7 @@ public:
                 windowWidth = newWidth;
                 windowHeight = newHeight;
                 luaEngine->setTextScreenSize(windowWidth, windowHeight);
-                std::cout << "Window resized to: " << windowWidth << "x" << windowHeight << std::endl;
+                luaEngine->setSpriteScreenSize(windowWidth, windowHeight);
             }
             
             update();
@@ -108,6 +108,7 @@ public:
         Input::getInstance().update();
         
         luaEngine->callUpdate(deltaTime);
+        luaEngine->physicsStep();
         luaEngine->updateAll(deltaTime);
         
         if (Input::getInstance().isKeyJustPressed(GLFW_KEY_ESCAPE)) {
@@ -116,8 +117,8 @@ public:
     }
     
     void render() {
-        mainWindow->clear();
         mainWindow->setClearColor(0.1f, 0.1f, 0.15f, 1.0f);
+        mainWindow->clear();
         
         luaEngine->callDraw();
         luaEngine->drawAll();

@@ -32,8 +32,11 @@ public:
         , m_useTextureAtlas(false)
         , m_gifLoaded(false)
         , m_speedMultiplier(1.0f)
+        , m_screenWidth(1920)
+        , m_screenHeight(1080)
     {
         initDefaultShader();
+        updateProjection();
         generateQuadMesh();
     }
 
@@ -55,12 +58,21 @@ public:
         , m_useTextureAtlas(false)
         , m_gifLoaded(false)
         , m_speedMultiplier(1.0f)
+        , m_screenWidth(1920)
+        , m_screenHeight(1080)
     {
+        updateProjection();
         generateQuadMesh();
     }
 
     ~Animation2D() {
         cleanup();
+    }
+
+    void setScreenSize(int width, int height) {
+        m_screenWidth = width;
+        m_screenHeight = height;
+        updateProjection();
     }
 
     bool loadFromGIF(const std::string& filepath) {
@@ -250,36 +262,14 @@ public:
         }
     }
 
-    void play() { 
-        m_playing = true; 
-    }
-    
-    void pause() { 
-        m_playing = false; 
-    }
-    
-    void stop() { 
-        m_currentFrame = 0; 
-        m_elapsedTime = 0; 
-        m_playing = false; 
-        if (m_gifLoaded && !m_useTextureAtlas) updateTextureFromCurrentFrame();
-    }
-    
-    void restart() { 
-        m_currentFrame = 0; 
-        m_elapsedTime = 0; 
-        m_playing = true; 
-        if (m_gifLoaded && !m_useTextureAtlas) updateTextureFromCurrentFrame();
-    }
-    
+    void play() { m_playing = true; }
+    void pause() { m_playing = false; }
+    void stop() { m_currentFrame = 0; m_elapsedTime = 0; m_playing = false; if (m_gifLoaded && !m_useTextureAtlas) updateTextureFromCurrentFrame(); }
+    void restart() { m_currentFrame = 0; m_elapsedTime = 0; m_playing = true; if (m_gifLoaded && !m_useTextureAtlas) updateTextureFromCurrentFrame(); }
     void setLooping(bool loop) { m_looping = loop; }
     bool isLooping() const { return m_looping; }
     bool isPlaying() const { return m_playing; }
-    
-    void setSpeed(float multiplier) { 
-        m_speedMultiplier = std::max(0.1f, multiplier); 
-    }
-    
+    void setSpeed(float multiplier) { m_speedMultiplier = std::max(0.1f, multiplier); }
     float getSpeed() const { return m_speedMultiplier; }
     
     void setFrame(int frame) {
@@ -298,8 +288,8 @@ public:
     int getFrameCount() const { return static_cast<int>(m_frames.size()); }
     int getCurrentFrame() const { return m_currentFrame; }
     
-    void setPosition(float x, float y) { m_position.x = x; m_position.y = y; updateTransform();}
-    void setPosition(const Vector2& pos) { m_position = pos; updateTransform();}
+    void setPosition(float x, float y) { m_position.x = x; m_position.y = y; }
+    void setPosition(const Vector2& pos) { m_position = pos; }
     Vector2 getPosition() const { return m_position; }
     
     void setSize(float width, float height) { m_size.x = width; m_size.y = height; generateQuadMesh(); }
@@ -366,9 +356,16 @@ private:
     bool m_useTextureAtlas;
     bool m_gifLoaded;
     float m_speedMultiplier;
+    int m_screenWidth;
+    int m_screenHeight;
+    Matrix3x3 m_projection;
     
     static const char* vertexShaderSource;
     static const char* fragmentShaderSource;
+
+    void updateProjection() {
+        m_projection = Matrix3x3::projection(m_screenWidth, m_screenHeight);
+    }
 
     void updateTextureFromCurrentFrame() {
         if (m_frames.empty() || m_useTextureAtlas) return;
@@ -436,13 +433,14 @@ private:
     void updateTransform() {
         if (!m_shader) return;
         
-        Matrix3x3 transform = Matrix3x3::identity();
-        transform = Matrix3x3::translation(m_position.x, m_position.y) * transform;
-        transform = Matrix3x3::rotation(m_rotation) * transform;
-        transform = Matrix3x3::scale(m_size.x, m_size.y) * transform;
+        Matrix3x3 world = Matrix3x3::identity();
+        world = world * Matrix3x3::rotation(m_rotation);
+        world = world * Matrix3x3::translation(m_position.x, m_position.y);
+        
+        Matrix3x3 final = m_projection * world;
         
         float transformArray[9];
-        transform.toFloatArray(transformArray);
+        final.toFloatArray(transformArray);
         m_shader->setMat3("uTransform", transformArray);
     }
 

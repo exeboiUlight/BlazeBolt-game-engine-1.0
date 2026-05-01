@@ -33,6 +33,8 @@ public:
             return;
         }
 
+        glfwSetWindowUserPointer(window, this);
+
         glfwSetFramebufferSizeCallback(window, [](GLFWwindow* win, int width, int height) {
             glViewport(0, 0, width, height);
             Window* self = static_cast<Window*>(glfwGetWindowUserPointer(win));
@@ -41,7 +43,10 @@ public:
                 self->_height = height;
             }
         });
-        glfwSetWindowUserPointer(window, this);
+
+        int fbWidth, fbHeight;
+        glfwGetFramebufferSize(window, &fbWidth, &fbHeight);
+        glViewport(0, 0, fbWidth, fbHeight);
 
         glfwSwapInterval(0);
     }
@@ -122,11 +127,16 @@ public:
         _title = title;
         glfwSetWindowTitle(window, title);
     }
+    const char* getTitle() const { return _title; }
     
     void setSize(int width, int height) {
         _width = width;
         _height = height;
         glfwSetWindowSize(window, width, height);
+    }
+    
+    void getPosition(int* outX, int* outY) const {
+        glfwGetWindowPos(window, outX, outY);
     }
 
     GLFWwindow* GetWindow() {

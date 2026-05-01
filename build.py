@@ -7,29 +7,36 @@ if not debug:
 else:
     DEBUG_FLAGS = " -g"
 
+COMMON_INCLUDES = "-I./include -I./core"
+COMMON_LIBS = "-L./lib -lgdi32 -lopengl32 -lglfw3 -lfreetype"
+COMMON_STATIC = "-static-libgcc -static-libstdc++"
+
 def compile_game():
-    game_files = [
-        "src/game.cpp",
-        "include/glad/glad.c"
-    ]
-    game_files_str = " ".join(game_files)
-    compile_game_cmd = (
-        f"g++{DEBUG_FLAGS} {game_files_str} "
+    game_files = "src/game.cpp include/glad/glad.c"
+    cmd = (
+        f"g++{DEBUG_FLAGS} {game_files} "
         f"-O2 "
-        f"-I./include "
-        f"-I./core "
-        f"-L./lib "
-        f"-llua54 "
-        f"-lgdi32 "
-        f"-lopengl32 "
-        f"-lglfw3 "
-        f"-lopenal32 "
-        f"-lfreetype "
+        f"{COMMON_INCLUDES} "
+        f"{COMMON_LIBS} "
+        f"-llua54 -lopenal32 "
         f"-o bin/versions/game.exe "
-        f"-static-libgcc "
-        f"-static-libstdc++"
+        f"{COMMON_STATIC}"
     )
     print("\nCompiling game...")
-    os.system(compile_game_cmd)
+    os.system(cmd)
+
+def compile_editor():
+    editor_files = "src/editor.cpp include/glad/glad.c"
+    cmd = (
+        f"g++{DEBUG_FLAGS} {editor_files} "
+        f"-O2 "
+        f"{COMMON_INCLUDES} "
+        f"{COMMON_LIBS} "
+        f"-o bin/versions/editor.exe "
+        f"{COMMON_STATIC}"
+    )
+    print("\nCompiling editor...")
+    os.system(cmd)
 
 compile_game()
+# compile_editor()

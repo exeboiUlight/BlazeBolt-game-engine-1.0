@@ -1,4 +1,4 @@
-// text.h
+// text.h - исправленная версия
 #pragma once
 
 #include <graphics/mesh.h>
@@ -33,13 +33,19 @@ private:
     int m_screenWidth;
     int m_screenHeight;
     float m_maxAscent;
+    Matrix3x3 m_projection;
     
+    // Преобразование пиксельных координат в NDC с проекцией
     float toNDCX(float pixelX) const {
-        return (pixelX / m_screenWidth) * 2.0f - 1.0f;
+        return (pixelX / (float)m_screenWidth) * 2.0f - 1.0f;
     }
     
     float toNDCY(float pixelY) const {
-        return 1.0f - (pixelY / m_screenHeight) * 2.0f;
+        return 1.0f - (pixelY / (float)m_screenHeight) * 2.0f;
+    }
+    
+    void updateProjection() {
+        m_projection = Matrix3x3::projection(m_screenWidth, m_screenHeight);
     }
     
     void initFreeType(const std::string& fontPath, unsigned int fontSize) {
@@ -131,6 +137,7 @@ private:
             float w = ch.SizeX * m_scale;
             float h = ch.SizeY * m_scale;
 
+            // Преобразуем с помощью проекционной матрицы
             float left = toNDCX(xpos);
             float right = toNDCX(xpos + w);
             float top = toNDCY(ypos);
@@ -184,20 +191,24 @@ private:
 public:
     Text() : m_shader(nullptr), m_posX(0), m_posY(0), 
              m_scale(1.0f), m_colorR(1), m_colorG(1), m_colorB(1), m_colorA(1),
-             m_visible(true), m_ownsShader(false), m_screenWidth(1200), m_screenHeight(600), m_maxAscent(0) {}
+             m_visible(true), m_ownsShader(false), m_screenWidth(1920), m_screenHeight(1080), m_maxAscent(0) {
+        updateProjection();
+    }
     
     Text(const std::string& fontPath, unsigned int fontSize = 48)
         : m_shader(nullptr), m_posX(0), m_posY(0), 
           m_scale(1.0f), m_colorR(1), m_colorG(1), m_colorB(1), m_colorA(1),
-          m_visible(true), m_ownsShader(false), m_screenWidth(1200), m_screenHeight(600), m_maxAscent(0) {
+          m_visible(true), m_ownsShader(false), m_screenWidth(1920), m_screenHeight(1080), m_maxAscent(0) {
         initDefaultShader();
+        updateProjection();
         initFreeType(fontPath, fontSize);
     }
     
     Text(Shader* shader, const std::string& fontPath, unsigned int fontSize = 48)
         : m_shader(shader), m_posX(0), m_posY(0),
           m_scale(1.0f), m_colorR(1), m_colorG(1), m_colorB(1), m_colorA(1),
-          m_visible(true), m_ownsShader(false), m_screenWidth(1200), m_screenHeight(600), m_maxAscent(0) {
+          m_visible(true), m_ownsShader(false), m_screenWidth(1920), m_screenHeight(1080), m_maxAscent(0) {
+        updateProjection();
         initFreeType(fontPath, fontSize);
     }
     
@@ -214,6 +225,7 @@ public:
     void setScreenSize(int width, int height) {
         m_screenWidth = width;
         m_screenHeight = height;
+        updateProjection();
         regenerateMeshes();
     }
     

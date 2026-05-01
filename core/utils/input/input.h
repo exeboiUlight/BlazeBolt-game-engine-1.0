@@ -172,10 +172,10 @@ private:
     void updateGamepad(int id) {
         GLFWgamepadstate state;
         if (glfwGetGamepadState(id, &state)) {
-            for (int i = 0; i < 16; ++i) {
+            for (int i = 0; i < 15; ++i) {
                 m_gamepadPressed[id][i] = state.buttons[i] == GLFW_PRESS;
             }
-            for (int i = 0; i < 8; ++i) {
+            for (int i = 0; i < 6; ++i) {
                 m_gamepadAxes[id][i] = state.axes[i];
             }
         }

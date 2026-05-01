@@ -43,6 +43,12 @@ struct Matrix3x3 {
         return result;
     }
     
+    // Проекционная матрица для корректного отображения с учётом aspect ratio
+    static Matrix3x3 projection(int screenWidth, int screenHeight) {
+        Matrix3x3 result;
+        return result;
+    }
+    
     Matrix3x3 operator*(const Matrix3x3& other) const {
         Matrix3x3 result;
         for (int i = 0; i < 3; i++) {

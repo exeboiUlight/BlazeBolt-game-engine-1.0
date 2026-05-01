@@ -5,6 +5,7 @@
 #include <lauxlib.h>
 #include <lualib.h>
 #include <world.h>
+#include <physics/physics.h>
 #include <subject/sprite2D.h>
 #include <subject/animatad2D.h>
 #include <subject/text.h>
@@ -12,6 +13,7 @@
 #include <graphics/mesh.h>
 #include <utils/input/input.h>
 #include <graphics/window.h>
+#include <glad/glad.h>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -58,6 +60,7 @@ namespace LuaEngine {
         std::string currentScene;
         std::string nextScene;
         std::unordered_map<std::string, ScriptInfo> scenes;
+        std::unordered_map<std::string, std::string> sceneJSONs;
         LuaEngine* engine;
         bool transitioning;
         float transitionTimer;
@@ -66,6 +69,7 @@ namespace LuaEngine {
         SceneManager(LuaEngine* eng);
         
         void registerScene(const std::string& name, const std::string& path);
+        void registerSceneJSON(const std::string& name, const std::string& jsonPath);
         bool loadScene(const std::string& name);
         void update(float dt);
         void performSceneSwitch();
@@ -74,6 +78,54 @@ namespace LuaEngine {
         
         std::string getCurrentScene() const { return currentScene; }
         bool isTransitioning() const { return transitioning; }
+        
+        const std::string& getSceneJSON(const std::string& name) const {
+            auto it = sceneJSONs.find(name);
+            if (it != sceneJSONs.end()) return it->second;
+            static std::string empty;
+            return empty;
+        }
+    };
+    
+    // ==================== SCENE OBJECT ====================
+    struct SceneObject {
+        std::string name;
+        std::string type;
+        Vector2 position;
+        Vector2 size;
+        float rotation;
+        Vector4 color;
+        bool visible;
+        std::string texturePath;
+        std::string scriptPath;
+        std::unordered_map<std::string, std::string> properties;
+        
+        SceneObject() : type("Node2D"), position(0, 0), size(0.1f, 0.1f), rotation(0),
+                      color(1, 1, 1, 1), visible(true) {}
+        
+        std::string toJSON() const {
+            std::string json = "{";
+            json += "\"name\":\"" + name + "\",";
+            json += "\"type\":\"" + type + "\",";
+            json += "\"position\":[" + std::to_string(position.x) + "," + std::to_string(position.y) + "],";
+            json += "\"size\":[" + std::to_string(size.x) + "," + std::to_string(size.y) + "],";
+            json += "\"rotation\":" + std::to_string(rotation) + ",";
+            json += "\"color\":[" + std::to_string(color.x) + "," + std::to_string(color.y) + "," 
+                               + std::to_string(color.z) + "," + std::to_string(color.w) + "],";
+            json += "\"visible\":" + std::string(visible ? "true" : "false") + ",";
+            json += "\"texture\":\"" + texturePath + "\",";
+            json += "\"script\":\"" + scriptPath + "\"";
+            for (const auto& prop : properties) {
+                json += ",\"" + prop.first + "\":\"" + prop.second + "\"";
+            }
+            json += "}";
+            return json;
+        }
+        
+        static SceneObject fromJSON(const std::string& json) {
+            SceneObject obj;
+            return obj;
+        }
     };
     
     // ==================== LUA ENGINE CLASS ====================
@@ -87,12 +139,18 @@ namespace LuaEngine {
         
         Audio audioEngine;
         
+        PhysicsWorld physicsWorld;
+        
         float deltaTime;
         bool initialized;
         bool audioInitialized;
         
         std::unordered_map<Entity, RegisteredObject> objectMap;
         std::unordered_map<std::string, int> soundNameToId;
+        std::unordered_map<Entity, PhysicsBody*> physicsBodyMap;
+        
+        // Texture cache for sprites
+        std::unordered_map<std::string, GLuint> textureCache;
         
         // Script management
         std::vector<ScriptInfo> scripts;
@@ -185,6 +243,7 @@ namespace LuaEngine {
         void textSetVisible(Entity entity, bool visible);
         void drawAllTexts();
         void setTextScreenSize(int width, int height);
+        void setSpriteScreenSize(int width, int height);
         
         // Mesh management
         Entity createMesh();
@@ -215,6 +274,39 @@ namespace LuaEngine {
         // Object deletion
         void destroyEntity(Entity entity);
         void destroyAllEntities();
+        
+        // Physics
+        void physicsInit(float gravityX, float gravityY);
+        void physicsSetGravity(float x, float y);
+        void physicsGetGravity(float* x, float* y) const;
+        Entity physicsCreateBody(int bodyType, float x, float y, float mass, float friction, float restitution);
+        void physicsAddCircle(Entity bodyEntity, float radius, float offsetX, float offsetY);
+        void physicsAddRectangle(Entity bodyEntity, float halfWidth, float halfHeight);
+        void physicsSetLinearVelocity(Entity bodyEntity, float vx, float vy);
+        void physicsGetLinearVelocity(Entity bodyEntity, float* vx, float* vy);
+        void physicsSetAngularVelocity(Entity bodyEntity, float av);
+        float physicsGetAngularVelocity(Entity bodyEntity);
+        void physicsApplyForce(Entity bodyEntity, float fx, float fy);
+        void physicsApplyForceAtPoint(Entity bodyEntity, float fx, float fy, float px, float py);
+        void physicsApplyImpulse(Entity bodyEntity, float ix, float iy);
+        void physicsApplyImpulseAtPoint(Entity bodyEntity, float ix, float iy, float px, float py);
+        void physicsApplyTorque(Entity bodyEntity, float torque);
+        void physicsSetPosition(Entity bodyEntity, float x, float y);
+        void physicsGetPosition(Entity bodyEntity, float* x, float* y);
+        void physicsSetAngle(Entity bodyEntity, float angle);
+        float physicsGetAngle(Entity bodyEntity);
+        void physicsSetGravityScale(Entity bodyEntity, float scale);
+        float physicsGetGravityScale(Entity bodyEntity);
+        void physicsSetActive(Entity bodyEntity, bool active);
+        bool physicsIsActive(Entity bodyEntity);
+        void physicsSetFixedRotation(Entity bodyEntity, bool fixed);
+        bool physicsIsFixedRotation(Entity bodyEntity);
+        void physicsSetBullet(Entity bodyEntity, bool bullet);
+        bool physicsIsBullet(Entity bodyEntity);
+        void physicsDestroyBody(Entity bodyEntity);
+        float physicsGetMass(Entity bodyEntity);
+        void physicsStep();
+        void physicsSyncSprite(Entity bodyEntity, Entity spriteEntity);
         
         // General
         float getDeltaTime() const;
@@ -261,7 +353,30 @@ namespace LuaEngine {
         if (!nextScene.empty()) {
             if (!currentScene.empty()) {
                 callSceneUnload(currentScene);
+                
+                auto itOld = scenes.find(currentScene);
+                if (itOld != scenes.end()) {
+                    lua_State* state = engine->getState();
+                    if (state) {
+                        std::string loadName = "On" + currentScene + "Load";
+                        std::string unloadName = "On" + currentScene + "Unload";
+                        lua_pushnil(state);
+                        lua_setglobal(state, "Update");
+                        lua_pushnil(state);
+                        lua_setglobal(state, "Draw");
+                        lua_pushnil(state);
+                        lua_setglobal(state, loadName.c_str());
+                        lua_pushnil(state);
+                        lua_setglobal(state, unloadName.c_str());
+                    }
+                }
             }
+            
+            auto it = scenes.find(nextScene);
+            if (it != scenes.end()) {
+                engine->loadScript(it->second.path);
+            }
+            
             currentScene = nextScene;
             callSceneLoad(currentScene);
             nextScene.clear();
@@ -412,7 +527,7 @@ namespace LuaEngine {
         }
         
         // Sprite functions
-        static int NewSprite(lua_State* state) {
+        static int CreateSprite(lua_State* state) {
             LuaEngine* engine = getEngine(state);
             if (!engine) { lua_pushnil(state); return 1; }
             const char* texturePath = luaL_checkstring(state, 1);
@@ -513,7 +628,7 @@ namespace LuaEngine {
         }
         
         // Text functions
-        static int NewText(lua_State* state) {
+        static int CreateText(lua_State* state) {
             LuaEngine* engine = getEngine(state);
             if (!engine) { lua_pushnil(state); return 1; }
             const char* fontPath = luaL_checkstring(state, 1);
@@ -584,7 +699,7 @@ namespace LuaEngine {
         }
         
         // Animation functions
-        static int NewAnimation(lua_State* state) {
+        static int CreateAnimation(lua_State* state) {
             LuaEngine* engine = getEngine(state);
             if (!engine) { lua_pushnil(state); return 1; }
             const char* path = luaL_checkstring(state, 1);
@@ -596,7 +711,7 @@ namespace LuaEngine {
             return 1;
         }
         
-        static int NewAnimationFromSheet(lua_State* state) {
+        static int CreateAnimationFromSheet(lua_State* state) {
             LuaEngine* engine = getEngine(state);
             if (!engine) { lua_pushnil(state); return 1; }
             const char* texturePath = luaL_checkstring(state, 1);
@@ -710,7 +825,7 @@ namespace LuaEngine {
         }
         
         // Mesh functions
-        static int NewMesh(lua_State* state) {
+        static int CreateMesh(lua_State* state) {
             LuaEngine* engine = getEngine(state);
             if (!engine) { lua_pushnil(state); return 1; }
             Entity entity = engine->createMesh();
@@ -770,6 +885,299 @@ namespace LuaEngine {
             LuaEngine* engine = getEngine(state);
             if (!engine) return 0;
             engine->destroyAllEntities();
+            return 0;
+        }
+        
+        // Physics functions
+        static int PhysicsInit(lua_State* state) {
+            float gx = luaL_optnumber(state, 1, 0);
+            float gy = luaL_optnumber(state, 2, -9.81f);
+            LuaEngine* engine = getEngine(state);
+            if (!engine) return 0;
+            engine->physicsInit(gx, gy);
+            return 0;
+        }
+        
+        static int PhysicsSetGravity(lua_State* state) {
+            float x = luaL_checknumber(state, 1);
+            float y = luaL_checknumber(state, 2);
+            LuaEngine* engine = getEngine(state);
+            if (!engine) return 0;
+            engine->physicsSetGravity(x, y);
+            return 0;
+        }
+        
+        static int PhysicsGetGravity(lua_State* state) {
+            LuaEngine* engine = getEngine(state);
+            if (!engine) { lua_pushnumber(state, 0); lua_pushnumber(state, 0); return 2; }
+            float x, y;
+            engine->physicsGetGravity(&x, &y);
+            lua_pushnumber(state, x);
+            lua_pushnumber(state, y);
+            return 2;
+        }
+        
+        static int PhysicsCreateBody(lua_State* state) {
+            int bodyType = luaL_checkinteger(state, 1);
+            float x = luaL_optnumber(state, 2, 0);
+            float y = luaL_optnumber(state, 3, 0);
+            float mass = luaL_optnumber(state, 4, 1);
+            float friction = luaL_optnumber(state, 5, 0.3f);
+            float restitution = luaL_optnumber(state, 6, 0.5f);
+            LuaEngine* engine = getEngine(state);
+            if (!engine) { lua_pushinteger(state, 0); return 1; }
+            Entity entity = engine->physicsCreateBody(bodyType, x, y, mass, friction, restitution);
+            lua_pushinteger(state, entity);
+            return 1;
+        }
+        
+        static int PhysicsAddCircle(lua_State* state) {
+            Entity entity = luaL_checkinteger(state, 1);
+            float radius = luaL_checknumber(state, 2);
+            float ox = luaL_optnumber(state, 3, 0);
+            float oy = luaL_optnumber(state, 4, 0);
+            LuaEngine* engine = getEngine(state);
+            if (!engine) return 0;
+            engine->physicsAddCircle(entity, radius, ox, oy);
+            return 0;
+        }
+        
+        static int PhysicsAddRectangle(lua_State* state) {
+            Entity entity = luaL_checkinteger(state, 1);
+            float hw = luaL_checknumber(state, 2);
+            float hh = luaL_checknumber(state, 3);
+            LuaEngine* engine = getEngine(state);
+            if (!engine) return 0;
+            engine->physicsAddRectangle(entity, hw, hh);
+            return 0;
+        }
+        
+        static int PhysicsSetLinearVelocity(lua_State* state) {
+            Entity entity = luaL_checkinteger(state, 1);
+            float vx = luaL_checknumber(state, 2);
+            float vy = luaL_checknumber(state, 3);
+            LuaEngine* engine = getEngine(state);
+            if (!engine) return 0;
+            engine->physicsSetLinearVelocity(entity, vx, vy);
+            return 0;
+        }
+        
+        static int PhysicsGetLinearVelocity(lua_State* state) {
+            Entity entity = luaL_checkinteger(state, 1);
+            LuaEngine* engine = getEngine(state);
+            if (!engine) { lua_pushnumber(state, 0); lua_pushnumber(state, 0); return 2; }
+            float vx, vy;
+            engine->physicsGetLinearVelocity(entity, &vx, &vy);
+            lua_pushnumber(state, vx);
+            lua_pushnumber(state, vy);
+            return 2;
+        }
+        
+        static int PhysicsSetAngularVelocity(lua_State* state) {
+            Entity entity = luaL_checkinteger(state, 1);
+            float av = luaL_checknumber(state, 2);
+            LuaEngine* engine = getEngine(state);
+            if (!engine) return 0;
+            engine->physicsSetAngularVelocity(entity, av);
+            return 0;
+        }
+        
+        static int PhysicsGetAngularVelocity(lua_State* state) {
+            Entity entity = luaL_checkinteger(state, 1);
+            LuaEngine* engine = getEngine(state);
+            if (!engine) { lua_pushnumber(state, 0); return 1; }
+            lua_pushnumber(state, engine->physicsGetAngularVelocity(entity));
+            return 1;
+        }
+        
+        static int PhysicsApplyForce(lua_State* state) {
+            Entity entity = luaL_checkinteger(state, 1);
+            float fx = luaL_checknumber(state, 2);
+            float fy = luaL_checknumber(state, 3);
+            LuaEngine* engine = getEngine(state);
+            if (!engine) return 0;
+            engine->physicsApplyForce(entity, fx, fy);
+            return 0;
+        }
+        
+        static int PhysicsApplyForceAtPoint(lua_State* state) {
+            Entity entity = luaL_checkinteger(state, 1);
+            float fx = luaL_checknumber(state, 2);
+            float fy = luaL_checknumber(state, 3);
+            float px = luaL_checknumber(state, 4);
+            float py = luaL_checknumber(state, 5);
+            LuaEngine* engine = getEngine(state);
+            if (!engine) return 0;
+            engine->physicsApplyForceAtPoint(entity, fx, fy, px, py);
+            return 0;
+        }
+        
+        static int PhysicsApplyImpulse(lua_State* state) {
+            Entity entity = luaL_checkinteger(state, 1);
+            float ix = luaL_checknumber(state, 2);
+            float iy = luaL_checknumber(state, 3);
+            LuaEngine* engine = getEngine(state);
+            if (!engine) return 0;
+            engine->physicsApplyImpulse(entity, ix, iy);
+            return 0;
+        }
+        
+        static int PhysicsApplyImpulseAtPoint(lua_State* state) {
+            Entity entity = luaL_checkinteger(state, 1);
+            float ix = luaL_checknumber(state, 2);
+            float iy = luaL_checknumber(state, 3);
+            float px = luaL_checknumber(state, 4);
+            float py = luaL_checknumber(state, 5);
+            LuaEngine* engine = getEngine(state);
+            if (!engine) return 0;
+            engine->physicsApplyImpulseAtPoint(entity, ix, iy, px, py);
+            return 0;
+        }
+        
+        static int PhysicsApplyTorque(lua_State* state) {
+            Entity entity = luaL_checkinteger(state, 1);
+            float torque = luaL_checknumber(state, 2);
+            LuaEngine* engine = getEngine(state);
+            if (!engine) return 0;
+            engine->physicsApplyTorque(entity, torque);
+            return 0;
+        }
+        
+        static int PhysicsSetPosition(lua_State* state) {
+            Entity entity = luaL_checkinteger(state, 1);
+            float x = luaL_checknumber(state, 2);
+            float y = luaL_checknumber(state, 3);
+            LuaEngine* engine = getEngine(state);
+            if (!engine) return 0;
+            engine->physicsSetPosition(entity, x, y);
+            return 0;
+        }
+        
+        static int PhysicsGetPosition(lua_State* state) {
+            Entity entity = luaL_checkinteger(state, 1);
+            LuaEngine* engine = getEngine(state);
+            if (!engine) { lua_pushnumber(state, 0); lua_pushnumber(state, 0); return 2; }
+            float x, y;
+            engine->physicsGetPosition(entity, &x, &y);
+            lua_pushnumber(state, x);
+            lua_pushnumber(state, y);
+            return 2;
+        }
+        
+        static int PhysicsSetAngle(lua_State* state) {
+            Entity entity = luaL_checkinteger(state, 1);
+            float angle = luaL_checknumber(state, 2);
+            LuaEngine* engine = getEngine(state);
+            if (!engine) return 0;
+            engine->physicsSetAngle(entity, angle);
+            return 0;
+        }
+        
+        static int PhysicsGetAngle(lua_State* state) {
+            Entity entity = luaL_checkinteger(state, 1);
+            LuaEngine* engine = getEngine(state);
+            if (!engine) { lua_pushnumber(state, 0); return 1; }
+            lua_pushnumber(state, engine->physicsGetAngle(entity));
+            return 1;
+        }
+        
+        static int PhysicsSetGravityScale(lua_State* state) {
+            Entity entity = luaL_checkinteger(state, 1);
+            float scale = luaL_checknumber(state, 2);
+            LuaEngine* engine = getEngine(state);
+            if (!engine) return 0;
+            engine->physicsSetGravityScale(entity, scale);
+            return 0;
+        }
+        
+        static int PhysicsGetGravityScale(lua_State* state) {
+            Entity entity = luaL_checkinteger(state, 1);
+            LuaEngine* engine = getEngine(state);
+            if (!engine) { lua_pushnumber(state, 1); return 1; }
+            lua_pushnumber(state, engine->physicsGetGravityScale(entity));
+            return 1;
+        }
+        
+        static int PhysicsSetActive(lua_State* state) {
+            Entity entity = luaL_checkinteger(state, 1);
+            bool active = lua_toboolean(state, 2);
+            LuaEngine* engine = getEngine(state);
+            if (!engine) return 0;
+            engine->physicsSetActive(entity, active);
+            return 0;
+        }
+        
+        static int PhysicsIsActive(lua_State* state) {
+            Entity entity = luaL_checkinteger(state, 1);
+            LuaEngine* engine = getEngine(state);
+            if (!engine) { lua_pushboolean(state, false); return 1; }
+            lua_pushboolean(state, engine->physicsIsActive(entity));
+            return 1;
+        }
+        
+        static int PhysicsSetFixedRotation(lua_State* state) {
+            Entity entity = luaL_checkinteger(state, 1);
+            bool fixed = lua_toboolean(state, 2);
+            LuaEngine* engine = getEngine(state);
+            if (!engine) return 0;
+            engine->physicsSetFixedRotation(entity, fixed);
+            return 0;
+        }
+        
+        static int PhysicsIsFixedRotation(lua_State* state) {
+            Entity entity = luaL_checkinteger(state, 1);
+            LuaEngine* engine = getEngine(state);
+            if (!engine) { lua_pushboolean(state, false); return 1; }
+            lua_pushboolean(state, engine->physicsIsFixedRotation(entity));
+            return 1;
+        }
+        
+        static int PhysicsSetBullet(lua_State* state) {
+            Entity entity = luaL_checkinteger(state, 1);
+            bool bullet = lua_toboolean(state, 2);
+            LuaEngine* engine = getEngine(state);
+            if (!engine) return 0;
+            engine->physicsSetBullet(entity, bullet);
+            return 0;
+        }
+        
+        static int PhysicsIsBullet(lua_State* state) {
+            Entity entity = luaL_checkinteger(state, 1);
+            LuaEngine* engine = getEngine(state);
+            if (!engine) { lua_pushboolean(state, false); return 1; }
+            lua_pushboolean(state, engine->physicsIsBullet(entity));
+            return 1;
+        }
+        
+        static int PhysicsDestroyBody(lua_State* state) {
+            Entity entity = luaL_checkinteger(state, 1);
+            LuaEngine* engine = getEngine(state);
+            if (!engine) return 0;
+            engine->physicsDestroyBody(entity);
+            return 0;
+        }
+        
+        static int PhysicsGetMass(lua_State* state) {
+            Entity entity = luaL_checkinteger(state, 1);
+            LuaEngine* engine = getEngine(state);
+            if (!engine) { lua_pushnumber(state, 0); return 1; }
+            lua_pushnumber(state, engine->physicsGetMass(entity));
+            return 1;
+        }
+        
+        static int PhysicsStep(lua_State* state) {
+            LuaEngine* engine = getEngine(state);
+            if (!engine) return 0;
+            engine->physicsStep();
+            return 0;
+        }
+        
+        static int PhysicsSyncSprite(lua_State* state) {
+            Entity bodyEntity = luaL_checkinteger(state, 1);
+            Entity spriteEntity = luaL_checkinteger(state, 2);
+            LuaEngine* engine = getEngine(state);
+            if (!engine) return 0;
+            engine->physicsSyncSprite(bodyEntity, spriteEntity);
             return 0;
         }
         
@@ -874,6 +1282,87 @@ namespace LuaEngine {
             auto window = std::shared_ptr<Window>(static_cast<Window*>(windowPtr), [](Window*){});
             engine->setWindowIcon(window, iconPath);
             return 0;
+        }
+        
+        // Main window functions (no pointer needed)
+        static int SetMainWindowTitle(lua_State* state) {
+            const char* title = luaL_checkstring(state, 1);
+            LuaEngine* engine = getEngine(state);
+            if (!engine || !engine->getMainWindow()) return 0;
+            engine->getMainWindow()->setTitle(title);
+            return 0;
+        }
+        
+        static int GetMainWindowTitle(lua_State* state) {
+            LuaEngine* engine = getEngine(state);
+            if (!engine || !engine->getMainWindow()) { lua_pushstring(state, ""); return 1; }
+            lua_pushstring(state, engine->getMainWindow()->getTitle());
+            return 1;
+        }
+        
+        static int SetMainWindowSize(lua_State* state) {
+            int width = luaL_checkinteger(state, 1);
+            int height = luaL_checkinteger(state, 2);
+            LuaEngine* engine = getEngine(state);
+            if (!engine || !engine->getMainWindow()) return 0;
+            engine->getMainWindow()->setSize(width, height);
+            return 0;
+        }
+        
+        static int GetMainWindowWidth(lua_State* state) {
+            LuaEngine* engine = getEngine(state);
+            if (!engine || !engine->getMainWindow()) { lua_pushinteger(state, 0); return 1; }
+            lua_pushinteger(state, engine->getMainWindow()->getWidth());
+            return 1;
+        }
+        
+        static int GetMainWindowHeight(lua_State* state) {
+            LuaEngine* engine = getEngine(state);
+            if (!engine || !engine->getMainWindow()) { lua_pushinteger(state, 0); return 1; }
+            lua_pushinteger(state, engine->getMainWindow()->getHeight());
+            return 1;
+        }
+        
+        static int SetMainWindowPosition(lua_State* state) {
+            int x = luaL_checkinteger(state, 1);
+            int y = luaL_checkinteger(state, 2);
+            LuaEngine* engine = getEngine(state);
+            if (!engine || !engine->getMainWindow()) return 0;
+            glfwSetWindowPos(engine->getMainWindow()->getGLFWwindow(), x, y);
+            return 0;
+        }
+        
+        static int GetMainWindowPosition(lua_State* state) {
+            LuaEngine* engine = getEngine(state);
+            if (!engine || !engine->getMainWindow()) { lua_pushinteger(state, 0); lua_pushinteger(state, 0); return 2; }
+            int x, y;
+            engine->getMainWindow()->getPosition(&x, &y);
+            lua_pushinteger(state, x);
+            lua_pushinteger(state, y);
+            return 2;
+        }
+        
+        static int SetMainWindowIcon(lua_State* state) {
+            const char* iconPath = luaL_checkstring(state, 1);
+            LuaEngine* engine = getEngine(state);
+            if (!engine || !engine->getMainWindow()) return 0;
+            engine->getMainWindow()->setIcon(iconPath);
+            return 0;
+        }
+        
+        static int SetMainWindowShouldClose(lua_State* state) {
+            bool flag = lua_toboolean(state, 1);
+            LuaEngine* engine = getEngine(state);
+            if (!engine || !engine->getMainWindow()) return 0;
+            engine->getMainWindow()->setShouldClose(flag);
+            return 0;
+        }
+        
+        static int IsMainWindowShouldClose(lua_State* state) {
+            LuaEngine* engine = getEngine(state);
+            if (!engine || !engine->getMainWindow()) { lua_pushboolean(state, true); return 1; }
+            lua_pushboolean(state, engine->getMainWindow()->shouldClose());
+            return 1;
         }
         
         // Input functions
@@ -1024,7 +1513,7 @@ namespace LuaEngine {
         // These will be registered separately in registerCFunctions()
         
         // Sprite functions
-        {"NewSprite", _functions::NewSprite},
+        {"CreateSprite", _functions::CreateSprite},
         {"SpriteSetTexture", _functions::SpriteSetTexture},
         {"SpriteSetPosition", _functions::SpriteSetPosition},
         {"SpriteGetPosition", _functions::SpriteGetPosition},
@@ -1036,8 +1525,8 @@ namespace LuaEngine {
         {"SpriteSetVisible", _functions::SpriteSetVisible},
         
         // Animation functions
-        {"NewAnimation", _functions::NewAnimation},
-        {"NewAnimationFromSheet", _functions::NewAnimationFromSheet},
+        {"CreateAnimation", _functions::CreateAnimation},
+        {"CreateAnimationFromSheet", _functions::CreateAnimationFromSheet},
         {"AnimationPlay", _functions::AnimationPlay},
         {"AnimationPause", _functions::AnimationPause},
         {"AnimationStop", _functions::AnimationStop},
@@ -1051,7 +1540,7 @@ namespace LuaEngine {
         {"AnimationSetSize", _functions::AnimationSetSize},
         
         // Text functions
-        {"NewText", _functions::NewText},
+        {"CreateText", _functions::CreateText},
         {"TextSetString", _functions::TextSetString},
         {"TextGetString", _functions::TextGetString},
         {"TextSetPosition", _functions::TextSetPosition},
@@ -1060,13 +1549,46 @@ namespace LuaEngine {
         {"TextSetVisible", _functions::TextSetVisible},
         
         // Mesh functions
-        {"NewMesh", _functions::NewMesh},
+        {"CreateMesh", _functions::CreateMesh},
         {"MeshSetData", _functions::MeshSetData},
         {"MeshDraw", _functions::MeshDraw},
         
         // Object deletion
         {"Destroy", _functions::Destroy},
         {"DestroyAll", _functions::DestroyAll},
+        
+        // Physics functions
+        {"PhysicsInit", _functions::PhysicsInit},
+        {"PhysicsSetGravity", _functions::PhysicsSetGravity},
+        {"PhysicsGetGravity", _functions::PhysicsGetGravity},
+        {"PhysicsCreateBody", _functions::PhysicsCreateBody},
+        {"PhysicsAddCircle", _functions::PhysicsAddCircle},
+        {"PhysicsAddRectangle", _functions::PhysicsAddRectangle},
+        {"PhysicsSetLinearVelocity", _functions::PhysicsSetLinearVelocity},
+        {"PhysicsGetLinearVelocity", _functions::PhysicsGetLinearVelocity},
+        {"PhysicsSetAngularVelocity", _functions::PhysicsSetAngularVelocity},
+        {"PhysicsGetAngularVelocity", _functions::PhysicsGetAngularVelocity},
+        {"PhysicsApplyForce", _functions::PhysicsApplyForce},
+        {"PhysicsApplyForceAtPoint", _functions::PhysicsApplyForceAtPoint},
+        {"PhysicsApplyImpulse", _functions::PhysicsApplyImpulse},
+        {"PhysicsApplyImpulseAtPoint", _functions::PhysicsApplyImpulseAtPoint},
+        {"PhysicsApplyTorque", _functions::PhysicsApplyTorque},
+        {"PhysicsSetPosition", _functions::PhysicsSetPosition},
+        {"PhysicsGetPosition", _functions::PhysicsGetPosition},
+        {"PhysicsSetAngle", _functions::PhysicsSetAngle},
+        {"PhysicsGetAngle", _functions::PhysicsGetAngle},
+        {"PhysicsSetGravityScale", _functions::PhysicsSetGravityScale},
+        {"PhysicsGetGravityScale", _functions::PhysicsGetGravityScale},
+        {"PhysicsSetActive", _functions::PhysicsSetActive},
+        {"PhysicsIsActive", _functions::PhysicsIsActive},
+        {"PhysicsSetFixedRotation", _functions::PhysicsSetFixedRotation},
+        {"PhysicsIsFixedRotation", _functions::PhysicsIsFixedRotation},
+        {"PhysicsSetBullet", _functions::PhysicsSetBullet},
+        {"PhysicsIsBullet", _functions::PhysicsIsBullet},
+        {"PhysicsDestroyBody", _functions::PhysicsDestroyBody},
+        {"PhysicsGetMass", _functions::PhysicsGetMass},
+        {"PhysicsStep", _functions::PhysicsStep},
+        {"PhysicsSyncSprite", _functions::PhysicsSyncSprite},
         
         // Audio functions
         {"LoadSound", _functions::LoadSound},
@@ -1082,6 +1604,18 @@ namespace LuaEngine {
         {"SetWindowTitle", _functions::SetWindowTitle},
         {"SetWindowSize", _functions::SetWindowSize},
         {"SetWindowIcon", _functions::SetWindowIcon},
+        
+        // Main window functions
+        {"SetMainWindowTitle", _functions::SetMainWindowTitle},
+        {"GetMainWindowTitle", _functions::GetMainWindowTitle},
+        {"SetMainWindowSize", _functions::SetMainWindowSize},
+        {"GetMainWindowWidth", _functions::GetMainWindowWidth},
+        {"GetMainWindowHeight", _functions::GetMainWindowHeight},
+        {"SetMainWindowPosition", _functions::SetMainWindowPosition},
+        {"GetMainWindowPosition", _functions::GetMainWindowPosition},
+        {"SetMainWindowIcon", _functions::SetMainWindowIcon},
+        {"SetMainWindowShouldClose", _functions::SetMainWindowShouldClose},
+        {"IsMainWindowShouldClose", _functions::IsMainWindowShouldClose},
         
         // Input functions
         {"IsKeyPressed", _functions::IsKeyPressed},
@@ -1244,11 +1778,19 @@ namespace LuaEngine {
         
         destroyAllEntities();
         
+        for (auto& pair : textureCache) {
+            if (pair.second != 0) {
+                glDeleteTextures(1, &pair.second);
+            }
+        }
+        textureCache.clear();
+        
         if (state) {
             lua_close(state);
             state = nullptr;
         }
         initialized = false;
+        std::cout << "LuaEngine shutdown complete" << std::endl;
     }
     
     bool LuaEngine::loadScriptsFromList(const std::string& listPath) {
@@ -1353,7 +1895,18 @@ namespace LuaEngine {
     // Sprite implementations
     Entity LuaEngine::createSprite(const std::string& texturePath, const Vector2& position) {
         Sprite2D* sprite = new Sprite2D();
-        sprite->setTexture(texturePath);
+        sprite->setScreenSize(getScreenWidth(), getScreenHeight());
+        
+        auto it = textureCache.find(texturePath);
+        if (it != textureCache.end()) {
+            sprite->setCachedTexture(it->second, texturePath);
+        } else {
+            sprite->setTexture(texturePath);
+            if (sprite->getTextureID() != 0) {
+                textureCache[texturePath] = sprite->getTextureID();
+            }
+        }
+        
         sprite->setPosition(position);
         Entity entity = spriteWorld.spawn(sprite);
         objectMap[entity] = RegisteredObject(RegisteredObject::SPRITE, sprite, entity);
@@ -1416,6 +1969,7 @@ namespace LuaEngine {
     // Animation implementations
     Entity LuaEngine::createAnimation(const std::string& path, bool isGif, const Vector2& position) {
         Animation2D* anim = new Animation2D();
+        anim->setScreenSize(getScreenWidth(), getScreenHeight());
         bool loaded = false;
         if (isGif) {
             loaded = anim->loadFromGIF(path);
@@ -1434,9 +1988,10 @@ namespace LuaEngine {
     }
     
     Entity LuaEngine::createAnimationFromSheet(const std::string& texturePath, int frameWidth, int frameHeight,
-                                                 int totalFrames, int framesPerRow, int frameDelayMs,
-                                                 const Vector2& position) {
+                                                  int totalFrames, int framesPerRow, int frameDelayMs,
+                                                  const Vector2& position) {
         Animation2D* anim = new Animation2D();
+        anim->setScreenSize(getScreenWidth(), getScreenHeight());
         anim->loadFromSpriteSheet(texturePath, frameWidth, frameHeight, totalFrames, framesPerRow, frameDelayMs);
         anim->setPosition(position);
         anim->play();
@@ -1518,8 +2073,9 @@ namespace LuaEngine {
     
     // Text implementations
     Entity LuaEngine::createText(const std::string& fontPath, const std::string& text, 
-                                  const Vector2& position, int fontSize) {
+                                   const Vector2& position, int fontSize) {
         Text* textObj = new Text(fontPath, fontSize);
+        textObj->setScreenSize(getScreenWidth(), getScreenHeight());
         textObj->setText(text);
         textObj->setPosition(position);
         Entity entity = textWorld.spawn(textObj);
@@ -1567,6 +2123,19 @@ namespace LuaEngine {
     
     void LuaEngine::setTextScreenSize(int width, int height) {
         for (const auto& pair : textWorld.getAllEntities()) {
+            if (pair.first && !pair.second) {
+                pair.first->setScreenSize(width, height);
+            }
+        }
+    }
+    
+    void LuaEngine::setSpriteScreenSize(int width, int height) {
+        for (const auto& pair : spriteWorld.getAllEntities()) {
+            if (pair.first && !pair.second) {
+                pair.first->setScreenSize(width, height);
+            }
+        }
+        for (const auto& pair : animationWorld.getAllEntities()) {
             if (pair.first && !pair.second) {
                 pair.first->setScreenSize(width, height);
             }
@@ -1725,7 +2294,230 @@ namespace LuaEngine {
         for (const auto& pair : meshWorld.getAllEntities()) {
             if (pair.first) delete pair.first;
         }
+        physicsWorld.clear();
+        physicsBodyMap.clear();
         objectMap.clear();
+    }
+    
+    // Physics implementations
+    void LuaEngine::physicsInit(float gravityX, float gravityY) {
+        physicsWorld.setGravity(gravityX, gravityY);
+    }
+    
+    void LuaEngine::physicsSetGravity(float x, float y) {
+        physicsWorld.setGravity(x, y);
+    }
+    
+    void LuaEngine::physicsGetGravity(float* x, float* y) const {
+        physicsWorld.getGravity(x, y);
+    }
+    
+    Entity LuaEngine::physicsCreateBody(int bodyType, float x, float y, float mass, float friction, float restitution) {
+        PhysicsBodyType type;
+        switch (bodyType) {
+            case 0: type = PhysicsBodyType::Static; break;
+            case 1: type = PhysicsBodyType::Dynamic; break;
+            case 2: type = PhysicsBodyType::Kinematic; break;
+            default: type = PhysicsBodyType::Dynamic; break;
+        }
+        
+        PhysicsBody* body = physicsWorld.createBody(type, x, y, mass, friction, restitution);
+        if (!body) return 0;
+        
+        Entity entity = meshWorld.spawn(new Mesh2D());
+        physicsBodyMap[entity] = body;
+        return entity;
+    }
+    
+    void LuaEngine::physicsAddCircle(Entity bodyEntity, float radius, float offsetX, float offsetY) {
+        auto it = physicsBodyMap.find(bodyEntity);
+        if (it != physicsBodyMap.end()) {
+            it->second->addCircle(radius, offsetX, offsetY);
+        }
+    }
+    
+    void LuaEngine::physicsAddRectangle(Entity bodyEntity, float halfWidth, float halfHeight) {
+        auto it = physicsBodyMap.find(bodyEntity);
+        if (it != physicsBodyMap.end()) {
+            it->second->addRectangle(halfWidth, halfHeight);
+        }
+    }
+    
+    void LuaEngine::physicsSetLinearVelocity(Entity bodyEntity, float vx, float vy) {
+        auto it = physicsBodyMap.find(bodyEntity);
+        if (it != physicsBodyMap.end()) {
+            it->second->setLinearVelocity(vx, vy);
+        }
+    }
+    
+    void LuaEngine::physicsGetLinearVelocity(Entity bodyEntity, float* vx, float* vy) {
+        auto it = physicsBodyMap.find(bodyEntity);
+        if (it != physicsBodyMap.end()) {
+            Vector2 v = it->second->getLinearVelocity();
+            *vx = v.x;
+            *vy = v.y;
+        } else {
+            *vx = 0;
+            *vy = 0;
+        }
+    }
+    
+    void LuaEngine::physicsSetAngularVelocity(Entity bodyEntity, float av) {
+        auto it = physicsBodyMap.find(bodyEntity);
+        if (it != physicsBodyMap.end()) {
+            it->second->setAngularVelocity(av);
+        }
+    }
+    
+    float LuaEngine::physicsGetAngularVelocity(Entity bodyEntity) {
+        auto it = physicsBodyMap.find(bodyEntity);
+        return it != physicsBodyMap.end() ? it->second->getAngularVelocity() : 0;
+    }
+    
+    void LuaEngine::physicsApplyForce(Entity bodyEntity, float fx, float fy) {
+        auto it = physicsBodyMap.find(bodyEntity);
+        if (it != physicsBodyMap.end()) {
+            it->second->applyForce(fx, fy);
+        }
+    }
+    
+    void LuaEngine::physicsApplyForceAtPoint(Entity bodyEntity, float fx, float fy, float px, float py) {
+        auto it = physicsBodyMap.find(bodyEntity);
+        if (it != physicsBodyMap.end()) {
+            it->second->applyForceAtPoint(fx, fy, px, py);
+        }
+    }
+    
+    void LuaEngine::physicsApplyImpulse(Entity bodyEntity, float ix, float iy) {
+        auto it = physicsBodyMap.find(bodyEntity);
+        if (it != physicsBodyMap.end()) {
+            it->second->applyImpulse(ix, iy);
+        }
+    }
+    
+    void LuaEngine::physicsApplyImpulseAtPoint(Entity bodyEntity, float ix, float iy, float px, float py) {
+        auto it = physicsBodyMap.find(bodyEntity);
+        if (it != physicsBodyMap.end()) {
+            it->second->applyImpulseAtPoint(ix, iy, px, py);
+        }
+    }
+    
+    void LuaEngine::physicsApplyTorque(Entity bodyEntity, float torque) {
+        auto it = physicsBodyMap.find(bodyEntity);
+        if (it != physicsBodyMap.end()) {
+            it->second->applyTorque(torque);
+        }
+    }
+    
+    void LuaEngine::physicsSetPosition(Entity bodyEntity, float x, float y) {
+        auto it = physicsBodyMap.find(bodyEntity);
+        if (it != physicsBodyMap.end()) {
+            it->second->setPosition(x, y);
+        }
+    }
+    
+    void LuaEngine::physicsGetPosition(Entity bodyEntity, float* x, float* y) {
+        auto it = physicsBodyMap.find(bodyEntity);
+        if (it != physicsBodyMap.end()) {
+            Vector2 p = it->second->getPosition();
+            *x = p.x;
+            *y = p.y;
+        } else {
+            *x = 0;
+            *y = 0;
+        }
+    }
+    
+    void LuaEngine::physicsSetAngle(Entity bodyEntity, float angle) {
+        auto it = physicsBodyMap.find(bodyEntity);
+        if (it != physicsBodyMap.end()) {
+            it->second->setAngle(angle);
+        }
+    }
+    
+    float LuaEngine::physicsGetAngle(Entity bodyEntity) {
+        auto it = physicsBodyMap.find(bodyEntity);
+        return it != physicsBodyMap.end() ? it->second->getAngle() : 0;
+    }
+    
+    void LuaEngine::physicsSetGravityScale(Entity bodyEntity, float scale) {
+        auto it = physicsBodyMap.find(bodyEntity);
+        if (it != physicsBodyMap.end()) {
+            it->second->setGravityScale(scale);
+        }
+    }
+    
+    float LuaEngine::physicsGetGravityScale(Entity bodyEntity) {
+        auto it = physicsBodyMap.find(bodyEntity);
+        return it != physicsBodyMap.end() ? it->second->getGravityScale() : 1;
+    }
+    
+    void LuaEngine::physicsSetActive(Entity bodyEntity, bool active) {
+        auto it = physicsBodyMap.find(bodyEntity);
+        if (it != physicsBodyMap.end()) {
+            it->second->setActive(active);
+        }
+    }
+    
+    bool LuaEngine::physicsIsActive(Entity bodyEntity) {
+        auto it = physicsBodyMap.find(bodyEntity);
+        return it != physicsBodyMap.end() ? it->second->isActive() : false;
+    }
+    
+    void LuaEngine::physicsSetFixedRotation(Entity bodyEntity, bool fixed) {
+        auto it = physicsBodyMap.find(bodyEntity);
+        if (it != physicsBodyMap.end()) {
+            it->second->setFixedRotation(fixed);
+        }
+    }
+    
+    bool LuaEngine::physicsIsFixedRotation(Entity bodyEntity) {
+        auto it = physicsBodyMap.find(bodyEntity);
+        return it != physicsBodyMap.end() ? it->second->isFixedRotation() : false;
+    }
+    
+    void LuaEngine::physicsSetBullet(Entity bodyEntity, bool bullet) {
+        auto it = physicsBodyMap.find(bodyEntity);
+        if (it != physicsBodyMap.end()) {
+            it->second->setBullet(bullet);
+        }
+    }
+    
+    bool LuaEngine::physicsIsBullet(Entity bodyEntity) {
+        auto it = physicsBodyMap.find(bodyEntity);
+        return it != physicsBodyMap.end() ? it->second->isBullet() : false;
+    }
+    
+    void LuaEngine::physicsDestroyBody(Entity bodyEntity) {
+        auto it = physicsBodyMap.find(bodyEntity);
+        if (it != physicsBodyMap.end()) {
+            physicsWorld.destroyBody(it->second);
+            physicsBodyMap.erase(it);
+        }
+    }
+    
+    float LuaEngine::physicsGetMass(Entity bodyEntity) {
+        auto it = physicsBodyMap.find(bodyEntity);
+        return it != physicsBodyMap.end() ? it->second->getMass() : 0;
+    }
+    
+    void LuaEngine::physicsStep() {
+        physicsWorld.step(deltaTime);
+    }
+    
+    void LuaEngine::physicsSyncSprite(Entity bodyEntity, Entity spriteEntity) {
+        auto it = physicsBodyMap.find(bodyEntity);
+        if (it == physicsBodyMap.end()) return;
+        
+        Sprite2D* sprite = spriteWorld.getEntity(spriteEntity);
+        if (!sprite) return;
+        
+        PhysicsBody* body = it->second;
+        Vector2 pos = body->getPosition();
+        float angle = body->getAngle();
+        
+        sprite->setPosition(pos.x, pos.y);
+        sprite->setRotation(angle * 57.2958f);
     }
     
     // General

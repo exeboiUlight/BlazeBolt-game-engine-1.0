@@ -7,9 +7,11 @@ from datetime import datetime
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, 
                              QHBoxLayout, QPushButton, QLabel, QFileDialog, 
                              QMessageBox, QProgressBar, QFrame, QScrollArea,
-                             QGridLayout, QLineEdit, QDialog, QDialogButtonBox)
-from PyQt6.QtCore import Qt, QThread, pyqtSignal
-from PyQt6.QtGui import QFont
+                             QGridLayout, QLineEdit, QDialog, QDialogButtonBox,
+                             QSplitter, QTextEdit, QTreeWidget, QTreeWidgetItem,
+                             QTabWidget, QListWidget, QListWidgetItem)
+from PyQt6.QtCore import Qt, QThread, pyqtSignal, QSize
+from PyQt6.QtGui import QFont, QColor, QIcon, QPixmap
 
 
 def resource_path(relative_path):
@@ -248,6 +250,11 @@ class BlazeboltHub(QMainWindow):
         self.projects_widget = self.create_projects_page()
         main_layout.addWidget(self.projects_widget)
         
+        # Редактор (скрыт по умолчанию)
+        self.editor_widget = self.create_editor_page()
+        self.editor_widget.hide()
+        main_layout.addWidget(self.editor_widget)
+        
         self.status_bar = self.statusBar()
         self.status_bar.showMessage("Готов к работе")
         
@@ -283,6 +290,298 @@ class BlazeboltHub(QMainWindow):
         layout.addWidget(self.theme_btn)
         
         return top_bar
+    
+    def create_editor_page(self):
+        """Создание страницы редактора проекта"""
+        widget = QWidget()
+        main_splitter = QSplitter(Qt.Orientation.Horizontal)
+        
+        # Левая панель - Файловый менеджер
+        left_panel = QFrame()
+        left_panel.setFixedWidth(250)
+        left_layout = QVBoxLayout(left_panel)
+        left_layout.setContentsMargins(5, 5, 5, 5)
+        
+        left_header = QLabel("📁 Файлы")
+        left_header.setFont(QFont("Segoe UI", 12, QFont.Weight.Bold))
+        left_layout.addWidget(left_header)
+        
+        self.file_tree = QTreeWidget()
+        self.file_tree.setHeaderLabel("Проект")
+        self.file_tree.itemDoubleClicked.connect(self.on_file_double_clicked)
+        left_layout.addWidget(self.file_tree)
+        
+        # Центральная часть - вкладки
+        center_tabs = QTabWidget()
+        center_tabs.setDocumentMode(True)
+        
+        # Вкладка 2D Viewport
+        viewport_tab = QWidget()
+        viewport_layout = QVBoxLayout(viewport_tab)
+        viewport_label = QLabel("🎮 2D Viewport")
+        viewport_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        viewport_label.setFont(QFont("Segoe UI", 16))
+        viewport_layout.addWidget(viewport_label)
+        
+        viewport_info = QLabel("Запустите проект для просмотра")
+        viewport_info.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        viewport_layout.addWidget(viewport_info)
+        
+        center_tabs.addTab(viewport_tab, "2D")
+        center_tabs.addTab(QWidget(), "3D")
+        center_tabs.addTab(QWidget(), "Script")
+        
+        # Вкладка Inspector
+        inspector_area = QScrollArea()
+        inspector_area.setWidgetResizable(True)
+        inspector_content = QWidget()
+        inspector_layout = QVBoxLayout(inspector_content)
+        
+        inspector_header = QLabel("📋 Inspector")
+        inspector_header.setFont(QFont("Segoe UI", 12, QFont.Weight.Bold))
+        inspector_layout.addWidget(inspector_header)
+        
+        # Свойства Node
+        node_section = QLabel("Node")
+        node_section.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
+        node_section.setStyleSheet("color: #6c63ff;")
+        inspector_layout.addWidget(node_section)
+        
+        self.node_name_label = QLabel("Name: (selected)")
+        inspector_layout.addWidget(self.node_name_label)
+        
+        self.node_type_label = QLabel("Type: Node2D")
+        inspector_layout.addWidget(self.node_type_label)
+        
+        # Transform
+        transform_section = QLabel("Transform")
+        transform_section.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
+        transform_section.setStyleSheet("color: #6c63ff;")
+        inspector_layout.addWidget(transform_section)
+        
+        self.pos_label = QLabel("Position X: 0, Y: 0")
+        inspector_layout.addWidget(self.pos_label)
+        
+        self.rotation_label = QLabel("Rotation: 0")
+        inspector_layout.addWidget(self.rotation_label)
+        
+        self.scale_label = QLabel("Scale: 1 x 1")
+        inspector_layout.addWidget(self.scale_label)
+        
+        # Visibility
+        vis_section = QLabel("Visibility")
+        vis_section.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
+        vis_section.setStyleSheet("color: #6c63ff;")
+        inspector_layout.addWidget(vis_section)
+        
+        self.visible_label = QLabel("Visible: ✓")
+        inspector_layout.addWidget(self.visible_label)
+        
+        inspector_layout.addStretch()
+        
+        inspector_area.setWidget(inspector_content)
+        
+        # Вкладка Code Editor
+        code_tab = QWidget()
+        code_layout = QVBoxLayout(code_tab)
+        
+        code_header = QHBoxLayout()
+        code_title = QLabel("📝 Редактор кода")
+        code_title.setFont(QFont("Segoe UI", 12, QFont.Weight.Bold))
+        code_header.addWidget(code_title)
+        code_header.addStretch()
+        
+        self.save_code_btn = QPushButton("💾 Сохранить")
+        self.save_code_btn.setFixedSize(100, 30)
+        code_header.addWidget(self.save_code_btn)
+        
+        code_layout.addLayout(code_header)
+        
+        self.code_editor = QTextEdit()
+        self.code_editor.setFont(QFont("Consolas", 11))
+        self.code_editor.setStyleSheet("""
+            QTextEdit {
+                background-color: #1e1e2e;
+                color: #e0e0f0;
+                border: none;
+                padding: 10px;
+            }
+        """)
+        self.code_editor.setPlainText("-- Редактор кода\n-- Выберите файл для редактирования\n\nfunction _ready()\n    print(\"Hello, BlazeBolt!\")\nend\n\nfunction _process(dt)\n    -- Обновление каждый кадр\nend")
+        code_layout.addWidget(self.code_editor)
+        
+        center_tabs.addTab(code_tab, "Code")
+        
+        # Правая панель - Scene Tree
+        right_panel = QFrame()
+        right_panel.setFixedWidth(250)
+        right_layout = QVBoxLayout(right_panel)
+        right_layout.setContentsMargins(5, 5, 5, 5)
+        
+        right_header = QLabel("🌳 Scene")
+        right_header.setFont(QFont("Segoe UI", 12, QFont.Weight.Bold))
+        right_layout.addWidget(right_header)
+        
+        self.scene_tree = QTreeWidget()
+        self.scene_tree.setHeaderLabel("Сцена")
+        self.scene_tree.itemClicked.connect(self.on_scene_item_clicked)
+        right_layout.addWidget(self.scene_tree)
+        
+        # Добавить корневой узел
+        root_item = QTreeWidgetItem(["Root (Node2D)"])
+        root_item.setText(0, "[Root]")
+        self.scene_tree.addTopLevelItem(root_item)
+        
+        # Кнопки управления сценой
+        scene_buttons = QHBoxLayout()
+        
+        add_node_btn = QPushButton("➕")
+        add_node_btn.setFixedSize(30, 30)
+        add_node_btn.setToolTip("Добавить узел")
+        scene_buttons.addWidget(add_node_btn)
+        
+        del_node_btn = QPushButton("🗑")
+        del_node_btn.setFixedSize(30, 30)
+        del_node_btn.setToolTip("Удалить узел")
+        scene_buttons.addWidget(del_node_btn)
+        
+        scene_buttons.addStretch()
+        
+        right_layout.addLayout(scene_buttons)
+        
+        # Нижняя панель - Output
+        output_panel = QFrame()
+        output_panel.setFixedHeight(150)
+        output_layout = QVBoxLayout(output_panel)
+        output_layout.setContentsMargins(5, 5, 5, 5)
+        
+        output_header = QLabel("📟 Output")
+        output_header.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
+        output_layout.addWidget(output_header)
+        
+        self.output_list = QListWidget()
+        self.output_list.addItem("[Info] Редактор готов")
+        self.output_list.addItem("[System] Файловый менеджер инициализирован")
+        output_layout.addWidget(self.output_list)
+        
+        # Собираем редактор
+        main_splitter.addWidget(left_panel)
+        main_splitter.addWidget(center_tabs)
+        main_splitter.addWidget(right_panel)
+        
+        main_splitter.setSizes([250, 700, 250])
+        
+        layout = QVBoxLayout(widget)
+        layout.setSpacing(0)
+        layout.setContentsMargins(0, 0, 0, 0)
+        
+        # Верхняя панель редактора
+        editor_top = QFrame()
+        editor_top.setFixedHeight(50)
+        editor_top_layout = QHBoxLayout(editor_top)
+        
+        back_btn = QPushButton("← Назад")
+        back_btn.setFixedSize(100, 35)
+        back_btn.clicked.connect(self.close_editor)
+        editor_top_layout.addWidget(back_btn)
+        
+        editor_top_layout.addStretch()
+        
+        self.project_name_label = QLabel("Проект")
+        self.project_name_label.setFont(QFont("Segoe UI", 14, QFont.Weight.Bold))
+        editor_top_layout.addWidget(self.project_name_label)
+        
+        editor_top_layout.addStretch()
+        
+        play_btn = QPushButton("▶ Запустить")
+        play_btn.setFixedSize(120, 35)
+        play_btn.setStyleSheet("background-color: #4CAF50; color: white; border: none; border-radius: 5px;")
+        editor_top_layout.addWidget(play_btn)
+        
+        layout.addWidget(editor_top)
+        layout.addWidget(main_splitter)
+        layout.addWidget(output_panel)
+        
+        # Применяем стили
+        widget.setStyleSheet("""
+            QFrame { background-color: #1e1e2e; }
+            QTreeWidget { background-color: #2a2a3d; color: #e0e0f0; border: none; }
+            QTreeWidget::item:selected { background-color: #4a4a6a; }
+            QTabWidget::pane { border: 1px solid #3a3a55; background-color: #1e1e2e; }
+            QTabBar::tab { background-color: #2a2a3d; color: #888; padding: 8px 16px; border: none; }
+            QTabBar::tab:selected { background-color: #3a3a55; color: #fff; }
+            QListWidget { background-color: #151525; color: #e0e0f0; border: none; }
+            QPushButton { background-color: #3a3a55; color: #fff; border: none; padding: 8px 16px; border-radius: 4px; }
+            QPushButton:hover { background-color: #4a4a6a; }
+        """)
+        
+        return widget
+    
+    def on_file_double_clicked(self, item, column):
+        """Обработчик двойного клика по файлу"""
+        path = item.data(0, 1)
+        if path and os.path.isfile(path):
+            # Открываем файл в редакторе
+            ext = os.path.splitext(path)[1].lower()
+            if ext in ['.lua', '.json', '.txt', '.md']:
+                try:
+                    with open(path, 'r', encoding='utf-8') as f:
+                        content = f.read()
+                    self.code_editor.setPlainText(content)
+                    self.output_list.addItem(f"[File] Открыт: {path}")
+                except Exception as e:
+                    self.output_list.addItem(f"[Error] {str(e)}")
+    
+    def on_scene_item_clicked(self, item, column):
+        """Обработчик клика по элементу сцены"""
+        name = item.text(0)
+        self.node_name_label.setText(f"Name: {name}")
+        self.output_list.addItem(f"[Scene] Выбран: {name}")
+    
+    def open_editor(self, project_data):
+        """Открыть редактор проекта"""
+        self.current_project = project_data
+        self.project_name_label.setText(project_data.get("name", "Проект"))
+        
+        # Загружаем файлы проекта
+        self.load_project_files(project_data.get("path", ""))
+        
+        self.projects_widget.hide()
+        self.editor_widget.show()
+        self.output_list.addItem(f"[Project] Открыт: {project_data.get('name')}")
+    
+    def close_editor(self):
+        """Закрыть редактор"""
+        self.editor_widget.hide()
+        self.projects_widget.show()
+    
+    def load_project_files(self, project_path):
+        """Загрузить файлы проекта в дерево"""
+        self.file_tree.clear()
+        
+        if not project_path or not os.path.exists(project_path):
+            return
+        
+        # Рекурсивно добавляем файлы
+        def add_tree_items(parent, path):
+            try:
+                for item in os.listdir(path):
+                    item_path = os.path.join(path, item)
+                    if os.path.isdir(item_path):
+                        tree_item = QTreeWidgetItem([item])
+                        parent.addChild(tree_item)
+                        add_tree_items(tree_item, item_path)
+                    else:
+                        tree_item = QTreeWidgetItem([item])
+                        tree_item.setData(0, 1, item_path)
+                        parent.addChild(tree_item)
+            except PermissionError:
+                pass
+        
+        root_item = QTreeWidgetItem([os.path.basename(project_path)])
+        self.file_tree.addTopLevelItem(root_item)
+        add_tree_items(root_item, project_path)
+        root_item.setExpanded(True)
         
     def create_projects_page(self):
         widget = QWidget()
@@ -484,21 +783,8 @@ class BlazeboltHub(QMainWindow):
             QMessageBox.critical(self, "Ошибка", message)
             
     def open_project(self, project_data):
-        """Открытие папки проекта в проводнике"""
-        path = project_data.get('path')
-        
-        # Приводим путь к нормальному виду
-        path = os.path.normpath(path)
-        
-        if os.path.exists(path):
-            try:
-                # Открываем проводник Windows в нужной папке
-                subprocess.Popen(['explorer', path])
-                self.status_bar.showMessage(f"Открыта папка: {path}")
-            except Exception as e:
-                QMessageBox.warning(self, "Ошибка", f"Не удалось открыть папку:\n{str(e)}")
-        else:
-            QMessageBox.warning(self, "Ошибка", f"Папка не найдена:\n{path}")
+        """Открытие редактора проекта"""
+        self.open_editor(project_data)
             
     def remove_project(self, project_data):
         reply = QMessageBox.question(self, "Удаление", 
