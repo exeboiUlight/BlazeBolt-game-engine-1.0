@@ -552,6 +552,12 @@ end
         
         center_widget = QWidget()
         center_widget.setLayout(center_layout)
+
+        # Правая панель - Scene Tree
+        right_panel = QFrame()
+        right_panel.setFixedWidth(250)
+        right_layout = QVBoxLayout(right_panel)
+        right_layout.setContentsMargins(5, 5, 5, 5)
         
         right_layout.addWidget(QLabel("Сцена:"))
         self.scene_name_edit = QLineEdit("main")
@@ -683,12 +689,6 @@ end
         code_layout.addWidget(self.code_editor)
         
         center_tabs.addTab(code_tab, "Code")
-        
-        # Правая панель - Scene Tree
-        right_panel = QFrame()
-        right_panel.setFixedWidth(250)
-        right_layout = QVBoxLayout(right_panel)
-        right_layout.setContentsMargins(5, 5, 5, 5)
         
         right_header = QLabel("🌳 Scene")
         right_header.setFont(QFont("Segoe UI", 12, QFont.Weight.Bold))
