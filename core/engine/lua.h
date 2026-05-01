@@ -2134,7 +2134,8 @@ namespace LuaEngine {
             }
         }
     }
-    
+
+    // FIXME: Setting screen (window) size for each entity is the worst idea ever, we need to just pass it at the render stage and use it anywhere we want
     void LuaEngine::setTextScreenSize(int width, int height) {
         for (const auto& pair : textWorld.getAllEntities()) {
             if (pair.first && !pair.second) {
@@ -2142,7 +2143,7 @@ namespace LuaEngine {
             }
         }
     }
-    
+    // FIXME: The same thing as above ^^^
     void LuaEngine::setSpriteScreenSize(int width, int height) {
         for (const auto& pair : spriteWorld.getAllEntities()) {
             if (pair.first && !pair.second) {
