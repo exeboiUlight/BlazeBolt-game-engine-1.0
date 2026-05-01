@@ -12,6 +12,7 @@
 #include <iostream>
 #include <cstring>
 
+// FIXME: Rename the file to animation2d.hpp instead
 class Animation2D {
 public:
     Animation2D() 

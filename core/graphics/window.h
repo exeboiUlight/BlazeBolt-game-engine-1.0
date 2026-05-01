@@ -1,5 +1,6 @@
 #pragma once
 
+#include <stb_image/stb_image.h>
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 
@@ -80,23 +81,24 @@ public:
         return *this;
     }
     
-    void setIcon(const char* iconPath) {
+    void setIcon(const char *iconPath) {
         int width, height, channels;
-        unsigned char* data = stbi_load(iconPath, &width, &height, &channels, 4);
+        unsigned char *data = stbi_load(iconPath, &width, &height, &channels, 4);
 
-        if (data) {
-            GLFWimage icon;
-            icon.width = width;
-            icon.height = height;
-            icon.pixels = data;
-
-            glfwSetWindowIcon(window, 1, &icon);
-            stbi_image_free(data);
-
-            std::cout << "Window icon loaded: " << iconPath << std::endl;
-        } else {
-            std::cerr << "Failed to load window icon: " << iconPath << std::endl;
+        if (data == nullptr) {
+            fprintf(stderr, "Failed to load window icon: %s\n", iconPath);
+            return;
         }
+
+        GLFWimage icon;
+        icon.width = width;
+        icon.height = height;
+        icon.pixels = data;
+
+        glfwSetWindowIcon(window, 1, &icon);
+        stbi_image_free(data);
+
+        printf("Window icon loaded: %s\n", iconPath);
     }
     
     bool shouldClose() const {
