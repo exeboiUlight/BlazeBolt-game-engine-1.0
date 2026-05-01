@@ -16,12 +16,7 @@ public:
     World() {}
     
     ~World() {
-        for (auto& pair : entities) {
-            if (pair.first) {
-                delete pair.first;
-                pair.first = nullptr;
-            }
-        }
+        clear();
     }
     
     // Запрещаем копирование
@@ -62,5 +57,16 @@ public:
     
     const std::vector<std::pair<T*, bool>>& getAllEntities() const {
         return entities;
+    }
+    
+    void clear() {
+        for (auto& pair : entities) {
+            if (pair.first) {
+                delete pair.first;
+                pair.first = nullptr;
+            }
+        }
+        entities.clear();
+        freeEntities.clear();
     }
 };

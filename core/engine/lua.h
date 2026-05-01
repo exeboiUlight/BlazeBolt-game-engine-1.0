@@ -1771,6 +1771,9 @@ namespace LuaEngine {
     }
     
     void LuaEngine::shutdown() {
+        if (!initialized) {
+            return;
+        }
         if (audioInitialized) {
             audioEngine.shutdown();
             audioInitialized = false;
@@ -2282,18 +2285,10 @@ namespace LuaEngine {
     }
     
     void LuaEngine::destroyAllEntities() {
-        for (const auto& pair : spriteWorld.getAllEntities()) {
-            if (pair.first) delete pair.first;
-        }
-        for (const auto& pair : animationWorld.getAllEntities()) {
-            if (pair.first) delete pair.first;
-        }
-        for (const auto& pair : textWorld.getAllEntities()) {
-            if (pair.first) delete pair.first;
-        }
-        for (const auto& pair : meshWorld.getAllEntities()) {
-            if (pair.first) delete pair.first;
-        }
+        spriteWorld.clear();
+        animationWorld.clear();
+        textWorld.clear();
+        meshWorld.clear();
         physicsWorld.clear();
         physicsBodyMap.clear();
         objectMap.clear();

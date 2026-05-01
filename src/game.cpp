@@ -82,10 +82,6 @@ public:
             deltaTime = std::chrono::duration<float>(currentTime - lastTime).count();
             lastTime = currentTime;
             
-            if (deltaTime > 0.033f) {
-                deltaTime = 0.033f;
-            }
-            
             // Проверяем, не изменился ли размер окна
             int newWidth = mainWindow->getWidth();
             int newHeight = mainWindow->getHeight();
@@ -98,8 +94,6 @@ public:
             
             update();
             render();
-            
-            std::this_thread::sleep_for(std::chrono::milliseconds(1));
         }
     }
     
@@ -131,8 +125,7 @@ public:
         
         if (luaEngine) {
             luaEngine->callEnd();
-            luaEngine->shutdown();
-            luaEngine.reset();
+            luaEngine->shutdown(); // It doesn't make any sense, lol
         }
         
         std::cout << "Game Engine shut down" << std::endl;
