@@ -20,6 +20,7 @@ def compile_game():
         f"{COMMON_LIBS} "
         f"-llua54 -lopenal32 "
         f"-o bin/versions/game.exe "
+        f"-Wl,-subsystem,windows "
         f"{COMMON_STATIC}"
     )
     print("\nCompiling game...")

@@ -20,16 +20,12 @@ int main() {
     luaEngine.setTextScreenSize(window.getWidth(), window.getHeight());
 
     if (!luaEngine.loadScriptsFromList("engine/.BlazeBoltProject")) {
-        fprintf(stderr, "Failed to load scripts\n");
         return 1;
     }
 
     // Вызываем Start с передачей размеров экрана
     luaEngine.callFunction("Start");
     std::chrono::steady_clock::time_point lastTime = std::chrono::steady_clock::now();
-
-    printf("Game Engine initialized successfully\n");
-    printf("Screen size: %dx%d\n", window.getWidth(), window.getHeight());
 
     int previousWindowWidth = window.getWidth();
     int previousWindowHeight = window.getHeight();
