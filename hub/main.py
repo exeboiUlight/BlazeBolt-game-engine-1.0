@@ -9,9 +9,10 @@ from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
                              QMessageBox, QProgressBar, QFrame, QScrollArea,
                              QGridLayout, QLineEdit, QDialog, QDialogButtonBox,
                              QSplitter, QTextEdit, QTreeWidget, QTreeWidgetItem,
-                             QTabWidget, QListWidget, QListWidgetItem)
-from PyQt6.QtCore import Qt, QThread, pyqtSignal, QSize
-from PyQt6.QtGui import QFont, QColor, QIcon, QPixmap
+                             QTabWidget, QListWidget, QListWidgetItem, QComboBox,
+                             QInputDialog)
+from PyQt6.QtCore import Qt, QThread, pyqtSignal, QSize, QRegularExpression
+from PyQt6.QtGui import QFont, QColor, QIcon, QPixmap, QSyntaxHighlighter, QTextCharFormat, QTextCursor
 
 
 def resource_path(relative_path):
@@ -23,6 +24,71 @@ def resource_path(relative_path):
         base_path = os.path.abspath(".")
     
     return os.path.join(base_path, relative_path)
+
+
+class LuaSyntaxHighlighter(QSyntaxHighlighter):
+    """Подсветка синтаксиса для Lua"""
+    
+    def __init__(self, parent, is_dark=True):
+        super().__init__(parent)
+        self.is_dark = is_dark
+        self.highlighting_rules = []
+        self.setup_rules()
+    
+    def setup_rules(self):
+        self.highlighting_rules = []
+        
+        keywords = ["and", "break", "do", "else", "elseif", "end", "false", "for", "function", "if", 
+                   "in", "local", "nil", "not", "or", "repeat", "return", "then", "true", "until", "while"]
+        
+        if self.is_dark:
+            keyword_format = QTextCharFormat()
+            keyword_format.setForeground(QColor("#ff79c6"))
+            
+            string_format = QTextCharFormat()
+            string_format.setForeground(QColor("#f1fa8c"))
+            
+            comment_format = QTextCharFormat()
+            comment_format.setForeground(QColor("#6272a4"))
+            comment_format.setFontItalic(True)
+            
+            number_format = QTextCharFormat()
+            number_format.setForeground(QColor("#bd93f9"))
+            
+            function_format = QTextCharFormat()
+            function_format.setForeground(QColor("#50fa7b"))
+        else:
+            keyword_format = QTextCharFormat()
+            keyword_format.setForeground(QColor("#c000c0"))
+            keyword_format.setFontWeight(QFont.Weight.Bold)
+            
+            string_format = QTextCharFormat()
+            string_format.setForeground(QColor("#d35400"))
+            string_format.setFontWeight(QFont.Weight.Bold)
+            
+            comment_format = QTextCharFormat()
+            comment_format.setForeground(QColor("#7f8c8d"))
+            comment_format.setFontItalic(True)
+            
+            number_format = QTextCharFormat()
+            number_format.setForeground(QColor("#8e44ad"))
+            number_format.setFontWeight(QFont.Weight.Bold)
+            
+            function_format = QTextCharFormat()
+            function_format.setForeground(QColor("#27ae60"))
+            function_format.setFontWeight(QFont.Weight.Bold)
+        
+        self.highlighting_rules.append((QRegularExpression("\\b(" + "|".join(keywords) + ")\\b"), keyword_format))
+        self.highlighting_rules.append((QRegularExpression("\"[^\"]*\""), string_format))
+        self.highlighting_rules.append((QRegularExpression("'[^']*'"), string_format))
+        self.highlighting_rules.append((QRegularExpression("--.*$"), comment_format))
+        self.highlighting_rules.append((QRegularExpression("\\b\\d+(\\.\\d+)?\\b"), number_format))
+        self.highlighting_rules.append((QRegularExpression("\\b[a-zA-Z_][a-zA-Z0-9_]*(?=\\()"), function_format))
+    
+    def set_theme(self, is_dark):
+        self.is_dark = is_dark
+        self.setup_rules()
+        self.rehighlight()
 
 
 class ExtractThread(QThread):
@@ -292,46 +358,258 @@ class BlazeboltHub(QMainWindow):
         return top_bar
     
     def create_editor_page(self):
-        """Создание страницы редактора проекта"""
         widget = QWidget()
-        main_splitter = QSplitter(Qt.Orientation.Horizontal)
         
-        # Левая панель - Файловый менеджер
+        # Основной layout по вертикали
+        main_layout = QVBoxLayout(widget)
+        main_layout.setSpacing(0)
+        main_layout.setContentsMargins(0, 0, 0, 0)
+        
+        # === Верхняя панель ===
+        top_panel = QFrame()
+        top_panel.setFixedHeight(50)
+        top_layout = QHBoxLayout(top_panel)
+        top_layout.setContentsMargins(10, 5, 10, 5)
+        
+        back_btn = QPushButton("← Назад")
+        back_btn.setFixedSize(100, 35)
+        back_btn.clicked.connect(self.close_editor)
+        top_layout.addWidget(back_btn)
+        
+        top_layout.addStretch()
+        
+        self.project_name_label = QLabel("Проект")
+        self.project_name_label.setFont(QFont("Segoe UI", 14, QFont.Weight.Bold))
+        top_layout.addWidget(self.project_name_label)
+        
+        top_layout.addStretch()
+        
+        play_btn = QPushButton("▶ Запустить")
+        play_btn.setFixedSize(120, 35)
+        play_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #4CAF50;
+                color: white;
+                border: none;
+                border-radius: 5px;
+                font-weight: bold;
+            }
+            QPushButton:hover { background-color: #45a049; }
+        """)
+        play_btn.clicked.connect(self.run_project)
+        top_layout.addWidget(play_btn)
+        
+        main_layout.addWidget(top_panel)
+        
+        # === Центральная часть ===
+        center_splitter = QSplitter(Qt.Orientation.Horizontal)
+        
+        # === Левая панель: Файлы + Scene Objects ===
         left_panel = QFrame()
-        left_panel.setFixedWidth(250)
         left_layout = QVBoxLayout(left_panel)
         left_layout.setContentsMargins(5, 5, 5, 5)
         
-        left_header = QLabel("📁 Файлы")
-        left_header.setFont(QFont("Segoe UI", 12, QFont.Weight.Bold))
-        left_layout.addWidget(left_header)
+        # Файлы
+        files_header = QLabel("📁 Файлы проекта")
+        files_header.setFont(QFont("Segoe UI", 11, QFont.Weight.Bold))
+        files_header.setToolTip("Двойной клик - открыть файл")
+        left_layout.addWidget(files_header)
         
         self.file_tree = QTreeWidget()
-        self.file_tree.setHeaderLabel("Проект")
+        self.file_tree.setHeaderLabel("Файлы")
+        self.file_tree.setFixedHeight(200)
         self.file_tree.itemDoubleClicked.connect(self.on_file_double_clicked)
         left_layout.addWidget(self.file_tree)
         
-        # Центральная часть - вкладки
-        center_tabs = QTabWidget()
-        center_tabs.setDocumentMode(True)
+        # Кнопки файлов
+        file_buttons = QHBoxLayout()
+        new_folder_btn = QPushButton("📁+")
+        new_folder_btn.setFixedSize(35, 30)
+        new_folder_btn.setToolTip("Создать папку")
+        new_folder_btn.clicked.connect(self.create_folder)
+        file_buttons.addWidget(new_folder_btn)
         
-        # Вкладка 2D Viewport
-        viewport_tab = QWidget()
-        viewport_layout = QVBoxLayout(viewport_tab)
-        viewport_label = QLabel("🎮 2D Viewport")
-        viewport_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        viewport_label.setFont(QFont("Segoe UI", 16))
-        viewport_layout.addWidget(viewport_label)
+        new_file_btn = QPushButton("📄+")
+        new_file_btn.setFixedSize(35, 30)
+        new_file_btn.setToolTip("Создать файл")
+        new_file_btn.clicked.connect(self.create_file)
+        file_buttons.addWidget(new_file_btn)
         
-        viewport_info = QLabel("Запустите проект для просмотра")
-        viewport_info.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        viewport_layout.addWidget(viewport_info)
+        del_btn = QPushButton("🗑")
+        del_btn.setFixedSize(35, 30)
+        del_btn.setToolTip("Удалить выбранное")
+        del_btn.clicked.connect(self.delete_selected)
+        file_buttons.addWidget(del_btn)
         
-        center_tabs.addTab(viewport_tab, "2D")
-        center_tabs.addTab(QWidget(), "3D")
-        center_tabs.addTab(QWidget(), "Script")
+        file_buttons.addStretch()
+        left_layout.addLayout(file_buttons)
         
-        # Вкладка Inspector
+        # Scene Objects
+        scene_header = QLabel("🎯 Объекты сцены")
+        scene_header.setFont(QFont("Segoe UI", 11, QFont.Weight.Bold))
+        left_layout.addWidget(scene_header)
+        
+        self.objects_list = QListWidget()
+        self.objects_list.setAlternatingRowColors(True)
+        self.objects_list.itemClicked.connect(self.on_object_clicked)
+        left_layout.addWidget(self.objects_list)
+        
+        # Кнопки объектов
+        obj_buttons = QHBoxLayout()
+        add_obj_btn = QPushButton("➕")
+        add_obj_btn.setFixedSize(30, 30)
+        add_obj_btn.setToolTip("Добавить объект")
+        add_obj_btn.clicked.connect(self.add_scene_object)
+        obj_buttons.addWidget(add_obj_btn)
+        
+        del_obj_btn = QPushButton("🗑")
+        del_obj_btn.setFixedSize(30, 30)
+        del_obj_btn.setToolTip("Удалить объект")
+        del_obj_btn.clicked.connect(self.delete_scene_object)
+        obj_buttons.addWidget(del_obj_btn)
+        
+        obj_buttons.addStretch()
+        left_layout.addLayout(obj_buttons)
+        
+        # === Центральная панель: Inspector + Code ===
+        center_layout = QVBoxLayout()
+        
+        # Inspector
+        inspector_header = QLabel("📋 Inspector")
+        inspector_header.setFont(QFont("Segoe UI", 11, QFont.Weight.Bold))
+        inspector_header.setToolTip("Свойства выбранного объекта сцены")
+        center_layout.addWidget(inspector_header)
+        
+        # Свойства объекта
+        props_frame = QWidget()
+        props_layout = QGridLayout(props_frame)
+        
+        props_layout.addWidget(QLabel("Имя:"), 0, 0)
+        self.prop_name = QLineEdit()
+        self.prop_name.setPlaceholderText("имя объекта")
+        props_layout.addWidget(self.prop_name, 0, 1)
+        
+        props_layout.addWidget(QLabel("Тип:"), 1, 0)
+        self.prop_type = QComboBox()
+        self.prop_type.addItems(["Sprite2D", "Node2D", "Label", "Audio", "Camera2D", "Area2D", "RigidBody2D", "StaticBody2D", "CharacterBody2D", "Marker2D"])
+        props_layout.addWidget(self.prop_type, 1, 1)
+        
+        props_layout.addWidget(QLabel("X:"), 2, 0)
+        self.prop_x = QLineEdit("0")
+        self.prop_x.setFixedWidth(80)
+        props_layout.addWidget(self.prop_x, 2, 1)
+        
+        props_layout.addWidget(QLabel("Y:"), 3, 0)
+        self.prop_y = QLineEdit("0")
+        self.prop_y.setFixedWidth(80)
+        props_layout.addWidget(self.prop_y, 3, 1)
+        
+        props_layout.addWidget(QLabel("Ширина:"), 4, 0)
+        self.prop_width = QLineEdit("0.1")
+        self.prop_width.setFixedWidth(80)
+        props_layout.addWidget(self.prop_width, 4, 1)
+        
+        props_layout.addWidget(QLabel("Высота:"), 5, 0)
+        self.prop_height = QLineEdit("0.1")
+        self.prop_height.setFixedWidth(80)
+        props_layout.addWidget(self.prop_height, 5, 1)
+        
+        props_layout.addWidget(QLabel("Текстура:"), 6, 0)
+        self.prop_texture = QLineEdit()
+        self.prop_texture.setPlaceholderText("путь к текстуре")
+        props_layout.addWidget(self.prop_texture, 6, 1)
+        
+        props_layout.addWidget(QLabel("Скрипт:"), 7, 0)
+        self.prop_script = QLineEdit()
+        self.prop_script.setPlaceholderText("путь к скрипту")
+        props_layout.addWidget(self.prop_script, 7, 1)
+        
+        apply_btn = QPushButton("✅ Применить")
+        apply_btn.clicked.connect(self.apply_object_properties)
+        props_layout.addWidget(apply_btn, 8, 0, 1, 2)
+        
+        center_layout.addWidget(props_frame)
+        
+        # Разделитель
+        center_layout.addWidget(QLabel("📝 Редактор кода"))
+        
+        # Code Editor
+        self.code_editor = QTextEdit()
+        self.code_editor.setFont(QFont("Consolas", 11))
+        self.code_highlighter = LuaSyntaxHighlighter(self.code_editor.document(), True)
+        self.code_editor.setPlainText("""-- Скрипт объекта
+-- Создайте объект и прикрепите этот скрипт
+
+function _ready()
+    print("Объект готов!")
+end
+
+function _process(dt)
+    -- Вызывается каждый кадр
+end
+""")
+        center_layout.addWidget(self.code_editor)
+        
+        center_widget = QWidget()
+        center_widget.setLayout(center_layout)
+        
+        right_layout.addWidget(QLabel("Сцена:"))
+        self.scene_name_edit = QLineEdit("main")
+        self.scene_name_edit.setPlaceholderText("имя файла сцены .json")
+        right_layout.addWidget(self.scene_name_edit)
+        
+        save_scene_btn = QPushButton("💾 Сохранить сцену")
+        save_scene_btn.clicked.connect(self.save_scene)
+        right_layout.addWidget(save_scene_btn)
+        
+        load_scene_btn = QPushButton("📂 Загрузить сцену")
+        load_scene_btn.clicked.connect(self.load_scene)
+        right_layout.addWidget(load_scene_btn)
+        
+        right_layout.addStretch()
+        
+        # Собираем together
+        center_splitter.addWidget(left_panel)
+        center_splitter.addWidget(center_widget)
+        center_splitter.addWidget(right_panel)
+        
+        center_splitter.setSizes([250, 500, 200])
+        
+        main_layout.addWidget(center_splitter)
+        
+        # Стили
+        widget.setStyleSheet("""
+            QFrame { background-color: #1e1e2e; }
+            QTreeWidget, QListWidget { 
+                background-color: #2a2a3d; 
+                color: #e0e0f0; 
+                border: 1px solid #3a3a55;
+            }
+            QLineEdit, QComboBox {
+                background-color: #151525;
+                color: #e0e0f0;
+                border: 1px solid #3a3a55;
+                padding: 5px;
+                border-radius: 3px;
+            }
+            QPushButton {
+                background-color: #3a3a55;
+                color: #fff;
+                border: none;
+                padding: 8px 16px;
+                border-radius: 4px;
+            }
+            QPushButton:hover { background-color: #4a4a6a; }
+            QLabel { color: #e0e0f0; }
+            QTabWidget::pane { border: 1px solid #3a3a55; }
+            QTabBar::tab { 
+                background-color: #2a2a3d; 
+                color: #888; 
+                padding: 8px 16px; 
+            }
+        """)
+        
+        return widget
         inspector_area = QScrollArea()
         inspector_area.setWidgetResizable(True)
         inspector_content = QWidget()
@@ -399,14 +677,8 @@ class BlazeboltHub(QMainWindow):
         
         self.code_editor = QTextEdit()
         self.code_editor.setFont(QFont("Consolas", 11))
-        self.code_editor.setStyleSheet("""
-            QTextEdit {
-                background-color: #1e1e2e;
-                color: #e0e0f0;
-                border: none;
-                padding: 10px;
-            }
-        """)
+        is_dark = self.current_theme == "dark"
+        self.code_highlighter = LuaSyntaxHighlighter(self.code_editor.document(), is_dark)
         self.code_editor.setPlainText("-- Редактор кода\n-- Выберите файл для редактирования\n\nfunction _ready()\n    print(\"Hello, BlazeBolt!\")\nend\n\nfunction _process(dt)\n    -- Обновление каждый кадр\nend")
         code_layout.addWidget(self.code_editor)
         
@@ -454,15 +726,6 @@ class BlazeboltHub(QMainWindow):
         output_panel.setFixedHeight(150)
         output_layout = QVBoxLayout(output_panel)
         output_layout.setContentsMargins(5, 5, 5, 5)
-        
-        output_header = QLabel("📟 Output")
-        output_header.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
-        output_layout.addWidget(output_header)
-        
-        self.output_list = QListWidget()
-        self.output_list.addItem("[Info] Редактор готов")
-        self.output_list.addItem("[System] Файловый менеджер инициализирован")
-        output_layout.addWidget(self.output_list)
         
         # Собираем редактор
         main_splitter.addWidget(left_panel)
@@ -521,39 +784,241 @@ class BlazeboltHub(QMainWindow):
         """Обработчик двойного клика по файлу"""
         path = item.data(0, 1)
         if path and os.path.isfile(path):
-            # Открываем файл в редакторе
             ext = os.path.splitext(path)[1].lower()
-            if ext in ['.lua', '.json', '.txt', '.md']:
+            if ext == '.json':
+                self.load_scene_from_file(path)
+            elif ext in ['.lua', '.txt', '.md']:
                 try:
                     with open(path, 'r', encoding='utf-8') as f:
                         content = f.read()
                     self.code_editor.setPlainText(content)
-                    self.output_list.addItem(f"[File] Открыт: {path}")
+                    self.scene_current_file = path
                 except Exception as e:
-                    self.output_list.addItem(f"[Error] {str(e)}")
+                    pass
+    
+    def load_scene_from_file(self, scene_file):
+        """Загрузить сцену из файла"""
+        if not os.path.exists(scene_file):
+            return
+        try:
+            with open(scene_file, 'r', encoding='utf-8') as f:
+                scene_data = json.load(f)
+            self.scene_objects = scene_data.get("objects", [])
+            self.objects_list.clear()
+            for obj in self.scene_objects:
+                self.objects_list.addItem(f"{obj['name']} ({obj['type']})")
+            self.scene_current_file = scene_file
+        except Exception as e:
+            pass
     
     def on_scene_item_clicked(self, item, column):
         """Обработчик клика по элементу сцены"""
         name = item.text(0)
         self.node_name_label.setText(f"Name: {name}")
-        self.output_list.addItem(f"[Scene] Выбран: {name}")
     
     def open_editor(self, project_data):
         """Открыть редактор проекта"""
         self.current_project = project_data
         self.project_name_label.setText(project_data.get("name", "Проект"))
+        self.scene_objects = []
+        self.objects_list.clear()
         
-        # Загружаем файлы проекта
         self.load_project_files(project_data.get("path", ""))
         
         self.projects_widget.hide()
         self.editor_widget.show()
-        self.output_list.addItem(f"[Project] Открыт: {project_data.get('name')}")
+        self.apply_theme()
     
     def close_editor(self):
         """Закрыть редактор"""
         self.editor_widget.hide()
         self.projects_widget.show()
+    
+    def run_project(self):
+        """Запустить проект (game.exe)"""
+        project_path = self.current_project.get("path", "")
+        if project_path:
+            game_exe = os.path.join(project_path, "game.exe")
+            if os.path.exists(game_exe):
+                try:
+                    subprocess.Popen([game_exe], cwd=project_path)
+                except Exception as e:
+                    pass
+            else:
+                pass
+    
+    def add_scene_object(self):
+        """Добавить новый объект на сцену"""
+        import random
+        idx = len(self.scene_objects)
+        
+        base_x = (idx % 5) * 160 - 320
+        base_y = (idx // 5) * 120 - 240
+        
+        obj_types = ["Sprite2D", "Label", "Camera2D", "Area2D", "Node2D"]
+        textures = ["player.png", "enemy.png", "coin.png", "background.png", ""]
+        
+        name = f"Object_{idx + 1}"
+        obj = {
+            "name": name,
+            "type": obj_types[idx % len(obj_types)],
+            "x": base_x + random.randint(-20, 20),
+            "y": base_y + random.randint(-20, 20),
+            "width": random.choice([32, 48, 64, 96, 128]),
+            "height": random.choice([32, 48, 64, 96, 128]),
+            "texture": random.choice(textures),
+            "script": ""
+        }
+        self.scene_objects.append(obj)
+        self.objects_list.addItem(f"{name} ({obj['type']})")
+    
+    def delete_scene_object(self):
+        """Удалить выбранный объект"""
+        current_row = self.objects_list.currentRow()
+        if current_row >= 0:
+            name = self.scene_objects[current_row]["name"]
+            self.scene_objects.pop(current_row)
+            self.objects_list.takeItem(current_row)
+    
+    def create_folder(self):
+        """Создать папку"""
+        project_path = self.current_project.get("path", "")
+        if not project_path:
+            return
+        name, ok = QInputDialog.getText(self, "Новая папка", "Имя папки:")
+        if ok and name:
+            folder_path = os.path.join(project_path, name)
+            try:
+                os.makedirs(folder_path, exist_ok=True)
+                self.load_project_files(project_path)
+            except Exception as e:
+                pass
+    
+    def create_file(self):
+        """Создать файл"""
+        project_path = self.current_project.get("path", "")
+        if not project_path:
+            return
+        name, ok = QInputDialog.getText(self, "Новый файл", "Имя файла:")
+        if ok and name:
+            file_path = os.path.join(project_path, name)
+            try:
+                if not os.path.exists(file_path):
+                    with open(file_path, 'w', encoding='utf-8') as f:
+                        f.write("")
+                    self.load_project_files(project_path)
+                else:
+                    pass
+            except Exception as e:
+                pass
+    
+    def delete_selected(self):
+        """Удалить выбранный файл/папку"""
+        item = self.file_tree.currentItem()
+        if not item:
+            return
+        path = item.data(0, 1)
+        if not path or not os.path.exists(path):
+            return
+        name = os.path.basename(path)
+        reply = QMessageBox.question(self, "Удалить", f"Удалить {name}?",
+                                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+        if reply == QMessageBox.StandardButton.Yes:
+            try:
+                if os.path.isfile(path):
+                    os.remove(path)
+                elif os.path.isdir(path):
+                    import shutil
+                    shutil.rmtree(path)
+                project_path = self.current_project.get("path", "")
+                self.load_project_files(project_path)
+            except Exception as e:
+                pass
+    
+    def on_object_clicked(self, item):
+        """Выбрать объект для редактирования"""
+        row = self.objects_list.row(item)
+        if row >= 0 and row < len(self.scene_objects):
+            self.current_object_index = row
+            obj = self.scene_objects[row]
+            self.prop_name.setText(obj["name"])
+            self.prop_type.setCurrentText(obj["type"])
+            self.prop_x.setText(str(obj["x"]))
+            self.prop_y.setText(str(obj["y"]))
+            self.prop_width.setText(str(obj["width"]))
+            self.prop_height.setText(str(obj["height"]))
+            self.prop_texture.setText(obj["texture"])
+            self.prop_script.setText(obj["script"])
+            # f"[Scene] Выбран: {obj['name']}")
+    
+    def apply_object_properties(self):
+        """Применить изменения к объекту"""
+        if self.current_object_index >= 0 and self.current_object_index < len(self.scene_objects):
+            obj = self.scene_objects[self.current_object_index]
+            obj["name"] = self.prop_name.text()
+            obj["type"] = self.prop_type.currentText()
+            obj["x"] = float(self.prop_x.text() or "0")
+            obj["y"] = float(self.prop_y.text() or "0")
+            obj["width"] = float(self.prop_width.text() or "0.1")
+            obj["height"] = float(self.prop_height.text() or "0.1")
+            obj["texture"] = self.prop_texture.text()
+            obj["script"] = self.prop_script.text()
+            
+            # Обновить в списке
+            self.objects_list.item(self.current_object_index).setText(f"{obj['name']} ({obj['type']})")
+    
+    def save_scene(self):
+        """Сохранить сцену в JSON"""
+        if not hasattr(self, 'scene_objects'):
+            self.scene_objects = []
+        
+        scene_name = self.scene_name_edit.text() or "main"
+        scene_data = {
+            "name": scene_name,
+            "objects": self.scene_objects
+        }
+        
+        project_path = self.current_project.get("path", "")
+        if not project_path:
+            # "[Error] Проект не выбран")
+            return
+        
+        # Сохраняем в папку scenes
+        scenes_dir = os.path.join(project_path, "scenes")
+        os.makedirs(scenes_dir, exist_ok=True)
+        
+        scene_file = os.path.join(scenes_dir, f"{scene_name}.json")
+        try:
+            import json
+            with open(scene_file, 'w', encoding='utf-8') as f:
+                json.dump(scene_data, f, indent=4, ensure_ascii=False)
+        except Exception as e:
+            pass
+    
+    def load_scene(self):
+        """Загрузить сцену из JSON"""
+        project_path = self.current_project.get("path", "")
+        if not project_path:
+            return
+        
+        scene_name = self.scene_name_edit.text() or "main"
+        scene_file = os.path.join(project_path, "scenes", f"{scene_name}.json")
+        
+        if not os.path.exists(scene_file):
+            return
+        
+        try:
+            import json
+            with open(scene_file, 'r', encoding='utf-8') as f:
+                scene_data = json.load(f)
+            
+            self.scene_objects = scene_data.get("objects", [])
+            self.objects_list.clear()
+            for obj in self.scene_objects:
+                self.objects_list.addItem(f"{obj['name']} ({obj['type']})")
+        
+        except Exception as e:
+            pass
     
     def load_project_files(self, project_path):
         """Загрузить файлы проекта в дерево"""
@@ -567,14 +1032,11 @@ class BlazeboltHub(QMainWindow):
             try:
                 for item in os.listdir(path):
                     item_path = os.path.join(path, item)
+                    tree_item = QTreeWidgetItem([item])
+                    tree_item.setData(0, 1, item_path)
+                    parent.addChild(tree_item)
                     if os.path.isdir(item_path):
-                        tree_item = QTreeWidgetItem([item])
-                        parent.addChild(tree_item)
                         add_tree_items(tree_item, item_path)
-                    else:
-                        tree_item = QTreeWidgetItem([item])
-                        tree_item.setData(0, 1, item_path)
-                        parent.addChild(tree_item)
             except PermissionError:
                 pass
         
@@ -817,27 +1279,93 @@ class BlazeboltHub(QMainWindow):
                     color: white;
                 }
                 QScrollArea { background-color: #1e1e2e; border: none; }
+                QListWidget, QTreeWidget { background-color: #2a2a3d; color: #e0e0f0; border: none; }
+                QTextEdit { background-color: #1e1e2e; color: #e0e0f0; border: none; }
+                QLabel { color: #ffffff; }
+                QComboBox {
+                    background-color: #313244;
+                    color: white;
+                    border: 1px solid #45475a;
+                    border-radius: 8px;
+                    padding: 8px;
+                }
             """)
             self.theme_btn.setText("🌙")
         else:
             self.setStyleSheet("""
-                QMainWindow, QWidget { background-color: #f5f5f5; color: #000000; }
+                QMainWindow, QWidget { background-color: #f0f4f8; color: #2c3e50; }
                 QPushButton {
-                    background-color: #e0e0e0;
-                    border: 1px solid #ccc;
-                    border-radius: 8px;
-                    padding: 8px;
+                    background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #3498db, stop:1 #2980b9);
+                    border: none;
+                    border-radius: 6px;
+                    padding: 10px 16px;
+                    font-weight: bold;
+                    color: white;
                 }
-                QPushButton:hover { background-color: #d0d0d0; }
+                QPushButton:hover {
+                    background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #5dade2, stop:1 #3498db);
+                }
                 QLineEdit {
                     background-color: white;
-                    border: 1px solid #ccc;
-                    border-radius: 8px;
+                    border: 2px solid #bdc3c7;
+                    border-radius: 6px;
+                    padding: 10px;
+                    color: #2c3e50;
+                }
+                QLineEdit:focus {
+                    border-color: #3498db;
+                }
+                QScrollArea { background-color: #f0f4f8; border: none; }
+                QListWidget, QTreeWidget {
+                    background-color: white;
+                    color: #2c3e50;
+                    border: 1px solid #ddd;
+                    border-radius: 6px;
+                    outline: none;
+                }
+                QListWidget::item:selected, QTreeWidget::item:selected {
+                    background-color: #3498db;
+                    color: white;
+                }
+                QListWidget::item:hover, QTreeWidget::item:hover {
+                    background-color: #ecf0f1;
+                }
+                QTextEdit {
+                    background-color: white;
+                    color: #2c3e50;
+                    border: 1px solid #ddd;
+                    border-radius: 6px;
                     padding: 8px;
                 }
-                QScrollArea { background-color: #f5f5f5; border: none; }
+                QLabel { color: #2c3e50; }
+                QComboBox {
+                    background-color: white;
+                    color: #2c3e50;
+                    border: 2px solid #bdc3c7;
+                    border-radius: 6px;
+                    padding: 8px;
+                }
+                QComboBox:hover {
+                    border-color: #3498db;
+                }
+                QFrame {
+                    background-color: white;
+                    border-radius: 8px;
+                    border: 1px solid #e0e0e0;
+                }
+                QSplitter::handle {
+                    background-color: #bdc3c7;
+                }
             """)
             self.theme_btn.setText("☀️")
+        
+        if hasattr(self, 'code_editor'):
+            self.code_editor.setFont(QFont("Consolas", 11))
+        if hasattr(self, 'code_highlighter'):
+            if self.current_theme == "dark":
+                self.code_highlighter.set_theme(True)
+            else:
+                self.code_highlighter.set_theme(False)
             
     def toggle_theme(self):
         self.current_theme = "light" if self.current_theme == "dark" else "dark"
