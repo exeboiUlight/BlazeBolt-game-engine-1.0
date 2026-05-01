@@ -61,8 +61,9 @@ public:
         
         luaEngine->setTextScreenSize(width, height);
         
-        if (!luaEngine->loadScriptsFromList("engine/scripts.list")) {
-            std::cerr << "Failed to load scripts" << std::endl;
+        // Load project file (.BlazeBoltProject)
+        if (!luaEngine->loadScriptsFromList("engine/.BlazeBoltProject")) {
+            std::cerr << "Failed to load project file" << std::endl;
             return false;
         }
         
@@ -126,6 +127,7 @@ public:
         if (luaEngine) {
             luaEngine->callEnd();
             luaEngine->shutdown(); // It doesn't make any sense, lol
+                                   // its true
         }
         
         std::cout << "Game Engine shut down" << std::endl;

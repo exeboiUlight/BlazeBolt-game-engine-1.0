@@ -25,18 +25,5 @@ def compile_game():
     print("\nCompiling game...")
     os.system(cmd)
 
-def compile_editor():
-    editor_files = "src/editor.cpp include/glad/glad.c"
-    cmd = (
-        f"g++{DEBUG_FLAGS} {editor_files} "
-        f"-O2 "
-        f"{COMMON_INCLUDES} "
-        f"{COMMON_LIBS} "
-        f"-o bin/versions/editor.exe "
-        f"{COMMON_STATIC}"
-    )
-    print("\nCompiling editor...")
-    os.system(cmd)
-
 compile_game()
 # compile_editor()

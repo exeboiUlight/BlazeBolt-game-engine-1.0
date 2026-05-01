@@ -1228,6 +1228,20 @@ end
         self.progress_dialog.close()
         
         if success:
+            # Create .BlazeBoltProject file
+            engine_path = os.path.join(project_data['path'], "engine")
+            if not os.path.exists(engine_path):
+                os.makedirs(engine_path, exist_ok=True)
+            
+            project_file = os.path.join(engine_path, ".BlazeBoltProject")
+            try:
+                with open(project_file, 'w', encoding='utf-8') as f:
+                    f.write("# BlazeBolt Project File\n")
+                    f.write("main=engine/scripts/main.lua\n")
+                    f.write("@main=engine/scenes/main.json\n")
+            except Exception as e:
+                print(f"Ошибка создания .BlazeBoltProject: {e}")
+            
             # Сохраняем проект
             project_info = {
                 'name': project_data['name'],

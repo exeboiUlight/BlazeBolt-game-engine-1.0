@@ -155,6 +155,7 @@ namespace LuaEngine {
         // Script management
         std::vector<ScriptInfo> scripts;
         std::string scriptsListPath;
+        std::string projectFileName; // .BlazeBoltProject
         
         // Scene management
         std::unique_ptr<SceneManager> sceneManager;
@@ -1657,9 +1658,19 @@ namespace LuaEngine {
     }
     
     bool LuaEngine::parseScriptsList(const std::string& listPath) {
-        std::ifstream file(listPath);
+        // Try .BlazeBoltProject first, then fall back to scripts.list
+        std::string actualPath = listPath;
+        if (listPath.find(".BlazeBoltProject") == std::string::npos) {
+            // If not explicitly .BlazeBoltProject, check if it exists
+            std::ifstream test(listPath + ".BlazeBoltProject");
+            if (test.is_open()) {
+                actualPath = listPath + ".BlazeBoltProject";
+            }
+        }
+        
+        std::ifstream file(actualPath);
         if (!file.is_open()) {
-            std::cerr << "Failed to open scripts list: " << listPath << std::endl;
+            std::cerr << "Failed to open project file: " << actualPath << std::endl;
             return false;
         }
         
@@ -1699,7 +1710,7 @@ namespace LuaEngine {
         }
         
         file.close();
-        std::cout << "Loaded " << scripts.size() << " scripts from " << listPath << std::endl;
+        std::cout << "Loaded " << scripts.size() << " scripts from " << actualPath << std::endl;
         return true;
     }
     
