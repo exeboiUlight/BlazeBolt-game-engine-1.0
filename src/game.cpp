@@ -6,7 +6,7 @@
 #include <engine/lua.h>
 
 int main() {
-    Window window = Window(1200, 600, "Untitled | BlazeBolt");
+    Window window = Window(1200, 600, "Untitled project | BlazeBolt");
     if (window.getGLFWwindow() == nullptr) {
         fprintf(stderr, "Failed to create main window\n");
         return 1;
