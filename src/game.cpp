@@ -12,11 +12,15 @@ int main() {
         return 1;
     }
     window.setClearColor(0.1f, 0.1f, 0.15f, 1.0f);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
     Input::getInstance().init(window.getGLFWwindow());
-    LuaEngine::LuaEngine luaEngine = LuaEngine::LuaEngine();
-    luaEngine.Init(); // TODO: Remove this method, it doesn't make any sense
-    luaEngine.setMainWindow(&window);
+    LuaEngine::LuaEngine luaEngine = LuaEngine::LuaEngine(window);
+    if (!luaEngine.isInitialized()) {
+        fprintf(stderr, "Failed to initialize Lua engine\n");
+        return 1;
+    }
     luaEngine.setTextScreenSize(window.getWidth(), window.getHeight());
 
     if (!luaEngine.loadScriptsFromList("engine/.BlazeBoltProject")) {

@@ -2,7 +2,7 @@
 
 #include <graphics/mesh.h>
 #include <graphics/shader.h>
-#include <subject/sprite2D.h>
+#include <subject/sprite2D.hpp>
 #include <utils/math/vector.h>
 #include <gif_load.h>
 
@@ -434,15 +434,11 @@ private:
     void updateTransform() {
         if (!m_shader) return;
         
-        Matrix3x3 world = Matrix3x3::identity();
-        world = world * Matrix3x3::rotation(m_rotation);
-        world = world * Matrix3x3::translation(m_position.x, m_position.y);
+        Matrix3x3 world = Matrix3x3::translation(m_position.x, m_position.y) * Matrix3x3::rotation(m_rotation);
         
         Matrix3x3 final = m_projection * world;
-        
-        float transformArray[9];
-        final.toFloatArray(transformArray);
-        m_shader->setMat3("uTransform", transformArray);
+
+        m_shader->setMat3("uTransform", &final.m[0][0]);
     }
 
     void initDefaultShader() {

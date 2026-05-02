@@ -10,7 +10,7 @@ add_subdirectory(libs/freetype)
 add_subdirectory(libs/lua)
 add_subdirectory(libs/openal)
 
-add_executable(${PROJECT_NAME} src/game.cpp)
+add_executable(${PROJECT_NAME} src/game.cpp core/graphics/gl.cpp core/subject/sprite2D.cpp core/graphics/textureManager.cpp)
 target_include_directories(${PROJECT_NAME} PRIVATE
     core
     libs/headeronly/include

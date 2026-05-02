@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cmath>
+#include <cstring>
 #include <ostream>
 
 struct Matrix3x3 {
@@ -18,8 +19,8 @@ struct Matrix3x3 {
     
     static Matrix3x3 translation(float x, float y) {
         Matrix3x3 result;
-        result.m[0][2] = x;
-        result.m[1][2] = y;
+        result.m[2][0] = x;
+        result.m[2][1] = y;
         return result;
     }
     
@@ -31,31 +32,33 @@ struct Matrix3x3 {
     }
     
     static Matrix3x3 rotation(float angleDeg) {
-        float angleRad = angleDeg * 3.14159265358979323846f / 180.0f;
+        float angleRad = angleDeg * M_PIf / 180.0f;
         float c = cos(angleRad);
         float s = sin(angleRad);
         
         Matrix3x3 result;
         result.m[0][0] = c;
-        result.m[0][1] = -s;
-        result.m[1][0] = s;
+        result.m[0][1] = s;
+        result.m[1][0] = -s;
         result.m[1][1] = c;
         return result;
     }
     
-    // Проекционная матрица для корректного отображения с учётом aspect ratio
+    // GLM-style column-major matrix storage: m[column][row]
     static Matrix3x3 projection(int screenWidth, int screenHeight) {
-        Matrix3x3 result;
-        return result;
+        (void)screenWidth;
+        (void)screenHeight;
+
+        return Matrix3x3::identity();
     }
     
     Matrix3x3 operator*(const Matrix3x3& other) const {
         Matrix3x3 result;
-        for (int i = 0; i < 3; i++) {
-            for (int j = 0; j < 3; j++) {
-                result.m[i][j] = 0;
-                for (int k = 0; k < 3; k++) {
-                    result.m[i][j] += m[i][k] * other.m[k][j];
+        for (int column = 0; column < 3; column++) {
+            for (int row = 0; row < 3; row++) {
+                result.m[column][row] = 0.0f;
+                for (int index = 0; index < 3; index++) {
+                    result.m[column][row] += m[index][row] * other.m[column][index];
                 }
             }
         }
@@ -63,9 +66,7 @@ struct Matrix3x3 {
     }
     
     void toFloatArray(float* array) const {
-        array[0] = m[0][0]; array[1] = m[1][0]; array[2] = m[2][0];
-        array[3] = m[0][1]; array[4] = m[1][1]; array[5] = m[2][1];
-        array[6] = m[0][2]; array[7] = m[1][2]; array[8] = m[2][2];
+        std::memcpy(array, &m[0][0], sizeof(float) * 9);
     }
 };
 

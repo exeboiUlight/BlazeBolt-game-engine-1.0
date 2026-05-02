@@ -140,15 +140,15 @@ public:
         glUniform4f(glGetUniformLocation(m_RendererID, name.c_str()), x, y, z, w);
     }
     
-    void setMat2(const std::string& name, float* value) const {
+    void setMat2(const std::string& name, const float* value) const {
         glUniformMatrix2fv(glGetUniformLocation(m_RendererID, name.c_str()), 1, GL_FALSE, value);
     }
     
-    void setMat3(const std::string& name, float* value) const {
+    void setMat3(const std::string& name, const float* value) const {
         glUniformMatrix3fv(glGetUniformLocation(m_RendererID, name.c_str()), 1, GL_FALSE, value);
     }
     
-    void setMat4(const std::string& name, float* value) const {
+    void setMat4(const std::string& name, const float* value) const {
         glUniformMatrix4fv(glGetUniformLocation(m_RendererID, name.c_str()), 1, GL_FALSE, value);
     }
     

@@ -6,7 +6,7 @@
 #include <lualib.h>
 #include <world.h>
 #include <physics/physics.h>
-#include <subject/sprite2D.h>
+#include <subject/sprite2D.hpp>
 #include <subject/animatad2D.h>
 #include <subject/text.h>
 #include <subject/audio.h>
@@ -132,7 +132,7 @@ namespace LuaEngine {
     class LuaEngine {
     private:
         lua_State* state;
-        World<Sprite2D> spriteWorld;
+        World<BlazeBolt::Sprite2D> spriteWorld;
         World<Animation2D> animationWorld;
         World<Text> textWorld;
         World<Mesh2D> meshWorld;
@@ -149,9 +149,6 @@ namespace LuaEngine {
         std::unordered_map<std::string, int> soundNameToId;
         std::unordered_map<Entity, PhysicsBody*> physicsBodyMap;
         
-        // Texture cache for sprites
-        std::unordered_map<std::string, GLuint> textureCache;
-        
         // Script management
         std::vector<ScriptInfo> scripts;
         std::string scriptsListPath;
@@ -165,19 +162,19 @@ namespace LuaEngine {
         
         // Main window pointer
         Window* mainWindow;
+
+        Matrix3x3 projectionViewMatrix2D;
+        BlazeBolt::SpriteShader2D spriteShader2D;
+        BlazeBolt::SpriteMesh2D spriteMesh2D;
+        BlazeBolt::TextureManager textureManager;
         
         void registerCFunctions();
         bool parseScriptsList(const std::string& listPath);
-        
     public:
-        LuaEngine();
+        LuaEngine(Window &window);
         ~LuaEngine();
-        
-        int Init();
-        void shutdown();
-        
+
         // Main window management
-        void setMainWindow(Window* window) { mainWindow = window; }
         Window* getMainWindow() const { return mainWindow; }
         int getScreenWidth() const { return mainWindow ? mainWindow->getWidth() : 0; }
         int getScreenHeight() const { return mainWindow ? mainWindow->getHeight() : 0; }
@@ -212,7 +209,7 @@ namespace LuaEngine {
         void spriteSetRotation(Entity entity, float rotation);
         void spriteSetColor(Entity entity, const Vector4& color);
         void spriteSetVisible(Entity entity, bool visible);
-        void drawAllSprites();
+        void drawAllSprites() const;
         
         // Animation management
         Entity createAnimation(const std::string& path, bool isGif, const Vector2& position);
@@ -1648,13 +1645,57 @@ namespace LuaEngine {
 
 // ==================== IMPLEMENTATION ====================
 namespace LuaEngine {
-    
-    LuaEngine::LuaEngine() : state(nullptr), deltaTime(0), initialized(false), audioInitialized(false), mainWindow(nullptr) {
-        sceneManager = std::make_unique<SceneManager>(this);
+    LuaEngine::LuaEngine(Window &window) :
+        state(nullptr),
+        spriteWorld(), animationWorld(), textWorld(), meshWorld(),
+        audioEngine(), physicsWorld(),
+        deltaTime(0.0f),
+        initialized(false), audioInitialized(false),
+        objectMap(), soundNameToId(), physicsBodyMap(),
+        scripts(), scriptsListPath(), projectFileName(),
+        sceneManager(),
+        additionalWindows(), mainWindow(&window),
+        projectionViewMatrix2D(),
+        spriteShader2D(), spriteMesh2D(), textureManager()
+    {
+        this->sceneManager = std::make_unique<SceneManager>(this);
+
+        this->state = luaL_newstate();
+        if (this->state == nullptr) {
+            fprintf(stderr, "Failed to create Lua state\n");
+            return;
+        }
+        
+        luaL_openlibs(this->state);
+        registerCFunctions();
+        
+        this->audioInitialized = this->audioEngine.init();
+        if (!this->audioInitialized) {
+            fprintf(stderr, "Warning: Failed to initialize audio\n");
+        }
+        
+        this->initialized = true;
+        printf("LuaEngine initialized successfully\n");
     }
     
     LuaEngine::~LuaEngine() {
-        shutdown();
+        if (!this->initialized) {
+            return;
+        }
+        if (this->audioInitialized) {
+            this->audioEngine.shutdown();
+            this->audioInitialized = false;
+        }
+
+        destroyAllEntities();
+
+        if (this->state != nullptr) {
+            lua_close(this->state);
+            this->state = nullptr;
+        }
+
+        this->initialized = false;
+        printf("LuaEngine shutdown complete\n");
     }
     
     bool LuaEngine::parseScriptsList(const std::string& listPath) {
@@ -1758,55 +1799,7 @@ namespace LuaEngine {
         lua_pushinteger(state, GLFW_MOUSE_BUTTON_MIDDLE); lua_setfield(state, -2, "MIDDLE");
         lua_setglobal(state, "MouseButtons");
     }
-    
-    int LuaEngine::Init() {
-        if (initialized) return 0;
-        
-        state = luaL_newstate();
-        if (!state) {
-            std::cerr << "Failed to create Lua state" << std::endl;
-            return -1;
-        }
-        
-        luaL_openlibs(state);
-        registerCFunctions();
-        
-        audioInitialized = audioEngine.init();
-        if (!audioInitialized) {
-            std::cerr << "Warning: Failed to initialize audio" << std::endl;
-        }
-        
-        initialized = true;
-        std::cout << "LuaEngine initialized successfully" << std::endl;
-        return 0;
-    }
-    
-    void LuaEngine::shutdown() {
-        if (!initialized) {
-            return;
-        }
-        if (audioInitialized) {
-            audioEngine.shutdown();
-            audioInitialized = false;
-        }
-        
-        destroyAllEntities();
-        
-        for (auto& pair : textureCache) {
-            if (pair.second != 0) {
-                glDeleteTextures(1, &pair.second);
-            }
-        }
-        textureCache.clear();
-        
-        if (state) {
-            lua_close(state);
-            state = nullptr;
-        }
-        initialized = false;
-        std::cout << "LuaEngine shutdown complete" << std::endl;
-    }
-    
+
     bool LuaEngine::loadScriptsFromList(const std::string& listPath) {
         if (!initialized) return false;
         
@@ -1907,75 +1900,92 @@ namespace LuaEngine {
     }
     
     // Sprite implementations
-    Entity LuaEngine::createSprite(const std::string& texturePath, const Vector2& position) {
-        Sprite2D* sprite = new Sprite2D();
-        sprite->setScreenSize(getScreenWidth(), getScreenHeight());
-        
-        auto it = textureCache.find(texturePath);
-        if (it != textureCache.end()) {
-            sprite->setCachedTexture(it->second, texturePath);
-        } else {
-            sprite->setTexture(texturePath);
-            if (sprite->getTextureID() != 0) {
-                textureCache[texturePath] = sprite->getTextureID();
-            }
+    Entity LuaEngine::createSprite(const std::string &texturePath, const Vector2 &position) {
+        BlazeBolt::Sprite2D *sprite = new BlazeBolt::Sprite2D();
+        const GL::Texture2D *texture = this->textureManager.loadFromFile2D(texturePath);
+        if (texture != nullptr) {
+            sprite->setTexture(*texture);
         }
-        
         sprite->setPosition(position);
+
         Entity entity = spriteWorld.spawn(sprite);
         objectMap[entity] = RegisteredObject(RegisteredObject::SPRITE, sprite, entity);
         return entity;
     }
-    
-    void LuaEngine::spriteSetTexture(Entity entity, const std::string& texturePath) {
-        Sprite2D* sprite = spriteWorld.getEntity(entity);
-        if (sprite) sprite->setTexture(texturePath);
+    void LuaEngine::spriteSetTexture(Entity entity, const std::string &texturePath) {
+        BlazeBolt::Sprite2D *sprite = spriteWorld.getEntity(entity);
+        if (sprite == nullptr) {
+            return;
+        }
+        const GL::Texture2D *texture = this->textureManager.loadFromFile2D(texturePath);
+        if (texture != nullptr) {
+            sprite->setTexture(*texture);
+        }
     }
-    
-    void LuaEngine::spriteSetPosition(Entity entity, const Vector2& pos) {
-        Sprite2D* sprite = spriteWorld.getEntity(entity);
-        if (sprite) sprite->setPosition(pos);
+    void LuaEngine::spriteSetPosition(Entity entity, const Vector2 &position) {
+        BlazeBolt::Sprite2D *sprite = spriteWorld.getEntity(entity);
+        if (sprite == nullptr) {
+            return;
+        }
+        sprite->setPosition(position);
     }
     
     Vector2 LuaEngine::spriteGetPosition(Entity entity) {
-        Sprite2D* sprite = spriteWorld.getEntity(entity);
-        return sprite ? sprite->getPosition() : Vector2(0, 0);
+        BlazeBolt::Sprite2D *sprite = spriteWorld.getEntity(entity);
+        return sprite == nullptr ? Vector2(0.0f, 0.0f) : sprite->getPosition();
     }
     
-    void LuaEngine::spriteSetSize(Entity entity, const Vector2& size) {
-        Sprite2D* sprite = spriteWorld.getEntity(entity);
-        if (sprite) sprite->setSize(size);
+    // ! IMPORTANT: Only if allowed by the host.
+    // TODO: Rename to spriteSetScale and do the same in the Lua implementation.
+    void LuaEngine::spriteSetSize(Entity entity, const Vector2 &size) {
+        BlazeBolt::Sprite2D *sprite = spriteWorld.getEntity(entity);
+        if (sprite == nullptr) {
+            return;
+        }
+        sprite->setScale(size);
     }
     
     Vector2 LuaEngine::spriteGetSize(Entity entity) {
-        Sprite2D* sprite = spriteWorld.getEntity(entity);
-        return sprite ? sprite->getSize() : Vector2(1, 1);
+        BlazeBolt::Sprite2D *sprite = spriteWorld.getEntity(entity);
+        return sprite == nullptr ? Vector2(1.0f, 1.0f) : sprite->getScale();
     }
     
     void LuaEngine::spriteSetOrigin(Entity entity, const Vector2& origin) {
-        Sprite2D* sprite = spriteWorld.getEntity(entity);
-        if (sprite) sprite->setOrigin(origin);
+        BlazeBolt::Sprite2D *sprite = spriteWorld.getEntity(entity);
+        if (sprite == nullptr) {
+            return;
+        }
+        sprite->setOrigin(origin);
     }
     
     void LuaEngine::spriteSetRotation(Entity entity, float rotation) {
-        Sprite2D* sprite = spriteWorld.getEntity(entity);
-        if (sprite) sprite->setRotation(rotation);
+        BlazeBolt::Sprite2D *sprite = spriteWorld.getEntity(entity);
+        if (sprite == nullptr) {
+            return;
+        }
+        sprite->setRotation(rotation);
     }
     
     void LuaEngine::spriteSetColor(Entity entity, const Vector4& color) {
-        Sprite2D* sprite = spriteWorld.getEntity(entity);
-        if (sprite) sprite->setColor(color);
+        BlazeBolt::Sprite2D *sprite = spriteWorld.getEntity(entity);
+        if (sprite == nullptr) {
+            return;
+        }
+        sprite->setColor(color);
     }
     
     void LuaEngine::spriteSetVisible(Entity entity, bool visible) {
-        Sprite2D* sprite = spriteWorld.getEntity(entity);
-        if (sprite) sprite->setVisible(visible);
+        BlazeBolt::Sprite2D *sprite = spriteWorld.getEntity(entity);
+        if (sprite == nullptr) {
+            return;
+        }
+        sprite->setVisible(visible);
     }
     
-    void LuaEngine::drawAllSprites() {
+    void LuaEngine::drawAllSprites() const {
         for (const auto& pair : spriteWorld.getAllEntities()) {
             if (pair.first && !pair.second) {
-                pair.first->draw();
+                pair.first->draw(this->textureManager, this->spriteShader2D, this->spriteMesh2D, this->projectionViewMatrix2D);
             }
         }
     }
@@ -2145,11 +2155,6 @@ namespace LuaEngine {
     }
     // FIXME: The same thing as above ^^^
     void LuaEngine::setSpriteScreenSize(int width, int height) {
-        for (const auto& pair : spriteWorld.getAllEntities()) {
-            if (pair.first && !pair.second) {
-                pair.first->setScreenSize(width, height);
-            }
-        }
         for (const auto& pair : animationWorld.getAllEntities()) {
             if (pair.first && !pair.second) {
                 pair.first->setScreenSize(width, height);
@@ -2514,17 +2519,16 @@ namespace LuaEngine {
     
     void LuaEngine::physicsSyncSprite(Entity bodyEntity, Entity spriteEntity) {
         auto it = physicsBodyMap.find(bodyEntity);
-        if (it == physicsBodyMap.end()) return;
+        if (it == physicsBodyMap.end()) { return; }
+        BlazeBolt::Sprite2D *sprite = spriteWorld.getEntity(spriteEntity);
+        if (sprite == nullptr) { return; }
         
-        Sprite2D* sprite = spriteWorld.getEntity(spriteEntity);
-        if (!sprite) return;
-        
-        PhysicsBody* body = it->second;
-        Vector2 pos = body->getPosition();
+        PhysicsBody *body = it->second;
+        Vector2 position = body->getPosition();
         float angle = body->getAngle();
         
-        sprite->setPosition(pos.x, pos.y);
-        sprite->setRotation(angle * 57.2958f);
+        sprite->setPosition(position);
+        sprite->setRotation(angle * (180.0f / M_PIf));
     }
     
     // General
@@ -2600,6 +2604,7 @@ namespace LuaEngine {
     }
     
     void LuaEngine::drawAll() {
+        this->projectionViewMatrix2D = Matrix3x3::projection(this->getScreenWidth(), this->getScreenHeight());
         drawAllSprites();
         drawAllAnimations();
         drawAllTexts();
