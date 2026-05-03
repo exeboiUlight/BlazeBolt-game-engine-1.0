@@ -13,6 +13,7 @@
 #include <graphics/mesh.h>
 #include <utils/input/input.h>
 #include <graphics/window.h>
+#include <graphics/shader.h>
 #include <glad/glad.h>
 #include <string>
 #include <unordered_map>
@@ -35,10 +36,24 @@ namespace LuaEngine {
         void* ptr;
         Entity entity;
         std::shared_ptr<Window> windowPtr;
+        unsigned int shaderID;  // Custom shader ID (0 = use default)
         
-        RegisteredObject() : type(UNKNOWN), ptr(nullptr), entity(0) {}
-        RegisteredObject(Type t, void* p, Entity e = 0) : type(t), ptr(p), entity(e) {}
-        RegisteredObject(std::shared_ptr<Window> w) : type(WINDOW), ptr(nullptr), entity(0), windowPtr(w) {}
+        RegisteredObject() : type(UNKNOWN), ptr(nullptr), entity(0), shaderID(0) {}
+        RegisteredObject(Type t, void* p, Entity e = 0) : type(t), ptr(p), entity(e), shaderID(0) {}
+        RegisteredObject(std::shared_ptr<Window> w) : type(WINDOW), ptr(nullptr), entity(0), windowPtr(w), shaderID(0) {}
+    };
+    
+    // Shader info structure
+    struct ShaderInfo {
+        std::string name;
+        std::string vertexPath;
+        std::string fragmentPath;
+        Shader* shader;
+        unsigned int id;
+        
+        ShaderInfo() : shader(nullptr), id(0) {}
+        ShaderInfo(const std::string& n, const std::string& vp, const std::string& fp, unsigned int i)
+            : name(n), vertexPath(vp), fragmentPath(fp), shader(nullptr), id(i) {}
     };
     
     // Script info structure with scene support
@@ -168,6 +183,11 @@ namespace LuaEngine {
         BlazeBolt::SpriteMesh2D spriteMesh2D;
         BlazeBolt::TextureManager textureManager;
         
+        // Shader management
+        std::unordered_map<unsigned int, ShaderInfo> shaders;
+        std::unordered_map<Entity, unsigned int> entityShaderMap;
+        unsigned int nextShaderId;
+        
         void registerCFunctions();
         bool parseScriptsList(const std::string& listPath);
     public:
@@ -272,6 +292,13 @@ namespace LuaEngine {
         // Object deletion
         void destroyEntity(Entity entity);
         void destroyAllEntities();
+
+        // Shader management
+        unsigned int createShader(const std::string& name, const std::string& vertexPath, const std::string& fragmentPath);
+        void destroyShader(unsigned int shaderId);
+        Shader* getShader(unsigned int shaderId) const;
+        void setEntityShader(Entity entity, unsigned int shaderId);
+        unsigned int getEntityShader(Entity entity);
         
         // Physics
         void physicsInit(float gravityX, float gravityY);
@@ -1250,6 +1277,126 @@ namespace LuaEngine {
             lua_pushlightuserdata(state, window.get());
             return 1;
         }
+
+        // Shader functions
+        static int CreateShader(lua_State* state) {
+            const char* name = luaL_checkstring(state, 1);
+            const char* vertexPath = luaL_checkstring(state, 2);
+            const char* fragmentPath = luaL_checkstring(state, 3);
+            LuaEngine* engine = getEngine(state);
+            if (!engine) { lua_pushinteger(state, 0); return 1; }
+            unsigned int shaderId = engine->createShader(name, vertexPath, fragmentPath);
+            lua_pushinteger(state, shaderId);
+            return 1;
+        }
+
+        static int DestroyShader(lua_State* state) {
+            unsigned int shaderId = luaL_checkinteger(state, 1);
+            LuaEngine* engine = getEngine(state);
+            if (!engine) return 0;
+            engine->destroyShader(shaderId);
+            return 0;
+        }
+
+        static int SetEntityShader(lua_State* state) {
+            Entity entity = luaL_checkinteger(state, 1);
+            unsigned int shaderId = luaL_checkinteger(state, 2);
+            LuaEngine* engine = getEngine(state);
+            if (!engine) return 0;
+            engine->setEntityShader(entity, shaderId);
+            return 0;
+        }
+
+        static int GetEntityShader(lua_State* state) {
+            Entity entity = luaL_checkinteger(state, 1);
+            LuaEngine* engine = getEngine(state);
+            if (!engine) { lua_pushinteger(state, 0); return 1; }
+            unsigned int shaderId = engine->getEntityShader(entity);
+            lua_pushinteger(state, shaderId);
+            return 1;
+        }
+
+        static int UseShader(lua_State* state) {
+            unsigned int shaderId = luaL_checkinteger(state, 1);
+            LuaEngine* engine = getEngine(state);
+            if (!engine) return 0;
+            Shader* shader = engine->getShader(shaderId);
+            if (shader) {
+                shader->use();
+            }
+            return 0;
+        }
+
+        static int SetShaderFloat(lua_State* state) {
+            unsigned int shaderId = luaL_checkinteger(state, 1);
+            const char* name = luaL_checkstring(state, 2);
+            float value = luaL_checknumber(state, 3);
+            LuaEngine* engine = getEngine(state);
+            if (!engine) return 0;
+            Shader* shader = engine->getShader(shaderId);
+            if (shader) {
+                shader->setFloat(name, value);
+            }
+            return 0;
+        }
+
+        static int SetShaderInt(lua_State* state) {
+            unsigned int shaderId = luaL_checkinteger(state, 1);
+            const char* name = luaL_checkstring(state, 2);
+            int value = luaL_checkinteger(state, 3);
+            LuaEngine* engine = getEngine(state);
+            if (!engine) return 0;
+            Shader* shader = engine->getShader(shaderId);
+            if (shader) {
+                shader->setInt(name, value);
+            }
+            return 0;
+        }
+
+        static int SetShaderVec2(lua_State* state) {
+            unsigned int shaderId = luaL_checkinteger(state, 1);
+            const char* name = luaL_checkstring(state, 2);
+            float x = luaL_checknumber(state, 3);
+            float y = luaL_checknumber(state, 4);
+            LuaEngine* engine = getEngine(state);
+            if (!engine) return 0;
+            Shader* shader = engine->getShader(shaderId);
+            if (shader) {
+                shader->setVec2(name, x, y);
+            }
+            return 0;
+        }
+
+        static int SetShaderVec3(lua_State* state) {
+            unsigned int shaderId = luaL_checkinteger(state, 1);
+            const char* name = luaL_checkstring(state, 2);
+            float x = luaL_checknumber(state, 3);
+            float y = luaL_checknumber(state, 4);
+            float z = luaL_checknumber(state, 5);
+            LuaEngine* engine = getEngine(state);
+            if (!engine) return 0;
+            Shader* shader = engine->getShader(shaderId);
+            if (shader) {
+                shader->setVec3(name, x, y, z);
+            }
+            return 0;
+        }
+
+        static int SetShaderVec4(lua_State* state) {
+            unsigned int shaderId = luaL_checkinteger(state, 1);
+            const char* name = luaL_checkstring(state, 2);
+            float x = luaL_checknumber(state, 3);
+            float y = luaL_checknumber(state, 4);
+            float z = luaL_checknumber(state, 5);
+            float w = luaL_checknumber(state, 6);
+            LuaEngine* engine = getEngine(state);
+            if (!engine) return 0;
+            Shader* shader = engine->getShader(shaderId);
+            if (shader) {
+                shader->setVec4(name, x, y, z, w);
+            }
+            return 0;
+        }
         
         static int SetWindowTitle(lua_State* state) {
             void* windowPtr = lua_touserdata(state, 1);
@@ -1602,6 +1749,18 @@ namespace LuaEngine {
         {"SetWindowTitle", _functions::SetWindowTitle},
         {"SetWindowSize", _functions::SetWindowSize},
         {"SetWindowIcon", _functions::SetWindowIcon},
+
+        // Shader functions
+        {"CreateShader", _functions::CreateShader},
+        {"DestroyShader", _functions::DestroyShader},
+        {"SetEntityShader", _functions::SetEntityShader},
+        {"GetEntityShader", _functions::GetEntityShader},
+        {"UseShader", _functions::UseShader},
+        {"SetShaderFloat", _functions::SetShaderFloat},
+        {"SetShaderInt", _functions::SetShaderInt},
+        {"SetShaderVec2", _functions::SetShaderVec2},
+        {"SetShaderVec3", _functions::SetShaderVec3},
+        {"SetShaderVec4", _functions::SetShaderVec4},
         
         // Main window functions
         {"SetMainWindowTitle", _functions::SetMainWindowTitle},
@@ -1656,7 +1815,8 @@ namespace LuaEngine {
         sceneManager(),
         additionalWindows(), mainWindow(&window),
         projectionViewMatrix2D(),
-        spriteShader2D(), spriteMesh2D(), textureManager()
+        spriteShader2D(), spriteMesh2D(), textureManager(),
+        shaders(), entityShaderMap(), nextShaderId(1)
     {
         this->sceneManager = std::make_unique<SceneManager>(this);
 
@@ -1985,6 +2145,14 @@ namespace LuaEngine {
     void LuaEngine::drawAllSprites() const {
         for (const auto& pair : spriteWorld.getAllEntities()) {
             if (pair.first && !pair.second) {
+                // Check if entity has a custom shader
+                auto shaderIt = entityShaderMap.find(pair.second);
+                if (shaderIt != entityShaderMap.end()) {
+                    Shader* customShader = getShader(shaderIt->second);
+                    if (customShader) {
+                        customShader->use();
+                    }
+                }
                 pair.first->draw(this->textureManager, this->spriteShader2D, this->spriteMesh2D, this->projectionViewMatrix2D);
             }
         }
@@ -2090,13 +2258,20 @@ namespace LuaEngine {
     void LuaEngine::drawAllAnimations() {
         for (const auto& pair : animationWorld.getAllEntities()) {
             if (pair.first && !pair.second) {
+                auto shaderIt = entityShaderMap.find(pair.second);
+                if (shaderIt != entityShaderMap.end()) {
+                    Shader* customShader = getShader(shaderIt->second);
+                    if (customShader) {
+                        customShader->use();
+                    }
+                }
                 pair.first->draw();
             }
         }
     }
     
     // Text implementations
-    Entity LuaEngine::createText(const std::string& fontPath, const std::string& text, 
+    Entity LuaEngine::createText(const std::string& fontPath, const std::string& text,
                                    const Vector2& position, int fontSize) {
         Text* textObj = new Text(fontPath, fontSize);
         textObj->setScreenSize(getScreenWidth(), getScreenHeight());
@@ -2140,6 +2315,13 @@ namespace LuaEngine {
     void LuaEngine::drawAllTexts() {
         for (const auto& pair : textWorld.getAllEntities()) {
             if (pair.first && !pair.second) {
+                auto shaderIt = entityShaderMap.find(pair.second);
+                if (shaderIt != entityShaderMap.end()) {
+                    Shader* customShader = getShader(shaderIt->second);
+                    if (customShader) {
+                        customShader->use();
+                    }
+                }
                 pair.first->draw();
             }
         }
@@ -2183,11 +2365,66 @@ namespace LuaEngine {
     void LuaEngine::drawAllMeshes() {
         for (const auto& pair : meshWorld.getAllEntities()) {
             if (pair.first && !pair.second) {
+                auto shaderIt = entityShaderMap.find(pair.second);
+                if (shaderIt != entityShaderMap.end()) {
+                    Shader* customShader = getShader(shaderIt->second);
+                    if (customShader) {
+                        customShader->use();
+                    }
+                }
                 pair.first->draw();
             }
         }
     }
     
+    // Shader implementations
+    unsigned int LuaEngine::createShader(const std::string& name, const std::string& vertexPath, const std::string& fragmentPath) {
+        unsigned int id = nextShaderId++;
+        Shader* shader = new Shader(vertexPath, fragmentPath);
+        shaders[id] = ShaderInfo(name, vertexPath, fragmentPath, id);
+        shaders[id].shader = shader;
+        return id;
+    }
+
+    void LuaEngine::destroyShader(unsigned int shaderId) {
+        auto it = shaders.find(shaderId);
+        if (it != shaders.end()) {
+            delete it->second.shader;
+            shaders.erase(it);
+        }
+        for (auto it2 = entityShaderMap.begin(); it2 != entityShaderMap.end(); ) {
+            if (it2->second == shaderId) {
+                it2 = entityShaderMap.erase(it2);
+            } else {
+                ++it2;
+            }
+        }
+    }
+
+    Shader* LuaEngine::getShader(unsigned int shaderId) const {
+        auto it = shaders.find(shaderId);
+        if (it != shaders.end()) {
+            return it->second.shader;
+        }
+        return nullptr;
+    }
+
+    void LuaEngine::setEntityShader(Entity entity, unsigned int shaderId) {
+        if (shaderId == 0) {
+            entityShaderMap.erase(entity);
+        } else {
+            entityShaderMap[entity] = shaderId;
+        }
+    }
+
+    unsigned int LuaEngine::getEntityShader(Entity entity) {
+        auto it = entityShaderMap.find(entity);
+        if (it != entityShaderMap.end()) {
+            return it->second;
+        }
+        return 0;
+    }
+
     // Audio implementations
     int LuaEngine::loadSound(const std::string& filename, const std::string& soundName, bool loop) {
         if (!audioInitialized) return -1;
@@ -2299,6 +2536,8 @@ namespace LuaEngine {
             }
             objectMap.erase(it);
         }
+        // Clean up shader mapping
+        entityShaderMap.erase(entity);
     }
     
     void LuaEngine::destroyAllEntities() {
@@ -2309,6 +2548,11 @@ namespace LuaEngine {
         physicsWorld.clear();
         physicsBodyMap.clear();
         objectMap.clear();
+        entityShaderMap.clear();
+        for (auto& pair : shaders) {
+            delete pair.second.shader;
+        }
+        shaders.clear();
     }
     
     // Physics implementations
@@ -2528,7 +2772,7 @@ namespace LuaEngine {
         float angle = body->getAngle();
         
         sprite->setPosition(position);
-        sprite->setRotation(angle * (180.0f / M_PIf));
+        sprite->setRotation(angle * (180.0f / 3.14159265358979323846f));
     }
     
     // General

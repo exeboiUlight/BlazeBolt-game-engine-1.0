@@ -32,7 +32,8 @@ struct Matrix3x3 {
     }
     
     static Matrix3x3 rotation(float angleDeg) {
-        float angleRad = angleDeg * M_PIf / 180.0f;
+        const float PI = 3.14159265358979323846f;
+        float angleRad = angleDeg * PI / 180.0f;
         float c = cos(angleRad);
         float s = sin(angleRad);
         

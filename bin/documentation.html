@@ -498,6 +498,7 @@
         <div class="nav-group-title">Дополнительно</div>
         <a href="#utilities">Утилиты</a>
         <a href="#scripts">Скрипты и сцены</a>
+        <a href="#shaders">Шейдеры</a>
         <a href="#example">Пример игры</a>
         <a href="#best-practices">Лучшие практики</a>
         <a href="#project-structure">Структура проекта</a>
@@ -1152,6 +1153,78 @@ BlazeBolt.<span class="lua-fn">PhysicsSyncSprite</span><span class="lua-punct">(
 <span class="lua-comment">-- Шаг физики (автоматически в update)</span>
 BlazeBolt.<span class="lua-fn">PhysicsStep</span><span class="lua-punct">()</span></code></pre>
             </div>
+        </div>
+    </div>
+
+    <!-- SHADERS -->
+    <div class="section" id="shaders">
+        <div class="section-inner">
+            <h2><span class="icon icon-blue">&#x25C6;</span>Шейдеры</h2>
+            <p class="desc">Кастомные шейдеры для объектов — вершинные и фрагментные шейдеры GLSL</p>
+
+            <h3>Создание шейдера</h3>
+            <div class="code-block">
+                <div class="code-block-header"><div class="dots"><span class="dot dot-red"></span><span class="dot dot-yellow"></span><span class="dot dot-green"></span></div><span>lua</span></div>
+                <pre><code><span class="lua-param">shaderId</span> <span class="lua-op">=</span> BlazeBolt.<span class="lua-fn">CreateShader</span><span class="lua-punct">(</span><span class="lua-param">name</span><span class="lua-punct">,</span> <span class="lua-param">vertexPath</span><span class="lua-punct">,</span> <span class="lua-param">fragmentPath</span><span class="lua-punct">)</span></code></pre>
+            </div>
+
+            <div class="table-wrap">
+                <table>
+                    <tr><th>Параметр</th><th>Тип</th><th>Описание</th></tr>
+                    <tr><td><code>name</code></td><td>string</td><td>Имя шейдера для идентификации</td></tr>
+                    <tr><td><code>vertexPath</code></td><td>string</td><td>Путь к вершинному шейдеру (.vert)</td></tr>
+                    <tr><td><code>fragmentPath</code></td><td>string</td><td>Путь к фрагментному шейдеру (.frag)</td></tr>
+                </table>
+            </div>
+            <p><strong>Возвращает:</strong> <code class="inline">shaderId</code> (integer) — идентификатор шейдера, 0 при ошибке</p>
+
+            <h3>Привязка шейдера к объекту</h3>
+            <div class="code-block">
+                <div class="code-block-header"><div class="dots"><span class="dot dot-red"></span><span class="dot dot-yellow"></span><span class="dot dot-green"></span></div><span>lua</span></div>
+                <pre><code>BlazeBolt.<span class="lua-fn">SetEntityShader</span><span class="lua-punct">(</span><span class="lua-param">entity</span><span class="lua-punct">,</span> <span class="lua-param">shaderId</span><span class="lua-punct">)</span>
+<span class="lua-param">currentShader</span> <span class="lua-op">=</span> BlazeBolt.<span class="lua-fn">GetEntityShader</span><span class="lua-punct">(</span><span class="lua-param">entity</span><span class="lua-punct">)</span>
+<span class="lua-comment">-- 0 = используется шейдер по умолчанию</span></code></pre>
+            </div>
+
+            <h3>Установка uniform-переменных</h3>
+            <div class="code-block">
+                <div class="code-block-header"><div class="dots"><span class="dot dot-red"></span><span class="dot dot-yellow"></span><span class="dot dot-green"></span></div><span>lua</span></div>
+                <pre><code><span class="lua-comment">-- Использовать шейдер (активация)</span>
+BlazeBolt.<span class="lua-fn">UseShader</span><span class="lua-punct">(</span><span class="lua-param">shaderId</span><span class="lua-punct">)</span>
+
+<span class="lua-comment">-- Скаляры</span>
+BlazeBolt.<span class="lua-fn">SetShaderFloat</span><span class="lua-punct">(</span><span class="lua-param">shaderId</span><span class="lua-punct">,</span> <span class="lua-param">name</span><span class="lua-punct">,</span> <span class="lua-param">value</span><span class="lua-punct">)</span>
+BlazeBolt.<span class="lua-fn">SetShaderInt</span><span class="lua-punct">(</span><span class="lua-param">shaderId</span><span class="lua-punct">,</span> <span class="lua-param">name</span><span class="lua-punct">,</span> <span class="lua-param">value</span><span class="lua-punct">)</span>
+
+<span class="lua-comment">-- Векторы</span>
+BlazeBolt.<span class="lua-fn">SetShaderVec2</span><span class="lua-punct">(</span><span class="lua-param">shaderId</span><span class="lua-punct">,</span> <span class="lua-param">name</span><span class="lua-punct">,</span> <span class="lua-param">x</span><span class="lua-punct">,</span> <span class="lua-param">y</span><span class="lua-punct">)</span>
+BlazeBolt.<span class="lua-fn">SetShaderVec3</span><span class="lua-punct">(</span><span class="lua-param">shaderId</span><span class="lua-punct">,</span> <span class="lua-param">name</span><span class="lua-punct">,</span> <span class="lua-param">x</span><span class="lua-punct">,</span> <span class="lua-param">y</span><span class="lua-punct">,</span> <span class="lua-param">z</span><span class="lua-punct">)</span>
+BlazeBolt.<span class="lua-fn">SetShaderVec4</span><span class="lua-punct">(</span><span class="lua-param">shaderId</span><span class="lua-punct">,</span> <span class="lua-param">name</span><span class="lua-punct">,</span> <span class="lua-param">x</span><span class="lua-punct">,</span> <span class="lua-param">y</span><span class="lua-punct">,</span> <span class="lua-param">z</span><span class="lua-punct">,</span> <span class="lua-param">w</span><span class="lua-punct">)</span></code></pre>
+            </div>
+
+            <h3>Удаление шейдера</h3>
+            <div class="code-block">
+                <div class="code-block-header"><div class="dots"><span class="dot dot-red"></span><span class="dot dot-yellow"></span><span class="dot dot-green"></span></div><span>lua</span></div>
+                <pre><code>BlazeBolt.<span class="lua-fn">DestroyShader</span><span class="lua-punct">(</span><span class="lua-param">shaderId</span><span class="lua-punct">)</span>
+<span class="lua-comment">-- Также удаляет привязки у всех объектов</span></code></pre>
+            </div>
+
+            <h3>Пример: волны</h3>
+            <div class="code-block">
+                <div class="code-block-header"><div class="dots"><span class="dot dot-red"></span><span class="dot dot-yellow"></span><span class="dot dot-green"></span></div><span>lua</span></div>
+                <pre><code><span class="lua-keyword">function</span> <span class="lua-fn">Start</span><span class="lua-punct">()</span>
+    sprite <span class="lua-op">=</span> BlazeBolt.<span class="lua-fn">CreateSprite</span><span class="lua-punct">(</span><span class="lua-string">"texture.png"</span><span class="lua-punct">,</span> <span class="lua-number">0</span><span class="lua-punct">,</span> <span class="lua-number">0</span><span class="lua-punct">)</span>
+    shader <span class="lua-op">=</span> BlazeBolt.<span class="lua-fn">CreateShader</span><span class="lua-punct">(</span><span class="lua-string">"wave"</span><span class="lua-punct">,</span> <span class="lua-string">"shaders/wave.vert"</span><span class="lua-punct">,</span> <span class="lua-string">"shaders/wave.frag"</span><span class="lua-punct">)</span>
+    BlazeBolt.<span class="lua-fn">SetEntityShader</span><span class="lua-punct">(</span>sprite<span class="lua-punct">,</span> shader<span class="lua-punct">)</span>
+<span class="lua-keyword">end</span>
+
+<span class="lua-keyword">function</span> <span class="lua-fn">Update</span><span class="lua-punct">(</span><span class="lua-param">dt</span><span class="lua-punct">)</span>
+    BlazeBolt.<span class="lua-fn">UseShader</span><span class="lua-punct">(</span>shader<span class="lua-punct">)</span>
+    BlazeBolt.<span class="lua-fn">SetShaderFloat</span><span class="lua-punct">(</span>shader<span class="lua-punct">,</span> <span class="lua-string">"time"</span><span class="lua-punct">,</span> <span class="lua-fn">GetTime</span><span class="lua-punct">())</span>
+<span class="lua-keyword">end</span></code></pre>
+            </div>
+
+            <div class="note"><strong>Совет:</strong> Шейдеры автоматически активируются при отрисовке объектов, если они назначены через <code class="inline">SetEntityShader</code>.</div>
         </div>
     </div>
 
