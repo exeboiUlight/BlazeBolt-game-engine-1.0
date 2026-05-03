@@ -38,6 +38,9 @@ int main() {
     int previousWindowWidth = window.getWidth();
     int previousWindowHeight = window.getHeight();
     while (!window.shouldClose()) {
+        // Update input - save previous frame state BEFORE polling new events
+        Input::getInstance().update();
+
         window.pollEvents();
 
         // Проверяем, не изменился ли размер окна
@@ -56,7 +59,6 @@ int main() {
         lastTime = currentTime;
 
         // Update
-        Input::getInstance().update();
         luaEngine.callUpdate(deltaTime);
         luaEngine.physicsStep();
         luaEngine.updateAll(deltaTime);

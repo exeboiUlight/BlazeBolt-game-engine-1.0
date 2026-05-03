@@ -1936,19 +1936,37 @@ namespace LuaEngine {
         // Keyboard constants
         lua_newtable(state);
         #define ADD_KEY(name) lua_pushinteger(state, GLFW_KEY_##name); lua_setfield(state, -2, #name)
+        // Letters
         ADD_KEY(A); ADD_KEY(B); ADD_KEY(C); ADD_KEY(D); ADD_KEY(E); ADD_KEY(F); ADD_KEY(G);
         ADD_KEY(H); ADD_KEY(I); ADD_KEY(J); ADD_KEY(K); ADD_KEY(L); ADD_KEY(M); ADD_KEY(N);
         ADD_KEY(O); ADD_KEY(P); ADD_KEY(Q); ADD_KEY(R); ADD_KEY(S); ADD_KEY(T); ADD_KEY(U);
         ADD_KEY(V); ADD_KEY(W); ADD_KEY(X); ADD_KEY(Y); ADD_KEY(Z);
+        // Numbers
         ADD_KEY(0); ADD_KEY(1); ADD_KEY(2); ADD_KEY(3); ADD_KEY(4); ADD_KEY(5); ADD_KEY(6); ADD_KEY(7); ADD_KEY(8); ADD_KEY(9);
-        ADD_KEY(UP); ADD_KEY(DOWN); ADD_KEY(LEFT); ADD_KEY(RIGHT);
-        ADD_KEY(SPACE); ADD_KEY(ENTER); ADD_KEY(ESCAPE);
-        ADD_KEY(TAB); ADD_KEY(BACKSPACE); ADD_KEY(DELETE);
-        ADD_KEY(LEFT_SHIFT); ADD_KEY(RIGHT_SHIFT);
-        ADD_KEY(LEFT_CONTROL); ADD_KEY(RIGHT_CONTROL);
-        ADD_KEY(LEFT_ALT); ADD_KEY(RIGHT_ALT);
+        // Function keys
         ADD_KEY(F1); ADD_KEY(F2); ADD_KEY(F3); ADD_KEY(F4); ADD_KEY(F5); ADD_KEY(F6);
         ADD_KEY(F7); ADD_KEY(F8); ADD_KEY(F9); ADD_KEY(F10); ADD_KEY(F11); ADD_KEY(F12);
+        ADD_KEY(F13); ADD_KEY(F14); ADD_KEY(F15); ADD_KEY(F16); ADD_KEY(F17); ADD_KEY(F18);
+        ADD_KEY(F19); ADD_KEY(F20); ADD_KEY(F21); ADD_KEY(F22); ADD_KEY(F23); ADD_KEY(F24); ADD_KEY(F25);
+        // Arrow keys
+        ADD_KEY(UP); ADD_KEY(DOWN); ADD_KEY(LEFT); ADD_KEY(RIGHT);
+        // Special keys
+        ADD_KEY(SPACE); ADD_KEY(ENTER); ADD_KEY(ESCAPE); ADD_KEY(TAB); ADD_KEY(BACKSPACE); ADD_KEY(DELETE);
+        ADD_KEY(INSERT); ADD_KEY(HOME); ADD_KEY(END); ADD_KEY(PAGE_UP); ADD_KEY(PAGE_DOWN);
+        // Lock keys
+        ADD_KEY(CAPS_LOCK); ADD_KEY(SCROLL_LOCK); ADD_KEY(NUM_LOCK); ADD_KEY(PRINT_SCREEN); ADD_KEY(PAUSE);
+        // Modifier keys
+        ADD_KEY(LEFT_SHIFT); ADD_KEY(RIGHT_SHIFT); ADD_KEY(LEFT_CONTROL); ADD_KEY(RIGHT_CONTROL);
+        ADD_KEY(LEFT_ALT); ADD_KEY(RIGHT_ALT); ADD_KEY(LEFT_SUPER); ADD_KEY(RIGHT_SUPER);
+        // Keypad
+        ADD_KEY(KP_0); ADD_KEY(KP_1); ADD_KEY(KP_2); ADD_KEY(KP_3); ADD_KEY(KP_4); ADD_KEY(KP_5);
+        ADD_KEY(KP_6); ADD_KEY(KP_7); ADD_KEY(KP_8); ADD_KEY(KP_9);
+        ADD_KEY(KP_DECIMAL); ADD_KEY(KP_DIVIDE); ADD_KEY(KP_MULTIPLY);
+        ADD_KEY(KP_SUBTRACT); ADD_KEY(KP_ADD); ADD_KEY(KP_ENTER); ADD_KEY(KP_EQUAL);
+        // Menu key
+        ADD_KEY(MENU);
+        // Last key (for iteration bounds)
+        ADD_KEY(LAST);
         #undef ADD_KEY
         lua_setglobal(state, "Keys");
         
