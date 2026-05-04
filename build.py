@@ -1,5 +1,6 @@
 import os
 import glob
+import shutil
 
 debug = True
 
@@ -11,6 +12,33 @@ else:
 COMMON_INCLUDES = "-I./include -I./core"
 COMMON_LIBS = "-L./lib -lgdi32 -lopengl32 -lglfw3 -lfreetype"
 COMMON_STATIC = "-static-libgcc -static-libstdc++"
+
+def make_project():
+    os.makedirs("bin", exist_ok=True)
+    
+    for filename in os.listdir("lib"):
+        if filename.endswith((".dll", ".so")):
+            src = os.path.join("lib", filename)
+            dst = os.path.join("bin", filename)
+            shutil.copy2(src, dst)
+            print(f"Скопирован: {filename}")
+    
+    assets_path = "assets"
+    bin_path = "bin"
+    
+    if os.path.exists(assets_path):
+        for item in os.listdir(assets_path):
+            src = os.path.join(assets_path, item)
+            dst = os.path.join(bin_path, item)
+            
+            if os.path.isfile(src):
+                shutil.copy2(src, dst)
+                print(f"Скопирован файл: {item}")
+            elif os.path.isdir(src):
+                shutil.copytree(src, dst, dirs_exist_ok=True)
+                print(f"Скопирована папка: {item}")
+    else:
+        print(f"Предупреждение: папка {assets_path} не существует")
 
 def find_cpp_files(directory):
     cpp_files = []
@@ -29,7 +57,7 @@ def compile_game():
         f"{COMMON_INCLUDES} "
         f"{COMMON_LIBS} "
         f"-llua54 -lopenal32 "
-        f"-o bin/versions/game.exe "
+        f"-o bin/game.exe "
         f"{COMMON_STATIC}"
     )
     print("\nCompiling game...")
@@ -47,7 +75,7 @@ def compile_release():
         f"{COMMON_INCLUDES} "
         f"{COMMON_LIBS} "
         f"-llua54 -lopenal32 "
-        f"-o bin/versions/release.exe "
+        f"-o bin/release.exe "
         f"-Wl,-subsystem,windows "
         f"{COMMON_STATIC}"
     )
@@ -57,5 +85,7 @@ def compile_release():
         print(f"  {f}")
     os.system(cmd)
 
-compile_game()
-compile_release()
+if __name__ == '__main__':
+    make_project()
+    compile_game()
+    compile_release()

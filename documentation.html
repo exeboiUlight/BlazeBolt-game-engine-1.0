@@ -503,6 +503,8 @@
         <a href="#best-practices">Лучшие практики</a>
         <a href="#project-structure">Структура проекта</a>
         <a href="#reference">Справочник</a>
+        <a href="#scene-system">Scene-система</a>
+        <a href="#world-entity">World/Entity</a>
     </div>
 </div>
 
@@ -1602,9 +1604,178 @@ player<span class="lua-op">=</span>engine/scripts/player.lua
                         <tr><td class="fn-name">IsScriptLoaded</td><td><code>name</code></td><td><code>bool</code></td></tr>
                         <tr><td class="fn-name">GetLoadedScripts</td><td>—</td><td><code>table</code></td></tr>
                         <tr><td class="fn-name">LoadScene</td><td><code>sceneName</code></td><td><code>bool</code></td></tr>
-                        <tr><td class="fn-name">GetCurrentScene</td><td>—</td><td><code>name</code></td></tr>
+<tr><td class="fn-name">GetCurrentScene</td><td>—</td><td><code>name</code></td></tr>
+                        <tr><td class="fn-name">SceneLoad</td><td><code>path</code></td><td><code>scene</code></td></tr>
+                        <tr><td class="fn-name">SceneSave</td><td><code>scene, path</code></td><td>—</td></tr>
+                        <tr><td class="fn-name">SceneNew</td><td>—</td><td><code>scene</code></td></tr>
+                        <tr><td class="fn-name">SceneSetName</td><td><code>scene, name</code></td><td>—</td></tr>
+                        <tr><td class="fn-name">SceneGetName</td><td><code>scene</code></td><td><code>name</code></td></tr>
+                        <tr><td class="fn-name">SceneCreateObject</td><td><code>scene, name, type</code></td><td><code>id</code></td></tr>
+                        <tr><td class="fn-name">SceneDestroyObject</td><td><code>scene, id</code></td><td>—</td></tr>
+                        <tr><td class="fn-name">SceneGetObject</td><td><code>scene, id</code></td><td><code>obj</code></td></tr>
+                        <tr><td class="fn-name">SceneGetAllObjects</td><td><code>scene</code></td><td><code>table</code></td></tr>
+                        <tr><td class="fn-name">SceneGetRootObjects</td><td><code>scene</code></td><td><code>table</code></td></tr>
+                        <tr><td class="fn-name">ObjectSetPosition</td><td><code>id, x, y, z</code></td><td>—</td></tr>
+                        <tr><td class="fn-name">ObjectGetPosition</td><td><code>id</code></td><td><code>x, y, z</code></td></tr>
+                        <tr><td class="fn-name">ObjectSetRotation</td><td><code>id, x, y, z</code></td><td>—</td></tr>
+                        <tr><td class="fn-name">ObjectSetScale</td><td><code>id, x, y, z</code></td><td>—</td></tr>
+                        <tr><td class="fn-name">ObjectSetName</td><td><code>id, name</code></td><td>—</td></tr>
+                        <tr><td class="fn-name">ObjectGetName</td><td><code>id</code></td><td><code>name</code></td></tr>
+                        <tr><td class="fn-name">ObjectSetActive</td><td><code>id, active</code></td><td>—</td></tr>
+                        <tr><td class="fn-name">ObjectIsActive</td><td><code>id</code></td><td><code>bool</code></td></tr>
+                        <tr><td class="fn-name">ObjectSetParent</td><td><code>id, parentId</code></td><td>—</td></tr>
+                        <tr><td class="fn-name">ObjectGetParent</td><td><code>id</code></td><td><code>parentId</code></td></tr>
+                        <tr><td class="fn-name">WorldSpawn</td><td><code>world, component</code></td><td><code>entity</code></td></tr>
+                        <tr><td class="fn-name">WorldDestroy</td><td><code>world, entity</code></td><td>—</td></tr>
+                        <tr><td class="fn-name">WorldGetEntity</td><td><code>world, entity</code></td><td><code>component</code></td></tr>
+                        <tr><td class="fn-name">WorldExists</td><td><code>world, entity</code></td><td><code>bool</code></td></tr>
                     </table>
                 </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SCENE SYSTEM -->
+    <div class="section" id="scene-system">
+        <div class="section-inner">
+            <h2><span class="icon icon-blue">&#x25C6;</span>Scene-система</h2>
+            <p class="desc">Компонентный подход к созданию игровых объектов с иерархией parent-child</p>
+
+            <h3>Типы объектов</h3>
+            <div class="table-wrap">
+                <table>
+                    <tr><th>Тип</th><th>Описание</th></tr>
+                    <tr><td><code>SceneObjectType.GameObject</code></td><td>Базовый объект</td></tr>
+                    <tr><td><code>SceneObjectType.Transform</code></td><td>Трансформация (позиция, вращение, масштаб)</td></tr>
+                    <tr><td><code>SceneObjectType.SpriteRenderer</code></td><td>Спрайт-рендерер</td></tr>
+                    <tr><td><code>SceneObjectType.Camera</code></td><td>Камера</td></tr>
+                    <tr><td><code>SceneObjectType.AudioSource</code></td><td>Источник звука</td></tr>
+                    <tr><td><code>SceneObjectType.Text</code></td><td>Текст</td></tr>
+                    <tr><td><code>SceneObjectType.RigidBody</code></td><td>Физическое тело</td></tr>
+                    <tr><td><code>SceneObjectType.BoxCollider</code></td><td>Коллайдер</td></tr>
+                    <tr><td><code>SceneObjectType.Light</code></td><td>Источник света</td></tr>
+                </table>
+            </div>
+
+            <h3>Работа со сценой</h3>
+            <div class="code-block">
+                <div class="code-block-header"><div class="dots"><span class="dot dot-red"></span><span class="dot dot-yellow"></span><span class="dot dot-green"></span></div><span>lua</span></div>
+                <pre><code><span class="lua-param">scene</span> <span class="lua-op">=</span> BlazeBolt.<span class="lua-fn">SceneLoad</span><span class="lua-punct">(</span><span class="lua-param">path</span><span class="lua-punct">)</span>        <span class="lua-comment">-- Загрузить сцену из файла</span>
+BlazeBolt.<span class="lua-fn">SceneSave</span><span class="lua-punct">(</span><span class="lua-param">scene</span><span class="lua-punct">,</span> <span class="lua-param">path</span><span class="lua-punct">)</span>           <span class="lua-comment">-- Сохранить сцену в файл</span>
+BlazeBolt.<span class="lua-fn">SceneSetName</span><span class="lua-punct">(</span><span class="lua-param">scene</span><span class="lua-punct">,</span> <span class="lua-param">name</span><span class="lua-punct">)</span>
+<span class="lua-param">name</span> <span class="lua-op">=</span> BlazeBolt.<span class="lua-fn">SceneGetName</span><span class="lua-punct">(</span><span class="lua-param">scene</span><span class="lua-punct">)</span></code></pre>
+            </div>
+
+            <h3>Управление объектами</h3>
+            <div class="code-block">
+                <div class="code-block-header"><div class="dots"><span class="dot dot-red"></span><span class="dot dot-yellow"></span><span class="dot dot-green"></span></div><span>lua</span></div>
+                <pre><code><span class="lua-comment">-- Создание объекта</span>
+<span class="lua-param">objId</span> <span class="lua-op">=</span> BlazeBolt.<span class="lua-fn">SceneCreateObject</span><span class="lua-punct">(</span><span class="lua-param">scene</span><span class="lua-punct">,</span> <span class="lua-param">name</span><span class="lua-punct">,</span> <span class="lua-param">objectType</span><span class="lua-punct">)</span>
+
+<span class="lua-comment">-- Удаление объекта</span>
+BlazeBolt.<span class="lua-fn">SceneDestroyObject</span><span class="lua-punct">(</span><span class="lua-param">scene</span><span class="lua-punct">,</span> <span class="lua-param">objId</span><span class="lua-punct">)</span>
+
+<span class="lua-comment">-- Получение объекта</span>
+<span class="lua-param">obj</span> <span class="lua-op">=</span> BlazeBolt.<span class="lua-fn">SceneGetObject</span><span class="lua-punct">(</span><span class="lua-param">scene</span><span class="lua-punct">,</span> <span class="lua-param">objId</span><span class="lua-punct">)</span>
+
+<span class="lua-comment">-- Получить все объекты</span>
+<span class="lua-param">objects</span> <span class="lua-op">=</span> BlazeBolt.<span class="lua-fn">SceneGetAllObjects</span><span class="lua-punct">(</span><span class="lua-param">scene</span><span class="lua-punct">)</span>
+
+<span class="lua-comment">-- Получить корневые объекты</span>
+<span class="lua-param">rootObjects</span> <span class="lua-op">=</span> BlazeBolt.<span class="lua-fn">SceneGetRootObjects</span><span class="lua-punct">(</span><span class="lua-param">scene</span><span class="lua-punct">)</span></code></pre>
+            </div>
+
+            <h3>Свойства объекта</h3>
+            <div class="code-block">
+                <div class="code-block-header"><div class="dots"><span class="dot dot-red"></span><span class="dot dot-yellow"></span><span class="dot dot-green"></span></div><span>lua</span></div>
+                <pre><code><span class="lua-comment">-- Позиция</span>
+BlazeBolt.<span class="lua-fn">ObjectSetPosition</span><span class="lua-punct">(</span><span class="lua-param">objId</span><span class="lua-punct">,</span> <span class="lua-param">x</span><span class="lua-punct">,</span> <span class="lua-param">y</span><span class="lua-punct">,</span> <span class="lua-param">z</span><span class="lua-punct">)</span>
+<span class="lua-param">x</span><span class="lua-punct">,</span> <span class="lua-param">y</span><span class="lua-punct">,</span> <span class="lua-param">z</span> <span class="lua-op">=</span> BlazeBolt.<span class="lua-fn">ObjectGetPosition</span><span class="lua-punct">(</span><span class="lua-param">objId</span><span class="lua-punct">)</span>
+
+<span class="lua-comment">-- Вращение</span>
+BlazeBolt.<span class="lua-fn">ObjectSetRotation</span><span class="lua-punct">(</span><span class="lua-param">objId</span><span class="lua-punct">,</span> <span class="lua-param">x</span><span class="lua-punct">,</span> <span class="lua-param">y</span><span class="lua-punct">,</span> <span class="lua-param">z</span><span class="lua-punct">)</span>
+
+<span class="lua-comment">-- Масштаб</span>
+BlazeBolt.<span class="lua-fn">ObjectSetScale</span><span class="lua-punct">(</span><span class="lua-param">objId</span><span class="lua-punct">,</span> <span class="lua-param">x</span><span class="lua-punct">,</span> <span class="lua-param">y</span><span class="lua-punct">,</span> <span class="lua-param">z</span><span class="lua-punct">)</span>
+
+<span class="lua-comment">-- Имя</span>
+BlazeBolt.<span class="lua-fn">ObjectSetName</span><span class="lua-punct">(</span><span class="lua-param">objId</span><span class="lua-punct">,</span> <span class="lua-param">name</span><span class="lua-punct">)</span>
+
+<span class="lua-comment">-- Активность</span>
+BlazeBolt.<span class="lua-fn">ObjectSetActive</span><span class="lua-punct">(</span><span class="lua-param">objId</span><span class="lua-punct">,</span> <span class="lua-param">active</span><span class="lua-punct">)</span>
+
+<span class="lua-comment">-- Родитель</span>
+BlazeBolt.<span class="lua-fn">ObjectSetParent</span><span class="lua-punct">(</span><span class="lua-param">objId</span><span class="lua-punct">,</span> <span class="lua-param">parentId</span><span class="lua-punct">)</span></code></pre>
+            </div>
+
+            <h3>Формат файла сцены</h3>
+            <p>Сцены сохраняются в бинарном формате <code class="inline">.blaze</code>:</p>
+            <ul>
+                <li>MAGIC: <code class="inline">0x424C415A</code> ("BLAZ")</li>
+                <li>VERSION: <code class="inline">1</code></li>
+                <li>Имя сцены (строка)</li>
+                <li>Количество объектов</li>
+                <li>Для каждого объекта: id, тип, имя, parentId, позиция(3), вращение(3), масштаб(3), активность</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- WORLD/ENTITY -->
+    <div class="section" id="world-entity">
+        <div class="section-inner">
+            <h2><span class="icon icon-green">&#x25C6;</span>World/Entity</h2>
+            <p class="desc">Система управления пулом объектов с автоматическим управлением памятью</p>
+
+            <h3>Особенности</h3>
+            <ul>
+                <li>Автоматическое выделение/освобождение памяти</li>
+                <li>Переиспользование ID удалённых сущностей</li>
+                <li>Типобезопасность через шаблоны</li>
+            </ul>
+
+            <h3>Использование</h3>
+            <div class="code-block">
+                <div class="code-block-header"><div class="dots"><span class="dot dot-red"></span><span class="dot dot-yellow"></span><span class="dot dot-green"></span></div><span>lua</span></div>
+                <pre><code><span class="lua-comment">-- Создание сущности</span>
+<span class="lua-param">entity</span> <span class="lua-op">=</span> world:<span class="lua-fn">spawn</span><span class="lua-punct">(</span>MyComponent<span class="lua-punct">)</span>
+
+<span class="lua-comment">-- Удаление сущности</span>
+world:<span class="lua-fn">destroy</span><span class="lua-punct">(</span><span class="lua-param">entity</span><span class="lua-punct">)</span>
+
+<span class="lua-comment">-- Получение компонента</span>
+<span class="lua-param">component</span> <span class="lua-op">=</span> world:<span class="lua-fn">getEntity</span><span class="lua-punct">(</span><span class="lua-param">entity</span><span class="lua-punct">)</span>
+
+<span class="lua-comment">-- Проверка существования</span>
+<span class="lua-keyword">if</span> world:<span class="lua-fn">exists</span><span class="lua-punct">(</span><span class="lua-param">entity</span><span class="lua-punct">)</span> <span class="lua-keyword">then</span> ... <span class="lua-keyword">end</span></code></pre>
+            </div>
+
+            <h3>Пример</h3>
+            <div class="code-block">
+                <div class="code-block-header"><div class="dots"><span class="dot dot-red"></span><span class="dot dot-yellow"></span><span class="dot dot-green"></span></div><span>lua</span></div>
+                <pre><code><span class="lua-comment">-- Определение компонента</span>
+<span class="lua-keyword">local</span> Player <span class="lua-op">=</span> <span class="lua-punct">{</span>
+    name <span class="lua-op">=</span> <span class="lua-str">"Player"</span><span class="lua-punct">,</span>
+    health <span class="lua-op">=</span> <span class="lua-num">100</span><span class="lua-punct">,</span>
+    speed <span class="lua-op">=</span> <span class="lua-num">5.0</span>
+<span class="lua-punct">}</span>
+
+<span class="lua-comment">-- Создание мира</span>
+<span class="lua-keyword">local</span> world <span class="lua-op">=</span> World.<span class="lua-fn">new</span><span class="lua-punct">()</span>
+
+<span class="lua-comment">-- Спавн игрока</span>
+<span class="lua-keyword">local</span> playerEntity <span class="lua-op">=</span> world:<span class="lua-fn">spawn</span><span class="lua-punct">(</span>Player<span class="lua-punct">)</span>
+
+<span class="lua-keyword">function</span> <span class="lua-fn">Update</span><span class="lua-punct">(</span><span class="lua-param">dt</span><span class="lua-punct">)</span>
+    <span class="lua-keyword">local</span> player <span class="lua-op">=</span> world:<span class="lua-fn">getEntity</span><span class="lua-punct">(</span>playerEntity<span class="lua-punct">)</span>
+    <span class="lua-keyword">if</span> player <span class="lua-keyword">then</span>
+        player.position.x <span class="lua-op">=</span> player.position.x <span class="lua-op">+</span> player.speed <span class="lua-op">*</span> dt
+    <span class="lua-keyword">end</span>
+<span class="lua-keyword">end</span></code></pre>
             </div>
         </div>
     </div>

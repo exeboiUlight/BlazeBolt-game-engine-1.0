@@ -1859,10 +1859,8 @@ namespace LuaEngine {
     }
     
     bool LuaEngine::parseScriptsList(const std::string& listPath) {
-        // Try .BlazeBoltProject first, then fall back to scripts.list
         std::string actualPath = listPath;
         if (listPath.find(".BlazeBoltProject") == std::string::npos) {
-            // If not explicitly .BlazeBoltProject, check if it exists
             std::ifstream test(listPath + ".BlazeBoltProject");
             if (test.is_open()) {
                 actualPath = listPath + ".BlazeBoltProject";
@@ -1883,31 +1881,19 @@ namespace LuaEngine {
             line.erase(line.find_last_not_of(" \t\r\n") + 1);
             if (line.empty() || line[0] == '#') continue;
             
-            bool isScene = false;
-            std::string processedLine = line;
-            
-            if (line[0] == '@') {
-                isScene = true;
-                processedLine = line.substr(1);
-            }
-            
-            size_t eqPos = processedLine.find('=');
             ScriptInfo info;
-            info.isScene = isScene;
+            info.isScene = false;
             
+            size_t eqPos = line.find('=');
             if (eqPos != std::string::npos) {
-                info.name = processedLine.substr(0, eqPos);
-                info.path = processedLine.substr(eqPos + 1);
+                info.name = line.substr(0, eqPos);
+                info.path = line.substr(eqPos + 1);
             } else {
-                info.name = std::filesystem::path(processedLine).stem().string();
-                info.path = processedLine;
+                info.name = std::filesystem::path(line).stem().string();
+                info.path = line;
             }
             
             scripts.push_back(info);
-            
-            if (isScene && sceneManager) {
-                sceneManager->registerScene(info.name, info.path);
-            }
         }
         
         file.close();
@@ -1986,7 +1972,7 @@ namespace LuaEngine {
         
         bool allSuccess = true;
         for (auto& script : scripts) {
-            if (!script.isScene && script.enabled) {
+            if (script.enabled) {
                 if (loadScript(script.path)) {
                     script.loaded = true;
                     std::cout << "Loaded script: " << script.name << std::endl;
@@ -2026,7 +2012,7 @@ namespace LuaEngine {
         
         bool allSuccess = true;
         for (auto& script : scripts) {
-            if (!script.isScene && script.enabled) {
+            if (script.enabled) {
                 if (loadScript(script.path)) {
                     script.loaded = true;
                 } else {
@@ -2042,7 +2028,7 @@ namespace LuaEngine {
         for (auto& script : scripts) {
             if (script.name == scriptName) {
                 script.enabled = enabled;
-                if (enabled && !script.loaded && !script.isScene) {
+                if (enabled && !script.loaded) {
                     loadScript(script.path);
                     script.loaded = true;
                 }

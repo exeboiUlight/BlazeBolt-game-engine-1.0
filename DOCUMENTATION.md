@@ -15,7 +15,10 @@
 - [Управление объектами](#управление-объектами)
 - [Физика](#физика)
 - [Утилиты](#утилиты)
+- [Шейдеры](#шейдеры)
 - [Скрипты и сцены](#скрипты-и-сцены)
+- [Scene-система](#scene-система)
+- [World/Entity](#worldentity)
 
 ---
 
@@ -644,6 +647,7 @@ end
 ### Консоль
 ```lua
 BlazeBolt.Print(...)           -- вывод в консоль (поддерживает любые типы)
+BlazeBolt.AddConsoleMessage(msg, type)  -- добавить сообщение в консоль (type: 0=info, 1=warning, 2=error)
 ```
 
 ### Время
@@ -681,11 +685,77 @@ end
 
 ---
 
+## Шейдеры
+
+### Создание шейдера
+```lua
+shaderId = BlazeBolt.CreateShader(name, vertexPath, fragmentPath)
+```
+| Параметр | Тип | Описание |
+|---|---|---|
+| name | string | Имя шейдера для идентификации |
+| vertexPath | string | Путь к вершинному шейдеру (.vert) |
+| fragmentPath | string | Путь к фрагментному шейдеру (.frag) |
+
+**Возвращает:** `shaderId` (integer) — идентификатор шейдера
+
+### Удаление шейдера
+```lua
+BlazeBolt.DestroyShader(shaderId)
+```
+
+### Привязка шейдера к объекту
+```lua
+BlazeBolt.SetEntityShader(entity, shaderId)
+shaderId = BlazeBolt.GetEntityShader(entity)
+```
+`shaderId = 0` — использовать стандартный шейдер.
+
+### Использование шейдера
+```lua
+BlazeBolt.UseShader(shaderId)
+```
+Активирует шейдер для последующей отрисовки.
+
+### Установка uniform-переменных
+```lua
+BlazeBolt.SetShaderFloat(shaderId, name, value)
+BlazeBolt.SetShaderInt(shaderId, name, value)
+BlazeBolt.SetShaderVec2(shaderId, name, x, y)
+BlazeBolt.SetShaderVec3(shaderId, name, x, y, z)
+BlazeBolt.SetShaderVec4(shaderId, name, x, y, z, w)
+```
+Позволяет передать параметры в шейдер.
+
+### Пример
+```lua
+function Start()
+    -- Создание шейдера
+    local shader = BlazeBolt.CreateShader("invert", "shaders/invert.vert", "shaders/invert.frag")
+    
+    -- Создание спрайта
+    local sprite = BlazeBolt.CreateSprite("icon.png", 0, 0)
+    BlazeBolt.SpriteSetSize(sprite, 0.5, 0.5)
+    
+    -- Привязка шейдера к спрайту
+    BlazeBolt.SetEntityShader(sprite, shader)
+end
+
+function Update(dt)
+    -- Можно менять uniform-переменные каждый кадр
+    BlazeBolt.UseShader(shader)
+    BlazeBolt.SetShaderFloat(shader, "time", GetTime())
+end
+```
+
+---
+
 ## Скрипты и сцены
 
 ### Загрузка скриптов
 ```lua
 result = BlazeBolt.LoadScript(path)              -- загрузить Lua-скрипт
+result = BlazeBolt.LoadScriptsFromList(path)     -- загрузить список скриптов из файла
 result = BlazeBolt.ReloadScript(path)            -- перезагрузить скрипт
 result = BlazeBolt.ReloadAllScripts()            -- перезагрузить все скрипты
 BlazeBolt.EnableScript(name, enabled)            -- включить/выключить скрипт
@@ -1057,6 +1127,21 @@ player=engine/scripts/player.lua
 | `BlazeBolt.RandomInt` | `min, max` | `int` |
 | `BlazeBolt.SetRandomSeed` | `seed` | — |
 | `BlazeBolt.Quit` | — | — |
+| `BlazeBolt.AddConsoleMessage` | `msg, type` | — |
+
+### Шейдеры
+| Функция | Параметры | Возврат |
+|---|---|---|
+| `BlazeBolt.CreateShader` | `name, vertexPath, fragmentPath` | `shaderId` |
+| `BlazeBolt.DestroyShader` | `shaderId` | — |
+| `BlazeBolt.SetEntityShader` | `entity, shaderId` | — |
+| `BlazeBolt.GetEntityShader` | `entity` | `shaderId` |
+| `BlazeBolt.UseShader` | `shaderId` | — |
+| `BlazeBolt.SetShaderFloat` | `shaderId, name, value` | — |
+| `BlazeBolt.SetShaderInt` | `shaderId, name, value` | — |
+| `BlazeBolt.SetShaderVec2` | `shaderId, name, x, y` | — |
+| `BlazeBolt.SetShaderVec3` | `shaderId, name, x, y, z` | — |
+| `BlazeBolt.SetShaderVec4` | `shaderId, name, x, y, z, w` | — |
 
 ### Скрипты и сцены
 | Функция | Параметры | Возврат |
@@ -1069,6 +1154,159 @@ player=engine/scripts/player.lua
 | `BlazeBolt.GetLoadedScripts` | — | `table` |
 | `BlazeBolt.LoadScene` | `sceneName` | `bool` |
 | `BlazeBolt.GetCurrentScene` | — | `name` |
+
+---
+
+## Scene-система
+
+Scene-система предоставляет компонентный подход к созданию игровых объектов с иерархией parent-child.
+
+### Типы объектов
+```lua
+SceneObjectType.GameObject      -- Базовый объект
+SceneObjectType.Transform      -- Трансформация (позиция, вращение, масштаб)
+SceneObjectType.SpriteRenderer -- Спрайт-рендерер
+SceneObjectType.Camera        -- Камера
+SceneObjectType.AudioSource   -- Источник звука
+SceneObjectType.Text         -- Текст
+SceneObjectType.RigidBody    -- Физическое тело
+SceneObjectType.BoxCollider  -- Коллайдер
+SceneObjectType.Light       -- Источник света
+```
+
+### Работа со сценой
+```lua
+scene = BlazeBolt.SceneLoad(path)       -- Загрузить сцену из файла
+BlazeBolt.SceneSave(scene, path)           -- Сохранить сцену в файл
+BlazeBolt.SceneSetName(scene, name)         -- Установить имя сцены
+name = BlazeBolt.SceneGetName(scene)    -- Получить имя сцены
+```
+
+### Управление объектами
+```lua
+-- Создание объекта
+objId = BlazeBolt.SceneCreateObject(scene, name, objectType)
+
+-- Удаление объекта
+BlazeBolt.SceneDestroyObject(scene, objId)
+
+-- Получение объекта
+obj = BlazeBolt.SceneGetObject(scene, objId)
+
+-- Получить все объекты
+objects = BlazeBolt.SceneGetAllObjects(scene)
+
+-- Получить корневые объекты
+rootObjects = BlazeBolt.SceneGetRootObjects(scene)
+```
+
+### Свойства объекта
+```lua
+-- Позиция
+BlazeBolt.ObjectSetPosition(objId, x, y, z)
+x, y, z = BlazeBolt.ObjectGetPosition(objId)
+
+-- Вращение
+BlazeBolt.ObjectSetRotation(objId, x, y, z)
+x, y, z = BlazeBolt.ObjectGetRotation(objId)
+
+-- Масштаб
+BlazeBolt.ObjectSetScale(objId, x, y, z)
+x, y, z = BlazeBolt.ObjectGetScale(objId)
+
+-- Имя
+BlazeBolt.ObjectSetName(objId, name)
+name = BlazeBolt.ObjectGetName(objId)
+
+-- Активность
+BlazeBolt.ObjectSetActive(objId, active)
+active = BlazeBolt.ObjectIsActive(objId)
+
+-- Родитель
+BlazeBolt.ObjectSetParent(objId, parentId)
+parentId = BlazeBolt.ObjectGetParent(objId)
+```
+
+### Пример работы со сценой
+```lua
+function Start()
+    -- Создание сцены
+    local scene = BlazeBolt.SceneNew()
+    BlazeBolt.SceneSetName(scene, "MainLevel")
+    
+    -- Создание игрока
+    local player = BlazeBolt.SceneCreateObject(scene, "Player", SceneObjectType.GameObject)
+    local transform = BlazeBolt.SceneCreateObject(scene, "PlayerTransform", SceneObjectType.Transform)
+    local sprite = BlazeBolt.SceneCreateObject(scene, "PlayerSprite", SceneObjectType.SpriteRenderer)
+    local rigidBody = BlazeBolt.SceneCreateObject(scene, "PlayerBody", SceneObjectType.RigidBody)
+    
+    -- Настройка иерархии
+    BlazeBolt.ObjectSetParent(transform, player)
+    BlazeBolt.ObjectSetParent(sprite, player)
+    BlazeBolt.ObjectSetParent(rigidBody, player)
+    
+    -- Позиция
+    BlazeBolt.ObjectSetPosition(player, 0, 0, 0)
+end
+```
+
+### Формат файла сцены
+Сцены сохраняются в бинарном формате `.blaze`:
+- MAGIC: `0x424C415A` ("BLAZ")
+- VERSION: `1`
+- Имя сцены (строка)
+- Количество объектов
+- Для каждого объекта: id, тип, имя, parentId, позиция(3), вращение(3), масштаб(3), активность
+
+---
+
+## World/Entity
+
+Система World предоставляет пул объектов с автоматическим управлением памятью.
+
+### Особенности
+- Автоматическое выделение/освобождение памяти
+- Переиспользование ID удалённых сущностей
+- Типобезопасность через шаблоны
+
+### Использование
+```lua
+-- Создание сущности
+entity = world:spawn(MyComponent)
+
+-- Удаление сущности
+world:destroy(entity)
+
+-- Получение компонента
+component = world:getEntity(entity)
+
+-- Проверка существования
+if world:exists(entity) then ... end
+```
+
+### Пример
+```lua
+-- Определение компонента
+local Player = {
+    name = "Player",
+    health = 100,
+    speed = 5.0
+}
+
+-- Создание мира
+local world = World.new()
+
+-- Спавн игрока
+local playerEntity = world:spawn(Player)
+
+-- Обновление
+function Update(dt)
+    local player = world:getEntity(playerEntity)
+    if player then
+        player.position.x = player.position.x + player.speed * dt
+    end
+end
+```
 
 ---
 
