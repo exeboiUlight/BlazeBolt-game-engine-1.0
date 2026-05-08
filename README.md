@@ -5,9 +5,12 @@
 ## Особенности
 
 - **Lua API** — простое создание игр на Lua 5.4
+- **Встроенный GUI** — панели, кнопки, метки, слайдеры, чекбоксы с поддержкой hover/pressed
 - **Быстрая графика** — OpenGL 3.3 + stb_image для текстур
-- **Физика** — встроенный 2D физический движок
-- **Встроенный редактор** — Hub на Python/PyQt6 для управления проектами
+- **Физика** — встроенный 2D физический движок (Box2D-подобный)
+- **Анимации** — поддержка GIF и спрайт-листов
+- **Аудио** — воспроизведение звуков и музыки через OpenAL
+- **Шейдеры** — кастомные GLSL шейдеры для объектов
 - **Кэширование текстур** — автоматическое переиспользование текстур по пути
 - **Система сцен** — загрузка/выгрузка сцен с коллбэками `On<Scene>Load/Unload`
 
@@ -123,11 +126,11 @@ python main.py
 Пример минимального скрипта (`scripts/player.lua`):
 
 ```lua
-function _ready()
+function Start()
     print("Игрок готов!")
 end
 
-function _process(dt)
+function Update(dt)
     -- Вызывается каждый кадр
     local speed = 0.5
     if BlazeBolt.IsKeyPressed(Keys.W) then
@@ -143,6 +146,8 @@ end
 ## Lua API
 
 Полная документация доступна в [DOCUMENTATION.md](DOCUMENTATION.md).
+
+> **Статус реализации:** Разделы `Scene-система` и `World/Entity` в документации описывают API, который **не реализован** в текущей версии (C++ код существует, но Lua-биндинги отсутствуют).
 
 ### Основные функции
 
@@ -163,6 +168,12 @@ end
 
 -- Создание текста
 local fps = BlazeBolt.CreateText("fonts/arial.ttf", "FPS: 60", -0.8, 0.8, 24)
+
+-- GUI: кнопка (координаты в пикселях)
+local btn = BlazeBolt.GuiButton("start", 300, 200, 160, 50, "Start")
+BlazeBolt.GuiSetOnClick(btn, function()
+    print("Clicked!")
+end)
 ```
 
 ### Система координат
@@ -219,6 +230,70 @@ Hub поддерживает две темы:
 1. Выгружает текущую сцену (вызывает `On<OldScene>Unload`)
 2. Загружает новую сцену (вызывает `On<NewScene>Load`)
 3. Создает объекты и привязывает скрипты
+
+## Скрипты и сцены
+
+### Scripts list
+
+Все скрипты игры указываются в файле `.BlazeBoltProject`:
+
+```
+# Обычные скрипты: имя=путь
+main=engine/scripts/main.lua
+player=engine/scripts/player.lua
+
+# Сцены (с префиксом @):
+@menu=engine/scenes/menu.lua
+@game=engine/scenes/game.lua
+```
+
+### Параллельное выполнение
+
+Все скрипты из списка загружаются и работают одновременно (параллельно):
+- Каждый скрипт может определять функции `Start()`, `Update(dt)`, `Draw()`, `End()`
+- Функции `Update(dt)` всех скриптов вызываются каждый кадр
+- Функции `Draw()` всех скриптов вызываются каждый кадр
+
+### Формат модуля
+
+Рекомендуется использовать формат модуля для избежания конфликтов:
+
+```lua
+-- player.lua
+local player = {}
+
+function player:Start()
+    print("Player initialized")
+end
+
+function player:Update(dt)
+    -- обновление игрока
+end
+
+function player:Draw()
+    -- отрисовка игрока
+end
+
+function player:End()
+    -- код завершения
+end
+
+return player
+```
+
+### Сцены
+
+Сцены регистрируются с префиксом `@`. При вызове `BlazeBolt.LoadScene(sceneName)`:
+1. Выгружается текущая сцена (`On<Scene>Unload`)
+2. Загружается новая сцена (`On<Scene>Load`)
+3. Сцена добавляется в список активных скриптов
+
+### Callbacks сцен
+
+```lua
+function OnMenuLoad()    -- при загрузке сцены "Menu"
+function OnMenuUnload()  -- при выгрузке сцены "Menu"
+```
 
 ## Полезные советы
 

@@ -2,3 +2,6 @@
 bin/
 build/
 engine/
+blazebolt_projects.json
+blazebolt_settings.json
+void.zip

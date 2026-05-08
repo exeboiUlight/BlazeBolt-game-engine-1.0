@@ -493,6 +493,7 @@
         <a href="#audio">Звук</a>
         <a href="#physics">Физика</a>
         <a href="#objects">Управление объектами</a>
+        <a href="#gui">GUI</a>
     </div>
     <div class="nav-group">
         <div class="nav-group-title">Дополнительно</div>
@@ -1107,6 +1108,205 @@ BlazeBolt.<span class="lua-fn">DestroyAll</span><span class="lua-punct">()</span
         </div>
     </div>
 
+    <!-- GUI -->
+    <div class="section" id="gui">
+        <div class="section-inner">
+            <h2><span class="icon icon-cyan">&#x25C6;</span>GUI</h2>
+            <p class="desc">Графический интерфейс пользователя — панели, кнопки, метки, слайдеры, чекбоксы</p>
+
+            <div class="note"><strong>Система координат:</strong> GUI использует <strong>экранные пиксели</strong> (не NDC). Начало координат (0, 0) — левый верхний угол экрана. Ось Y направлена вниз.</div>
+
+            <h3>Шрифт</h3>
+            <div class="code-block">
+                <div class="code-block-header"><div class="dots"><span class="dot dot-red"></span><span class="dot dot-yellow"></span><span class="dot dot-green"></span></div><span>lua</span></div>
+                <pre><code>BlazeBolt.<span class="lua-fn">GuiSetFont</span><span class="lua-punct">(</span><span class="lua-param">fontPath</span><span class="lua-punct">,</span> <span class="lua-param">fontSize</span><span class="lua-punct">)</span></code></pre>
+            </div>
+            <div class="table-wrap">
+                <table>
+                    <tr><th>Параметр</th><th>Тип</th><th>Описание</th></tr>
+                    <tr><td><code>fontPath</code></td><td>string</td><td>Путь к TTF-шрифту</td></tr>
+                    <tr><td><code>fontSize</code></td><td>int</td><td>Размер шрифта (по умолч. 24)</td></tr>
+                </table>
+            </div>
+            <p>Устанавливает глобальный шрифт для всех GUI-виджетов. Вызывается один раз при создании GUI.</p>
+
+            <h3>Панель</h3>
+            <div class="code-block">
+                <div class="code-block-header"><div class="dots"><span class="dot dot-red"></span><span class="dot dot-yellow"></span><span class="dot dot-green"></span></div><span>lua</span></div>
+                <pre><code><span class="lua-param">entity</span> <span class="lua-op">=</span> BlazeBolt.<span class="lua-fn">GuiPanel</span><span class="lua-punct">(</span><span class="lua-param">id</span><span class="lua-punct">,</span> <span class="lua-param">x</span><span class="lua-punct">,</span> <span class="lua-param">y</span><span class="lua-punct">,</span> <span class="lua-param">width</span><span class="lua-punct">,</span> <span class="lua-param">height</span><span class="lua-punct">)</span></code></pre>
+            </div>
+            <div class="table-wrap">
+                <table>
+                    <tr><th>Параметр</th><th>Тип</th><th>Описание</th></tr>
+                    <tr><td><code>id</code></td><td>string</td><td>Уникальный строковый идентификатор</td></tr>
+                    <tr><td><code>x, y</code></td><td>number</td><td>Позиция в пикселях (левый верхний угол)</td></tr>
+                    <tr><td><code>width, height</code></td><td>number</td><td>Размер в пикселях. Если 0 — растягивается на весь экран</td></tr>
+                </table>
+            </div>
+            <p>Прямоугольная панель с прозрачным тёмным фоном. Поддерживает границу (см. <code class="inline">GuiSetBorder</code>).</p>
+
+            <h3>Кнопка</h3>
+            <div class="code-block">
+                <div class="code-block-header"><div class="dots"><span class="dot dot-red"></span><span class="dot dot-yellow"></span><span class="dot dot-green"></span></div><span>lua</span></div>
+                <pre><code><span class="lua-param">entity</span> <span class="lua-op">=</span> BlazeBolt.<span class="lua-fn">GuiButton</span><span class="lua-punct">(</span><span class="lua-param">id</span><span class="lua-punct">,</span> <span class="lua-param">x</span><span class="lua-punct">,</span> <span class="lua-param">y</span><span class="lua-punct">,</span> <span class="lua-param">width</span><span class="lua-punct">,</span> <span class="lua-param">height</span><span class="lua-punct">,</span> <span class="lua-param">text</span><span class="lua-punct">)</span></code></pre>
+            </div>
+            <div class="table-wrap">
+                <table>
+                    <tr><th>Параметр</th><th>Тип</th><th>Описание</th></tr>
+                    <tr><td><code>id</code></td><td>string</td><td>Уникальный строковый идентификатор</td></tr>
+                    <tr><td><code>x, y</code></td><td>number</td><td>Позиция в пикселях</td></tr>
+                    <tr><td><code>width, height</code></td><td>number</td><td>Размер в пикселях</td></tr>
+                    <tr><td><code>text</code></td><td>string</td><td>Текст на кнопке</td></tr>
+                </table>
+            </div>
+            <p><strong>Состояния:</strong> Normal — синий фон (0.28, 0.48, 0.78); Hover — голубоватый (0.4, 0.6, 0.9); Pressed — тёмно-синий (0.15, 0.35, 0.65).</p>
+
+            <h3>Метка</h3>
+            <div class="code-block">
+                <div class="code-block-header"><div class="dots"><span class="dot dot-red"></span><span class="dot dot-yellow"></span><span class="dot dot-green"></span></div><span>lua</span></div>
+                <pre><code><span class="lua-param">entity</span> <span class="lua-op">=</span> BlazeBolt.<span class="lua-fn">GuiLabel</span><span class="lua-punct">(</span><span class="lua-param">id</span><span class="lua-punct">,</span> <span class="lua-param">x</span><span class="lua-punct">,</span> <span class="lua-param">y</span><span class="lua-punct">,</span> <span class="lua-param">text</span><span class="lua-punct">)</span></code></pre>
+            </div>
+            <div class="table-wrap">
+                <table>
+                    <tr><th>Параметр</th><th>Тип</th><th>Описание</th></tr>
+                    <tr><td><code>id</code></td><td>string</td><td>Уникальный строковый идентификатор</td></tr>
+                    <tr><td><code>x, y</code></td><td>number</td><td>Позиция в пикселях</td></tr>
+                    <tr><td><code>text</code></td><td>string</td><td>Текст для отображения</td></tr>
+                </table>
+            </div>
+            <p>Текстовое поле без фона. Используется для подписей и инструкций.</p>
+
+            <h3>Слайдер</h3>
+            <div class="code-block">
+                <div class="code-block-header"><div class="dots"><span class="dot dot-red"></span><span class="dot dot-yellow"></span><span class="dot dot-green"></span></div><span>lua</span></div>
+                <pre><code><span class="lua-param">entity</span> <span class="lua-op">=</span> BlazeBolt.<span class="lua-fn">GuiSlider</span><span class="lua-punct">(</span><span class="lua-param">id</span><span class="lua-punct">,</span> <span class="lua-param">x</span><span class="lua-punct">,</span> <span class="lua-param">y</span><span class="lua-punct">,</span> <span class="lua-param">width</span><span class="lua-punct">,</span> <span class="lua-param">minVal</span><span class="lua-punct">,</span> <span class="lua-param">maxVal</span><span class="lua-punct">,</span> <span class="lua-param">initialVal</span><span class="lua-punct">)</span></code></pre>
+            </div>
+            <div class="table-wrap">
+                <table>
+                    <tr><th>Параметр</th><th>Тип</th><th>Описание</th></tr>
+                    <tr><td><code>id</code></td><td>string</td><td>Уникальный строковый идентификатор</td></tr>
+                    <tr><td><code>x, y</code></td><td>number</td><td>Позиция в пикселях</td></tr>
+                    <tr><td><code>width</code></td><td>number</td><td>Ширина слайдера в пикселях</td></tr>
+                    <tr><td><code>minVal</code></td><td>number</td><td>Минимальное значение</td></tr>
+                    <tr><td><code>maxVal</code></td><td>number</td><td>Максимальное значение</td></tr>
+                    <tr><td><code>initialVal</code></td><td>number</td><td>Начальное значение (по умолч. = minVal)</td></tr>
+                </table>
+            </div>
+            <p>Состоит из трека (полоса) и ползунка (квадрат). OnChange вызывается при перетаскивании ползунка.</p>
+
+            <h3>Чекбокс</h3>
+            <div class="code-block">
+                <div class="code-block-header"><div class="dots"><span class="dot dot-red"></span><span class="dot dot-yellow"></span><span class="dot dot-green"></span></div><span>lua</span></div>
+                <pre><code><span class="lua-param">entity</span> <span class="lua-op">=</span> BlazeBolt.<span class="lua-fn">GuiCheckbox</span><span class="lua-punct">(</span><span class="lua-param">id</span><span class="lua-punct">,</span> <span class="lua-param">x</span><span class="lua-punct">,</span> <span class="lua-param">y</span><span class="lua-punct">,</span> <span class="lua-param">text</span><span class="lua-punct">,</span> <span class="lua-param">checked</span><span class="lua-punct">)</span></code></pre>
+            </div>
+            <div class="table-wrap">
+                <table>
+                    <tr><th>Параметр</th><th>Тип</th><th>Описание</th></tr>
+                    <tr><td><code>id</code></td><td>string</td><td>Уникальный строковый идентификатор</td></tr>
+                    <tr><td><code>x, y</code></td><td>number</td><td>Позиция в пикселях</td></tr>
+                    <tr><td><code>text</code></td><td>string</td><td>Текст подписи справа от квадрата</td></tr>
+                    <tr><td><code>checked</code></td><td>boolean</td><td>Начальное состояние: true / false</td></tr>
+                </table>
+            </div>
+            <p>Автоматически переключает состояние при клике и вызывает OnChange.</p>
+
+            <h3>Удаление виджетов</h3>
+            <div class="code-block">
+                <div class="code-block-header"><div class="dots"><span class="dot dot-red"></span><span class="dot dot-yellow"></span><span class="dot dot-green"></span></div><span>lua</span></div>
+                <pre><code>BlazeBolt.<span class="lua-fn">GuiRemove</span><span class="lua-punct">(</span><span class="lua-param">id</span><span class="lua-punct">)</span>              <span class="lua-comment">-- удалить по строковому ID</span>
+BlazeBolt.<span class="lua-fn">GuiRemoveByEntity</span><span class="lua-punct">(</span><span class="lua-param">entity</span><span class="lua-punct">)</span>   <span class="lua-comment">-- удалить по числовому entity</span>
+BlazeBolt.<span class="lua-fn">GuiClear</span><span class="lua-punct">()</span>                  <span class="lua-comment">-- удалить все виджеты</span></code></pre>
+            </div>
+
+            <h3>Общие свойства</h3>
+            <div class="code-block">
+                <div class="code-block-header"><div class="dots"><span class="dot dot-red"></span><span class="dot dot-yellow"></span><span class="dot dot-green"></span></div><span>lua</span></div>
+                <pre><code>BlazeBolt.<span class="lua-fn">GuiSetPosition</span><span class="lua-punct">(</span><span class="lua-param">entity</span><span class="lua-punct">,</span> <span class="lua-param">x</span><span class="lua-punct">,</span> <span class="lua-param">y</span><span class="lua-punct">)</span>       <span class="lua-comment">-- позиция в пикселях</span>
+BlazeBolt.<span class="lua-fn">GuiSetSize</span><span class="lua-punct">(</span><span class="lua-param">entity</span><span class="lua-punct">,</span> <span class="lua-param">width</span><span class="lua-punct">,</span> <span class="lua-param">height</span><span class="lua-punct">)</span>   <span class="lua-comment">-- размер в пикселях</span>
+BlazeBolt.<span class="lua-fn">GuiSetColor</span><span class="lua-punct">(</span><span class="lua-param">entity</span><span class="lua-punct">,</span> <span class="lua-param">r</span><span class="lua-punct">,</span> <span class="lua-param">g</span><span class="lua-punct">,</span> <span class="lua-param">b</span><span class="lua-punct">,</span> <span class="lua-param">a</span><span class="lua-punct">)</span>     <span class="lua-comment">-- цвет фона (0–1)</span>
+BlazeBolt.<span class="lua-fn">GuiSetText</span><span class="lua-punct">(</span><span class="lua-param">entity</span><span class="lua-punct">,</span> <span class="lua-param">text</span><span class="lua-punct">)</span>            <span class="lua-comment">-- текст (кнопка, метка, чекбокс)</span>
+BlazeBolt.<span class="lua-fn">GuiSetVisible</span><span class="lua-punct">(</span><span class="lua-param">entity</span><span class="lua-punct">,</span> <span class="lua-param">visible</span><span class="lua-punct">)</span>      <span class="lua-comment">-- показать/скрыть (boolean)</span>
+BlazeBolt.<span class="lua-fn">GuiSetEnabled</span><span class="lua-punct">(</span><span class="lua-param">entity</span><span class="lua-punct">,</span> <span class="lua-param">enabled</span><span class="lua-punct">)</span>      <span class="lua-comment">-- вкл/выкл взаимодействие (boolean)</span>
+BlazeBolt.<span class="lua-fn">GuiSetZOrder</span><span class="lua-punct">(</span><span class="lua-param">entity</span><span class="lua-punct">,</span> <span class="lua-param">z</span><span class="lua-punct">)</span>             <span class="lua-comment">-- порядок отрисовки (ниже = раньше)</span></code></pre>
+            </div>
+
+            <h3>Граница панели</h3>
+            <div class="code-block">
+                <div class="code-block-header"><div class="dots"><span class="dot dot-red"></span><span class="dot dot-yellow"></span><span class="dot dot-green"></span></div><span>lua</span></div>
+                <pre><code>BlazeBolt.<span class="lua-fn">GuiSetBorder</span><span class="lua-punct">(</span><span class="lua-param">entity</span><span class="lua-punct">,</span> <span class="lua-param">r</span><span class="lua-punct">,</span> <span class="lua-param">g</span><span class="lua-punct">,</span> <span class="lua-param">b</span><span class="lua-punct">,</span> <span class="lua-param">a</span><span class="lua-punct">,</span> <span class="lua-param">borderWidth</span><span class="lua-punct">)</span></code></pre>
+            </div>
+            <p>Только для панелей. r, g, b, a — цвет границы (0–1), borderWidth — толщина в пикселях.</p>
+
+            <h3>Значения</h3>
+            <div class="code-block">
+                <div class="code-block-header"><div class="dots"><span class="dot dot-red"></span><span class="dot dot-yellow"></span><span class="dot dot-green"></span></div><span>lua</span></div>
+                <pre><code>BlazeBolt.<span class="lua-fn">GuiSetValue</span><span class="lua-punct">(</span><span class="lua-param">entity</span><span class="lua-punct">,</span> <span class="lua-param">value</span><span class="lua-punct">)</span>          <span class="lua-comment">-- установить значение</span>
+<span class="lua-param">val</span> <span class="lua-op">=</span> BlazeBolt.<span class="lua-fn">GuiGetValue</span><span class="lua-punct">(</span><span class="lua-param">entity</span><span class="lua-punct">)</span>           <span class="lua-comment">-- число для слайдера, boolean для чекбокса</span></code></pre>
+            </div>
+
+            <h3>Callbacks</h3>
+            <div class="code-block">
+                <div class="code-block-header"><div class="dots"><span class="dot dot-red"></span><span class="dot dot-yellow"></span><span class="dot dot-green"></span></div><span>lua</span></div>
+                <pre><code>BlazeBolt.<span class="lua-fn">GuiSetOnClick</span><span class="lua-punct">(</span><span class="lua-param">entity</span><span class="lua-punct">,</span> <span class="lua-keyword">function</span><span class="lua-punct">)</span>     <span class="lua-comment">-- вызывается при клике</span>
+BlazeBolt.<span class="lua-fn">GuiSetOnChange</span><span class="lua-punct">(</span><span class="lua-param">entity</span><span class="lua-punct">,</span> <span class="lua-keyword">function</span><span class="lua-punct">)</span>    <span class="lua-comment">-- вызывается при изменении значения</span></code></pre>
+            </div>
+            <p>OnClick срабатывает при отпускании кнопки мыши над виджетом. OnChange срабатывает при изменении значения слайдера или переключении чекбокса.</p>
+
+            <h3>Полный пример</h3>
+            <div class="code-block">
+                <div class="code-block-header"><div class="dots"><span class="dot dot-red"></span><span class="dot dot-yellow"></span><span class="dot dot-green"></span></div><span>lua</span></div>
+                <pre><code><span class="lua-keyword">function</span> <span class="lua-fn">Start</span><span class="lua-punct">()</span>
+    BlazeBolt.<span class="lua-fn">GuiSetFont</span><span class="lua-punct">(</span><span class="lua-str">"fonts/arial.ttf"</span><span class="lua-punct">,</span> <span class="lua-num">24</span><span class="lua-punct">)</span>
+
+    <span class="lua-comment">-- Панель на весь экран</span>
+    <span class="lua-keyword">local</span> panel <span class="lua-op">=</span> BlazeBolt.<span class="lua-fn">GuiPanel</span><span class="lua-punct">(</span><span class="lua-str">"bg"</span><span class="lua-punct">,</span> <span class="lua-num">0</span><span class="lua-punct">,</span> <span class="lua-num">0</span><span class="lua-punct">,</span> <span class="lua-num">0</span><span class="lua-punct">,</span> <span class="lua-num">0</span><span class="lua-punct">)</span>
+    BlazeBolt.<span class="lua-fn">GuiSetColor</span><span class="lua-punct">(</span>panel<span class="lua-punct">,</span> <span class="lua-num">0.05</span><span class="lua-punct">,</span> <span class="lua-num">0.05</span><span class="lua-punct">,</span> <span class="lua-num">0.1</span><span class="lua-punct">,</span> <span class="lua-num">0.85</span><span class="lua-punct">)</span>
+
+    <span class="lua-comment">-- Кнопка</span>
+    <span class="lua-keyword">local</span> btn <span class="lua-op">=</span> BlazeBolt.<span class="lua-fn">GuiButton</span><span class="lua-punct">(</span><span class="lua-str">"btn_start"</span><span class="lua-punct">,</span> <span class="lua-num">300</span><span class="lua-punct">,</span> <span class="lua-num">200</span><span class="lua-punct">,</span> <span class="lua-num">160</span><span class="lua-punct">,</span> <span class="lua-num">50</span><span class="lua-punct">,</span> <span class="lua-str">"Start Game"</span><span class="lua-punct">)</span>
+    BlazeBolt.<span class="lua-fn">GuiSetOnClick</span><span class="lua-punct">(</span>btn<span class="lua-punct">,</span> <span class="lua-keyword">function</span><span class="lua-punct">()</span>
+        BlazeBolt.<span class="lua-fn">Print</span><span class="lua-punct">(</span><span class="lua-str">"Button clicked!"</span><span class="lua-punct">)</span>
+        BlazeBolt.<span class="lua-fn">LoadScene</span><span class="lua-punct">(</span><span class="lua-str">"game"</span><span class="lua-punct">)</span>
+    <span class="lua-keyword">end</span><span class="lua-punct">)</span>
+
+    <span class="lua-comment">-- Метка</span>
+    <span class="lua-keyword">local</span> lbl <span class="lua-op">=</span> BlazeBolt.<span class="lua-fn">GuiLabel</span><span class="lua-punct">(</span><span class="lua-str">"title"</span><span class="lua-punct">,</span> <span class="lua-num">300</span><span class="lua-punct">,</span> <span class="lua-num">100</span><span class="lua-punct">,</span> <span class="lua-str">"BlazeBolt Game"</span><span class="lua-punct">)</span>
+
+    <span class="lua-comment">-- Слайдер громкости</span>
+    <span class="lua-keyword">local</span> slider <span class="lua-op">=</span> BlazeBolt.<span class="lua-fn">GuiSlider</span><span class="lua-punct">(</span><span class="lua-str">"volume"</span><span class="lua-punct">,</span> <span class="lua-num">300</span><span class="lua-punct">,</span> <span class="lua-num">300</span><span class="lua-punct">,</span> <span class="lua-num">300</span><span class="lua-punct">,</span> <span class="lua-num">0</span><span class="lua-punct">,</span> <span class="lua-num">100</span><span class="lua-punct">,</span> <span class="lua-num">50</span><span class="lua-punct">)</span>
+    BlazeBolt.<span class="lua-fn">GuiSetOnChange</span><span class="lua-punct">(</span>slider<span class="lua-punct">,</span> <span class="lua-keyword">function</span><span class="lua-punct">()</span>
+        <span class="lua-keyword">local</span> val <span class="lua-op">=</span> BlazeBolt.<span class="lua-fn">GuiGetValue</span><span class="lua-punct">(</span>slider<span class="lua-punct">)</span>
+        BlazeBolt.<span class="lua-fn">SetSoundVolume</span><span class="lua-punct">(</span><span class="lua-str">"bgm"</span><span class="lua-punct">,</span> val <span class="lua-op">/</span> <span class="lua-num">100</span><span class="lua-punct">)</span>
+    <span class="lua-keyword">end</span><span class="lua-punct">)</span>
+
+    <span class="lua-comment">-- Чекбокс</span>
+    <span class="lua-keyword">local</span> cb <span class="lua-op">=</span> BlazeBolt.<span class="lua-fn">GuiCheckbox</span><span class="lua-punct">(</span><span class="lua-str">"fs"</span><span class="lua-punct">,</span> <span class="lua-num">300</span><span class="lua-punct">,</span> <span class="lua-num">350</span><span class="lua-punct">,</span> <span class="lua-str">"Fullscreen"</span><span class="lua-punct">,</span> <span class="lua-bool">false</span><span class="lua-punct">)</span>
+    BlazeBolt.<span class="lua-fn">GuiSetOnChange</span><span class="lua-punct">(</span>cb<span class="lua-punct">,</span> <span class="lua-keyword">function</span><span class="lua-punct">()</span>
+        <span class="lua-keyword">if</span> BlazeBolt.<span class="lua-fn">GuiGetValue</span><span class="lua-punct">(</span>cb<span class="lua-punct">)</span> <span class="lua-keyword">then</span>
+            BlazeBolt.<span class="lua-fn">SetMainWindowSize</span><span class="lua-punct">(</span><span class="lua-num">1920</span><span class="lua-punct">,</span> <span class="lua-num">1080</span><span class="lua-punct">)</span>
+        <span class="lua-keyword">end</span>
+    <span class="lua-keyword">end</span><span class="lua-punct">)</span>
+<span class="lua-keyword">end</span></code></pre>
+            </div>
+
+            <h3>Конвертация NDC в пиксели</h3>
+            <div class="code-block">
+                <div class="code-block-header"><div class="dots"><span class="dot dot-red"></span><span class="dot dot-yellow"></span><span class="dot dot-green"></span></div><span>lua</span></div>
+                <pre><code><span class="lua-keyword">function</span> <span class="lua-fn">ndcToPixels</span><span class="lua-punct">(</span><span class="lua-param">ndcX</span><span class="lua-punct">,</span> <span class="lua-param">ndcY</span><span class="lua-punct">)</span>
+    <span class="lua-keyword">local</span> px <span class="lua-op">=</span> <span class="lua-punct">(</span>ndcX <span class="lua-op">+</span> <span class="lua-num">1</span><span class="lua-punct">)</span> <span class="lua-op">*</span> <span class="lua-num">0.5</span> <span class="lua-op">*</span> <span class="lua-fn">GetScreenWidth</span><span class="lua-punct">()</span>
+    <span class="lua-keyword">local</span> py <span class="lua-op">=</span> <span class="lua-punct">(</span><span class="lua-num">1</span> <span class="lua-op">-</span> ndcY<span class="lua-punct">)</span> <span class="lua-op">*</span> <span class="lua-num">0.5</span> <span class="lua-op">*</span> <span class="lua-fn">GetScreenHeight</span><span class="lua-punct">()</span>
+    <span class="lua-keyword">return</span> px<span class="lua-punct">,</span> py
+<span class="lua-keyword">end</span>
+
+<span class="lua-comment">-- Пример: кнопка в центре экрана</span>
+<span class="lua-keyword">function</span> <span class="lua-fn">Start</span><span class="lua-punct">()</span>
+    <span class="lua-keyword">local</span> cx<span class="lua-punct">,</span> cy <span class="lua-op">=</span> <span class="lua-fn">ndcToPixels</span><span class="lua-punct">(</span><span class="lua-num">0</span><span class="lua-punct">,</span> <span class="lua-num">0</span><span class="lua-punct">)</span>
+    <span class="lua-keyword">local</span> btn <span class="lua-op">=</span> BlazeBolt.<span class="lua-fn">GuiButton</span><span class="lua-punct">(</span><span class="lua-str">"center_btn"</span><span class="lua-punct">,</span> cx <span class="lua-op">-</span> <span class="lua-num">80</span><span class="lua-punct">,</span> cy <span class="lua-op">-</span> <span class="lua-num">25</span><span class="lua-punct">,</span> <span class="lua-num">160</span><span class="lua-punct">,</span> <span class="lua-num">50</span><span class="lua-punct">,</span> <span class="lua-str">"Center"</span><span class="lua-punct">)</span>
+<span class="lua-keyword">end</span></code></pre>
+            </div>
+        </div>
+    </div>
+
     <!-- PHYSICS -->
     <div class="section" id="physics">
         <div class="section-inner">
@@ -1291,6 +1491,45 @@ player<span class="lua-op">=</span>engine/scripts/player.lua
 <span class="lua-comment"># Сцены (с префиксом @):</span>
 <span class="lua-op">@</span>menu<span class="lua-op">=</span>engine/scenes/menu.lua
 <span class="lua-op">@</span>game<span class="lua-op">=</span>engine/scenes/game.lua</code></pre>
+            </div>
+
+            <h3>Параллельное выполнение</h3>
+            <p class="desc">Все скрипты из списка работают одновременно (параллельно)</p>
+            <div class="code-block">
+                <div class="code-block-header"><div class="dots"><span class="dot dot-red"></span><span class="dot dot-yellow"></span><span class="dot dot-green"></span></div><span>lua</span></div>
+                <pre><code><span class="lua-comment">-- Каждый скрипт может определять:</span>
+<span class="lua-keyword">function</span> <span class="lua-fn">Start</span><span class="lua-punct">()</span>      <span class="lua-comment">-- один раз при запуске</span>
+<span class="lua-keyword">function</span> <span class="lua-fn">Update</span><span class="lua-punct">(</span>dt<span class="lua-punct">)</span>   <span class="lua-comment">-- каждый кадр</span>
+<span class="lua-keyword">function</span> <span class="lua-fn">Draw</span><span class="lua-punct">()</span>       <span class="lua-comment">-- отрисовка каждый кадр</span>
+<span class="lua-keyword">function</span> <span class="lua-fn">End</span><span class="lua-punct">()</span>        <span class="lua-comment">-- при завершении</span></code></pre>
+            </div>
+
+            <h3>Формат модуля</h3>
+            <div class="code-block">
+                <div class="code-block-header"><div class="dots"><span class="dot dot-red"></span><span class="dot dot-yellow"></span><span class="dot dot-green"></span></div><span>lua</span></div>
+                <pre><code><span class="lua-comment">-- player.lua</span>
+<span class="lua-keyword">local</span> player <span class="lua-op">=</span> <span class="lua-punct">{}</span>
+
+<span class="lua-keyword">function</span> player:<span class="lua-fn">Start</span><span class="lua-punct">()</span>
+    print<span class="lua-punct">(</span><span class="lua-str">"Player initialized"</span><span class="lua-punct">)</span>
+<span class="lua-keyword">end</span>
+
+<span class="lua-keyword">function</span> player:<span class="lua-fn">Update</span><span class="lua-punct">(</span>dt<span class="lua-punct">)</span>
+    <span class="lua-comment">-- обновление игрока</span>
+<span class="lua-keyword">end</span>
+
+<span class="lua-keyword">function</span> player:<span class="lua-fn">Draw</span><span class="lua-punct">()</span>
+    <span class="lua-comment">-- отрисовка игрока</span>
+<span class="lua-keyword">end</span>
+
+<span class="lua-keyword">return</span> player</code></pre>
+            </div>
+
+            <h3>Callbacks сцен</h3>
+            <div class="code-block">
+                <div class="code-block-header"><div class="dots"><span class="dot dot-red"></span><span class="dot dot-yellow"></span><span class="dot dot-green"></span></div><span>lua</span></div>
+                <pre><code><span class="lua-keyword">function</span> <span class="lua-fn">OnMenuLoad</span><span class="lua-punct">()</span>    <span class="lua-comment">-- при загрузке сцены "Menu"</span>
+<span class="lua-keyword">function</span> <span class="lua-fn">OnMenuUnload</span><span class="lua-punct">()</span>  <span class="lua-comment">-- при выгрузке сцены "Menu"</span></code></pre>
             </div>
         </div>
     </div>
@@ -1569,6 +1808,33 @@ player<span class="lua-op">=</span>engine/scripts/player.lua
                         <tr><td class="fn-name">IsMouseButtonPressed</td><td><code>btn</code></td><td><code>bool</code></td></tr>
                         <tr><td class="fn-name">IsMouseButtonJustPressed</td><td><code>btn</code></td><td><code>bool</code></td></tr>
                         <tr><td class="fn-name">GetScrollY</td><td>—</td><td><code>scroll</code></td></tr>
+                    </table>
+                </div>
+
+                <div class="ref-card">
+                    <h4 style="color: var(--cyan);">GUI</h4>
+                    <table>
+                        <tr><td class="fn-name">GuiSetFont</td><td><code>path, fontSize</code></td><td>—</td></tr>
+                        <tr><td class="fn-name">GuiPanel</td><td><code>id, x, y, w, h</code></td><td><code>entity</code></td></tr>
+                        <tr><td class="fn-name">GuiButton</td><td><code>id, x, y, w, h, text</code></td><td><code>entity</code></td></tr>
+                        <tr><td class="fn-name">GuiLabel</td><td><code>id, x, y, text</code></td><td><code>entity</code></td></tr>
+                        <tr><td class="fn-name">GuiSlider</td><td><code>id, x, y, w, min, max, val</code></td><td><code>entity</code></td></tr>
+                        <tr><td class="fn-name">GuiCheckbox</td><td><code>id, x, y, text, checked</code></td><td><code>entity</code></td></tr>
+                        <tr><td class="fn-name">GuiRemove</td><td><code>id</code></td><td>—</td></tr>
+                        <tr><td class="fn-name">GuiRemoveByEntity</td><td><code>entity</code></td><td>—</td></tr>
+                        <tr><td class="fn-name">GuiClear</td><td>—</td><td>—</td></tr>
+                        <tr><td class="fn-name">GuiSetPosition</td><td><code>entity, x, y</code></td><td>—</td></tr>
+                        <tr><td class="fn-name">GuiSetSize</td><td><code>entity, w, h</code></td><td>—</td></tr>
+                        <tr><td class="fn-name">GuiSetColor</td><td><code>entity, r, g, b, a</code></td><td>—</td></tr>
+                        <tr><td class="fn-name">GuiSetText</td><td><code>entity, text</code></td><td>—</td></tr>
+                        <tr><td class="fn-name">GuiSetVisible</td><td><code>entity, bool</code></td><td>—</td></tr>
+                        <tr><td class="fn-name">GuiSetEnabled</td><td><code>entity, bool</code></td><td>—</td></tr>
+                        <tr><td class="fn-name">GuiSetValue</td><td><code>entity, value</code></td><td>—</td></tr>
+                        <tr><td class="fn-name">GuiGetValue</td><td><code>entity</code></td><td><code>value</code></td></tr>
+                        <tr><td class="fn-name">GuiSetOnClick</td><td><code>entity, func</code></td><td>—</td></tr>
+                        <tr><td class="fn-name">GuiSetOnChange</td><td><code>entity, func</code></td><td>—</td></tr>
+                        <tr><td class="fn-name">GuiSetZOrder</td><td><code>entity, z</code></td><td>—</td></tr>
+                        <tr><td class="fn-name">GuiSetBorder</td><td><code>entity, r, g, b, a, w</code></td><td>—</td></tr>
                     </table>
                 </div>
 

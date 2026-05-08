@@ -24,6 +24,7 @@
 #include <filesystem>
 #include <memory>
 #include <algorithm>
+#include <gui/gui.h>
 
 namespace LuaEngine {
     
@@ -166,6 +167,7 @@ namespace LuaEngine {
         
         // Script management
         std::vector<ScriptInfo> scripts;
+        std::vector<std::string> activeScripts;
         std::string scriptsListPath;
         std::string projectFileName; // .BlazeBoltProject
         
@@ -178,6 +180,12 @@ namespace LuaEngine {
         // Main window pointer
         Window* mainWindow;
 
+    public:
+        Gui::GuiSystem guiSystem;
+        std::unordered_map<Entity, Gui::GuiWidget*> guiWidgetMap;
+        Entity guiNextEntity;
+
+    private:
         Matrix3x3 projectionViewMatrix2D;
         BlazeBolt::SpriteShader2D spriteShader2D;
         BlazeBolt::SpriteMesh2D spriteMesh2D;
@@ -207,6 +215,7 @@ namespace LuaEngine {
         void enableScript(const std::string& scriptName, bool enabled);
         bool isScriptLoaded(const std::string& scriptName) const;
         std::vector<std::string> getLoadedScripts() const;
+        void addActiveScript(const std::string& scriptName) { activeScripts.push_back(scriptName); }
         
         // Scene management
         SceneManager* getSceneManager() { return sceneManager.get(); }
@@ -344,6 +353,9 @@ namespace LuaEngine {
         void updateAll(float dt);
         
         void addConsoleMessage(const std::string& msg, int type = 0);
+
+        Entity guiAddWidget(Gui::GuiWidget* widget);
+        Gui::GuiWidget* guiGetWidget(Entity entity);
     };
     
     // ==================== SCENE MANAGER IMPLEMENTATION ====================
@@ -378,28 +390,12 @@ namespace LuaEngine {
         if (!nextScene.empty()) {
             if (!currentScene.empty()) {
                 callSceneUnload(currentScene);
-                
-                auto itOld = scenes.find(currentScene);
-                if (itOld != scenes.end()) {
-                    lua_State* state = engine->getState();
-                    if (state) {
-                        std::string loadName = "On" + currentScene + "Load";
-                        std::string unloadName = "On" + currentScene + "Unload";
-                        lua_pushnil(state);
-                        lua_setglobal(state, "Update");
-                        lua_pushnil(state);
-                        lua_setglobal(state, "Draw");
-                        lua_pushnil(state);
-                        lua_setglobal(state, loadName.c_str());
-                        lua_pushnil(state);
-                        lua_setglobal(state, unloadName.c_str());
-                    }
-                }
             }
             
             auto it = scenes.find(nextScene);
             if (it != scenes.end()) {
                 engine->loadScript(it->second.path);
+                engine->addActiveScript(nextScene);
             }
             
             currentScene = nextScene;
@@ -1637,6 +1633,278 @@ namespace LuaEngine {
             }
             return 0;
         }
+
+        // GUI functions
+        static int GuiPanel(lua_State* state) {
+            LuaEngine* engine = getEngine(state);
+            if (!engine) { lua_pushinteger(state, 0); return 1; }
+            const char* id = luaL_checkstring(state, 1);
+            float x = (float)luaL_optnumber(state, 2, 0);
+            float y = (float)luaL_optnumber(state, 3, 0);
+            float w = (float)luaL_optnumber(state, 4, 0);
+            float h = (float)luaL_optnumber(state, 5, 0);
+            if (w == 0) w = (float)engine->getScreenWidth();
+            if (h == 0) h = (float)engine->getScreenHeight();
+            auto widget = engine->guiSystem.addPanel(id, x, y, w, h);
+            Entity entity = engine->guiAddWidget(widget);
+            lua_pushinteger(state, entity);
+            return 1;
+        }
+
+        static int GuiButton(lua_State* state) {
+            LuaEngine* engine = getEngine(state);
+            if (!engine) { lua_pushinteger(state, 0); return 1; }
+            const char* id = luaL_checkstring(state, 1);
+            float x = (float)luaL_checknumber(state, 2);
+            float y = (float)luaL_checknumber(state, 3);
+            float w = (float)luaL_checknumber(state, 4);
+            float h = (float)luaL_checknumber(state, 5);
+            const char* text = luaL_checkstring(state, 6);
+            auto widget = engine->guiSystem.addButton(id, x, y, w, h, text);
+            Entity entity = engine->guiAddWidget(widget);
+            lua_pushinteger(state, entity);
+            return 1;
+        }
+
+        static int GuiLabel(lua_State* state) {
+            LuaEngine* engine = getEngine(state);
+            if (!engine) { lua_pushinteger(state, 0); return 1; }
+            const char* id = luaL_checkstring(state, 1);
+            float x = (float)luaL_checknumber(state, 2);
+            float y = (float)luaL_checknumber(state, 3);
+            const char* text = luaL_checkstring(state, 4);
+            auto widget = engine->guiSystem.addLabel(id, x, y, text);
+            Entity entity = engine->guiAddWidget(widget);
+            lua_pushinteger(state, entity);
+            return 1;
+        }
+
+        static int GuiSlider(lua_State* state) {
+            LuaEngine* engine = getEngine(state);
+            if (!engine) { lua_pushinteger(state, 0); return 1; }
+            const char* id = luaL_checkstring(state, 1);
+            float x = (float)luaL_checknumber(state, 2);
+            float y = (float)luaL_checknumber(state, 3);
+            float w = (float)luaL_checknumber(state, 4);
+            float minVal = (float)luaL_checknumber(state, 5);
+            float maxVal = (float)luaL_checknumber(state, 6);
+            float val = (float)luaL_optnumber(state, 7, minVal);
+            auto widget = engine->guiSystem.addSlider(id, x, y, w, minVal, maxVal, val);
+            Entity entity = engine->guiAddWidget(widget);
+            lua_pushinteger(state, entity);
+            return 1;
+        }
+
+        static int GuiCheckbox(lua_State* state) {
+            LuaEngine* engine = getEngine(state);
+            if (!engine) { lua_pushinteger(state, 0); return 1; }
+            const char* id = luaL_checkstring(state, 1);
+            float x = (float)luaL_checknumber(state, 2);
+            float y = (float)luaL_checknumber(state, 3);
+            const char* text = luaL_checkstring(state, 4);
+            bool checked = lua_toboolean(state, 5);
+            auto widget = engine->guiSystem.addCheckbox(id, x, y, text, checked);
+            Entity entity = engine->guiAddWidget(widget);
+            lua_pushinteger(state, entity);
+            return 1;
+        }
+
+        static int GuiRemove(lua_State* state) {
+            const char* id = luaL_checkstring(state, 1);
+            LuaEngine* engine = getEngine(state);
+            if (!engine) return 0;
+            engine->guiSystem.remove(id);
+            return 0;
+        }
+
+        static int GuiRemoveByEntity(lua_State* state) {
+            Entity entity = luaL_checkinteger(state, 1);
+            LuaEngine* engine = getEngine(state);
+            if (!engine) return 0;
+            auto it = engine->guiWidgetMap.find(entity);
+            if (it != engine->guiWidgetMap.end()) {
+                engine->guiSystem.remove(it->second->id);
+                engine->guiWidgetMap.erase(it);
+            }
+            return 0;
+        }
+
+        static int GuiClear(lua_State* state) {
+            LuaEngine* engine = getEngine(state);
+            if (!engine) return 0;
+            engine->guiSystem.clear();
+            engine->guiWidgetMap.clear();
+            return 0;
+        }
+
+        static int GuiSetPosition(lua_State* state) {
+            Entity entity = luaL_checkinteger(state, 1);
+            float x = (float)luaL_checknumber(state, 2);
+            float y = (float)luaL_checknumber(state, 3);
+            LuaEngine* engine = getEngine(state);
+            if (!engine) return 0;
+            Gui::GuiWidget* w = engine->guiGetWidget(entity);
+            if (w) { w->x = x; w->y = y; w->updateModelMatrix(); }
+            return 0;
+        }
+
+        static int GuiSetSize(lua_State* state) {
+            Entity entity = luaL_checkinteger(state, 1);
+            float w = (float)luaL_checknumber(state, 2);
+            float h = (float)luaL_checknumber(state, 3);
+            LuaEngine* engine = getEngine(state);
+            if (!engine) return 0;
+            Gui::GuiWidget* wid = engine->guiGetWidget(entity);
+            if (wid) { wid->w = w; wid->h = h; wid->updateModelMatrix(); }
+            return 0;
+        }
+
+        static int GuiSetColor(lua_State* state) {
+            Entity entity = luaL_checkinteger(state, 1);
+            float cr = (float)luaL_checknumber(state, 2);
+            float cg = (float)luaL_checknumber(state, 3);
+            float cb = (float)luaL_checknumber(state, 4);
+            float ca = (float)luaL_optnumber(state, 5, 1.0f);
+            LuaEngine* engine = getEngine(state);
+            if (!engine) return 0;
+            Gui::GuiWidget* w = engine->guiGetWidget(entity);
+            if (w) { w->r = cr; w->g = cg; w->b = cb; w->a = ca; }
+            return 0;
+        }
+
+        static int GuiSetText(lua_State* state) {
+            Entity entity = luaL_checkinteger(state, 1);
+            const char* text = luaL_checkstring(state, 2);
+            LuaEngine* engine = getEngine(state);
+            if (!engine) return 0;
+            Gui::GuiWidget* w = engine->guiGetWidget(entity);
+            if (!w) return 0;
+            if (w->getType() == Gui::GuiWidget::BUTTON)
+                static_cast<Gui::GuiButton*>(w)->text = text;
+            else if (w->getType() == Gui::GuiWidget::LABEL)
+                static_cast<Gui::GuiLabel*>(w)->text = text;
+            else if (w->getType() == Gui::GuiWidget::CHECKBOX)
+                static_cast<Gui::GuiCheckbox*>(w)->text = text;
+            return 0;
+        }
+
+        static int GuiSetVisible(lua_State* state) {
+            Entity entity = luaL_checkinteger(state, 1);
+            bool vis = lua_toboolean(state, 2);
+            LuaEngine* engine = getEngine(state);
+            if (!engine) return 0;
+            Gui::GuiWidget* w = engine->guiGetWidget(entity);
+            if (w) w->visible = vis;
+            return 0;
+        }
+
+        static int GuiSetEnabled(lua_State* state) {
+            Entity entity = luaL_checkinteger(state, 1);
+            bool en = lua_toboolean(state, 2);
+            LuaEngine* engine = getEngine(state);
+            if (!engine) return 0;
+            Gui::GuiWidget* w = engine->guiGetWidget(entity);
+            if (w) w->enabled = en;
+            return 0;
+        }
+
+        static int GuiSetValue(lua_State* state) {
+            Entity entity = luaL_checkinteger(state, 1);
+            float val = (float)luaL_checknumber(state, 2);
+            LuaEngine* engine = getEngine(state);
+            if (!engine) return 0;
+            Gui::GuiWidget* w = engine->guiGetWidget(entity);
+            if (w && w->getType() == Gui::GuiWidget::SLIDER)
+                static_cast<Gui::GuiSlider*>(w)->value = val;
+            return 0;
+        }
+
+        static int GuiGetValue(lua_State* state) {
+            Entity entity = luaL_checkinteger(state, 1);
+            LuaEngine* engine = getEngine(state);
+            if (!engine) { lua_pushnumber(state, 0); return 1; }
+            Gui::GuiWidget* w = engine->guiGetWidget(entity);
+            if (w && w->getType() == Gui::GuiWidget::SLIDER) {
+                lua_pushnumber(state, static_cast<Gui::GuiSlider*>(w)->value);
+                return 1;
+            }
+            if (w && w->getType() == Gui::GuiWidget::CHECKBOX) {
+                lua_pushboolean(state, static_cast<Gui::GuiCheckbox*>(w)->checked);
+                return 1;
+            }
+            lua_pushnumber(state, 0);
+            return 1;
+        }
+
+        static int GuiSetOnClick(lua_State* state) {
+            Entity entity = luaL_checkinteger(state, 1);
+            LuaEngine* engine = getEngine(state);
+            if (!engine) return 0;
+            Gui::GuiWidget* w = engine->guiGetWidget(entity);
+            if (!w) return 0;
+            if (w->luaOnClickRef >= 0)
+                luaL_unref(state, LUA_REGISTRYINDEX, w->luaOnClickRef);
+            if (lua_isfunction(state, 2)) {
+                lua_pushvalue(state, 2);
+                w->luaOnClickRef = luaL_ref(state, LUA_REGISTRYINDEX);
+            } else {
+                w->luaOnClickRef = -1;
+            }
+            return 0;
+        }
+
+        static int GuiSetOnChange(lua_State* state) {
+            Entity entity = luaL_checkinteger(state, 1);
+            LuaEngine* engine = getEngine(state);
+            if (!engine) return 0;
+            Gui::GuiWidget* w = engine->guiGetWidget(entity);
+            if (!w) return 0;
+            if (w->luaOnChangeRef >= 0)
+                luaL_unref(state, LUA_REGISTRYINDEX, w->luaOnChangeRef);
+            if (lua_isfunction(state, 2)) {
+                lua_pushvalue(state, 2);
+                w->luaOnChangeRef = luaL_ref(state, LUA_REGISTRYINDEX);
+            } else {
+                w->luaOnChangeRef = -1;
+            }
+            return 0;
+        }
+
+        static int GuiSetZOrder(lua_State* state) {
+            Entity entity = luaL_checkinteger(state, 1);
+            int z = luaL_checkinteger(state, 2);
+            LuaEngine* engine = getEngine(state);
+            if (!engine) return 0;
+            Gui::GuiWidget* w = engine->guiGetWidget(entity);
+            if (w) w->zOrder = z;
+            return 0;
+        }
+
+        static int GuiSetFont(lua_State* state) {
+            const char* path = luaL_checkstring(state, 1);
+            int size = luaL_optinteger(state, 2, 24);
+            LuaEngine* engine = getEngine(state);
+            if (!engine) return 0;
+            engine->guiSystem.setFont(path, size);
+            return 0;
+        }
+
+        static int GuiSetBorder(lua_State* state) {
+            Entity entity = luaL_checkinteger(state, 1);
+            float br = (float)luaL_checknumber(state, 2);
+            float bg = (float)luaL_checknumber(state, 3);
+            float bb = (float)luaL_checknumber(state, 4);
+            float ba = (float)luaL_optnumber(state, 5, 1.0f);
+            float bw = (float)luaL_optnumber(state, 6, 1.0f);
+            LuaEngine* engine = getEngine(state);
+            if (!engine) return 0;
+            Gui::GuiWidget* w = engine->guiGetWidget(entity);
+            if (w && w->getType() == Gui::GuiWidget::PANEL) {
+                auto* p = static_cast<Gui::GuiPanel*>(w);
+                p->br = br; p->bg = bg; p->bb = bb; p->ba = ba; p->bw = bw;
+            }
+            return 0;
+        }
     };
     
     // ==================== LUA REGISTRATION TABLE ====================
@@ -1798,6 +2066,29 @@ namespace LuaEngine {
         // Console
         {"AddConsoleMessage", _functions::AddConsoleMessage},
         
+        // GUI functions
+        {"GuiPanel", _functions::GuiPanel},
+        {"GuiButton", _functions::GuiButton},
+        {"GuiLabel", _functions::GuiLabel},
+        {"GuiSlider", _functions::GuiSlider},
+        {"GuiCheckbox", _functions::GuiCheckbox},
+        {"GuiRemove", _functions::GuiRemove},
+        {"GuiRemoveByEntity", _functions::GuiRemoveByEntity},
+        {"GuiClear", _functions::GuiClear},
+        {"GuiSetPosition", _functions::GuiSetPosition},
+        {"GuiSetSize", _functions::GuiSetSize},
+        {"GuiSetColor", _functions::GuiSetColor},
+        {"GuiSetText", _functions::GuiSetText},
+        {"GuiSetVisible", _functions::GuiSetVisible},
+        {"GuiSetEnabled", _functions::GuiSetEnabled},
+        {"GuiSetValue", _functions::GuiSetValue},
+        {"GuiGetValue", _functions::GuiGetValue},
+        {"GuiSetOnClick", _functions::GuiSetOnClick},
+        {"GuiSetOnChange", _functions::GuiSetOnChange},
+        {"GuiSetZOrder", _functions::GuiSetZOrder},
+        {"GuiSetFont", _functions::GuiSetFont},
+        {"GuiSetBorder", _functions::GuiSetBorder},
+        
         {nullptr, nullptr}
     };
 }
@@ -1814,6 +2105,7 @@ namespace LuaEngine {
         scripts(), scriptsListPath(), projectFileName(),
         sceneManager(),
         additionalWindows(), mainWindow(&window),
+        guiSystem(), guiWidgetMap(), guiNextEntity(1),
         projectionViewMatrix2D(),
         spriteShader2D(), spriteMesh2D(), textureManager(),
         shaders(), entityShaderMap(), nextShaderId(1)
@@ -1828,6 +2120,8 @@ namespace LuaEngine {
         
         luaL_openlibs(this->state);
         registerCFunctions();
+        this->guiSystem.setLuaState(this->state);
+        this->guiSystem.setProjectionView(this->projectionViewMatrix2D);
         
         this->audioInitialized = this->audioEngine.init();
         if (!this->audioInitialized) {
@@ -1886,8 +2180,13 @@ namespace LuaEngine {
             
             size_t eqPos = line.find('=');
             if (eqPos != std::string::npos) {
-                info.name = line.substr(0, eqPos);
+                std::string name = line.substr(0, eqPos);
                 info.path = line.substr(eqPos + 1);
+                if (name[0] == '@') {
+                    name = name.substr(1);
+                    info.isScene = true;
+                }
+                info.name = name;
             } else {
                 info.name = std::filesystem::path(line).stem().string();
                 info.path = line;
@@ -1975,6 +2274,7 @@ namespace LuaEngine {
             if (script.enabled) {
                 if (loadScript(script.path)) {
                     script.loaded = true;
+                    activeScripts.push_back(script.name);
                     std::cout << "Loaded script: " << script.name << std::endl;
                 } else {
                     script.loaded = false;
@@ -2557,6 +2857,8 @@ namespace LuaEngine {
             delete pair.second.shader;
         }
         shaders.clear();
+        guiSystem.clear();
+        guiWidgetMap.clear();
     }
     
     // Physics implementations
@@ -2789,6 +3091,17 @@ namespace LuaEngine {
     void LuaEngine::addConsoleMessage(const std::string& msg, int type) {
         std::cout << "[Lua] " << msg << std::endl;
     }
+
+    Entity LuaEngine::guiAddWidget(Gui::GuiWidget* widget) {
+        Entity e = guiNextEntity++;
+        guiWidgetMap[e] = widget;
+        return e;
+    }
+
+    Gui::GuiWidget* LuaEngine::guiGetWidget(Entity entity) {
+        auto it = guiWidgetMap.find(entity);
+        return it != guiWidgetMap.end() ? it->second : nullptr;
+    }
     
     bool LuaEngine::callFunction(const std::string& funcName) {
         if (!initialized) return false;
@@ -2807,6 +3120,24 @@ namespace LuaEngine {
     
     bool LuaEngine::callUpdate(float dt) {
         deltaTime = dt;
+        bool anyCalled = false;
+        for (const auto& scriptName : activeScripts) {
+            lua_getglobal(state, scriptName.c_str());
+            if (lua_istable(state, -1)) {
+                lua_getfield(state, -1, "Update");
+                if (lua_isfunction(state, -1)) {
+                    lua_pushnumber(state, dt);
+                    if (lua_pcall(state, 1, 0, 0) != LUA_OK) {
+                        std::cerr << "Error in " << scriptName << ".Update: " << lua_tostring(state, -1) << std::endl;
+                        lua_pop(state, 1);
+                    } else {
+                        anyCalled = true;
+                    }
+                }
+                lua_pop(state, 1);
+            }
+            lua_pop(state, 1);
+        }
         lua_getglobal(state, "Update");
         if (lua_isfunction(state, -1)) {
             lua_pushnumber(state, dt);
@@ -2818,11 +3149,28 @@ namespace LuaEngine {
             return true;
         }
         lua_pop(state, 1);
-        return false;
+        return anyCalled;
     }
     
     bool LuaEngine::callDraw() {
         if (!initialized) return false;
+        bool anyCalled = false;
+        for (const auto& scriptName : activeScripts) {
+            lua_getglobal(state, scriptName.c_str());
+            if (lua_istable(state, -1)) {
+                lua_getfield(state, -1, "Draw");
+                if (lua_isfunction(state, -1)) {
+                    if (lua_pcall(state, 0, 0, 0) != LUA_OK) {
+                        std::cerr << "Error in " << scriptName << ".Draw: " << lua_tostring(state, -1) << std::endl;
+                        lua_pop(state, 1);
+                    } else {
+                        anyCalled = true;
+                    }
+                }
+                lua_pop(state, 1);
+            }
+            lua_pop(state, 1);
+        }
         lua_getglobal(state, "Draw");
         if (lua_isfunction(state, -1)) {
             if (lua_pcall(state, 0, 0, 0) != LUA_OK) {
@@ -2833,11 +3181,28 @@ namespace LuaEngine {
             return true;
         }
         lua_pop(state, 1);
-        return false;
+        return anyCalled;
     }
     
     bool LuaEngine::callEnd() {
         if (!initialized) return false;
+        bool anyCalled = false;
+        for (const auto& scriptName : activeScripts) {
+            lua_getglobal(state, scriptName.c_str());
+            if (lua_istable(state, -1)) {
+                lua_getfield(state, -1, "End");
+                if (lua_isfunction(state, -1)) {
+                    if (lua_pcall(state, 0, 0, 0) != LUA_OK) {
+                        std::cerr << "Error in " << scriptName << ".End: " << lua_tostring(state, -1) << std::endl;
+                        lua_pop(state, 1);
+                    } else {
+                        anyCalled = true;
+                    }
+                }
+                lua_pop(state, 1);
+            }
+            lua_pop(state, 1);
+        }
         lua_getglobal(state, "End");
         if (lua_isfunction(state, -1)) {
             if (lua_pcall(state, 0, 0, 0) != LUA_OK) {
@@ -2848,7 +3213,7 @@ namespace LuaEngine {
             return true;
         }
         lua_pop(state, 1);
-        return false;
+        return anyCalled;
     }
     
     void LuaEngine::drawAll() {
@@ -2857,10 +3222,14 @@ namespace LuaEngine {
         drawAllAnimations();
         drawAllTexts();
         drawAllMeshes();
+        this->guiSystem.setProjectionView(this->projectionViewMatrix2D);
+        this->guiSystem.draw();
     }
     
     void LuaEngine::updateAll(float dt) {
         deltaTime = dt;
+        this->guiSystem.setProjectionView(this->projectionViewMatrix2D);
+        this->guiSystem.update();
         updateAllAnimations(dt);
         updateAudio();
         if (sceneManager) {
