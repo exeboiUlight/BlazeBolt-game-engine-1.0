@@ -11,7 +11,7 @@ int main() {
         fprintf(stderr, "Failed to create main window\n");
         return 1;
     }
-    window.setClearColor(0.1f, 0.1f, 0.15f, 1.0f);
+    window.setClearColor(0.5803921f, 0.5803921f, 0.5803921f, 1.0f);
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
@@ -26,7 +26,6 @@ int main() {
         return 1;
     }
 
-    // Вызываем Start с передачей размеров экрана
     luaEngine.callFunction("Start");
     std::chrono::steady_clock::time_point lastTime = std::chrono::steady_clock::now();
     float fpsTimer = 0.0f;
@@ -38,9 +37,10 @@ int main() {
     int previousWindowWidth = window.getWidth();
     int previousWindowHeight = window.getHeight();
     while (!window.shouldClose()) {
+        Input::getInstance().update();
+
         window.pollEvents();
 
-        // Проверяем, не изменился ли размер окна
         int newWindowWidth = window.getWidth();
         int newWindowHeight = window.getHeight();
         if (newWindowWidth != previousWindowWidth || newWindowHeight != previousWindowHeight) {
@@ -49,7 +49,6 @@ int main() {
             previousWindowHeight = newWindowHeight;
         }
 
-        // Delta Time update
         std::chrono::steady_clock::time_point currentTime = std::chrono::steady_clock::now();
         float deltaTime = std::chrono::duration<float>(currentTime - lastTime).count();
         lastTime = currentTime;
@@ -68,7 +67,6 @@ int main() {
         luaEngine.physicsStep();
         luaEngine.updateAll(deltaTime);
 
-        // Render
         window.clear();
         luaEngine.callDraw();
         luaEngine.drawAll();
