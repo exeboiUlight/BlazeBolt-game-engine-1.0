@@ -90,18 +90,21 @@ width, height = BlazeBolt.SpriteGetSize(entity)
 ### Точка привязки
 ```lua
 BlazeBolt.SpriteSetOrigin(entity, originX, originY)
+originX, originY = BlazeBolt.SpriteGetOrigin(entity)
 ```
 Значения от `0` до `1`. `(0.5, 0.5)` — центр, `(0, 0)` — левый нижний угол.
 
 ### Вращение
 ```lua
 BlazeBolt.SpriteSetRotation(entity, degrees)
+degrees = BlazeBolt.SpriteGetRotation(entity)
 ```
 Угол в градусах.
 
 ### Цвет
 ```lua
 BlazeBolt.SpriteSetColor(entity, r, g, b, a)
+r, g, b, a = BlazeBolt.SpriteGetColor(entity)
 ```
 Значения от `0` до `1`. По умолчанию `(1, 1, 1, 1)` — белый.
 
@@ -114,6 +117,7 @@ BlazeBolt.SpriteSetTexture(entity, texturePath)
 ### Видимость
 ```lua
 BlazeBolt.SpriteSetVisible(entity, visible)
+visible = BlazeBolt.SpriteIsVisible(entity)
 ```
 `visible` — `true` или `false`.
 
@@ -200,14 +204,15 @@ end
 
 ### Создание
 ```lua
-entity = BlazeBolt.CreateText(fontPath, text, x, y, fontSize)
+entity = BlazeBolt.CreateText(fontPath, text, x, y)
 ```
 | Параметр | Тип | Описание |
 |---|---|---|
 | fontPath | string | Путь к TTF-шрифту |
 | text | string | Текст для отображения |
 | x, y | number | Позиция в NDC |
-| fontSize | int | Размер шрифта, по умолчанию 48 |
+
+**Возвращает:** `entity` (integer) — идентификатор объекта
 
 ### Содержимое
 ```lua
@@ -218,34 +223,66 @@ text = BlazeBolt.TextGetString(entity)
 ### Позиция
 ```lua
 BlazeBolt.TextSetPosition(entity, x, y)
+x, y = BlazeBolt.TextGetPosition(entity)
 ```
 
 ### Цвет
 ```lua
 BlazeBolt.TextSetColor(entity, r, g, b, a)
+r, g, b, a = BlazeBolt.TextGetColor(entity)
 ```
 Значения от `0` до `1`.
 
 ### Масштаб
 ```lua
-BlazeBolt.TextSetScale(entity, scale)
+BlazeBolt.TextSetScale(entity, scaleX, scaleY)
+scaleX, scaleY = BlazeBolt.TextGetScale(entity)
 ```
+
+### Точка привязки
+```lua
+BlazeBolt.TextSetOrigin(entity, originX, originY)
+originX, originY = BlazeBolt.TextGetOrigin(entity)
+```
+Значения от `0` до `1`. `(0.5, 0.5)` — центр текста.
+
+### Вращение
+```lua
+BlazeBolt.TextSetRotation(entity, degrees)
+degrees = BlazeBolt.TextGetRotation(entity)
+```
+Угол в градусах.
+
+### Выравнивание
+```lua
+BlazeBolt.TextSetAlignment(entity, alignment)
+alignment = BlazeBolt.TextGetAlignment(entity)
+```
+| Константа | Описание |
+|---|---|
+| `TextAlignment.LEFT` | По левому краю (по умолчанию) |
+| `TextAlignment.CENTER` | По центру |
+| `TextAlignment.RIGHT` | По правому краю |
 
 ### Видимость
 ```lua
 BlazeBolt.TextSetVisible(entity, visible)
+visible = BlazeBolt.TextIsVisible(entity)
 ```
 
 ### Пример
 ```lua
 function Start()
-    fpsText = BlazeBolt.CreateText("fonts/arial.ttf", "FPS: 60", -0.8, 0.8, 24)
+    fpsText = BlazeBolt.CreateText('fonts/arial.ttf', 'FPS: 60', -0.8, 0.8)
     BlazeBolt.TextSetColor(fpsText, 1, 1, 1, 1)
+    BlazeBolt.TextSetScale(fpsText, 0.1, 0.1)
+    BlazeBolt.TextSetOrigin(fpsText, 0.5, 0.5)
+    BlazeBolt.TextSetAlignment(fpsText, TextAlignment.CENTER)
 end
 
 function Update(dt)
     local fps = math.floor(1 / dt)
-    BlazeBolt.TextSetString(fpsText, "FPS: " .. fps)
+    BlazeBolt.TextSetString(fpsText, 'FPS: ' .. fps)
 end
 ```
 

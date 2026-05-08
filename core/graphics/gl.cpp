@@ -1,7 +1,9 @@
 #include "gl.hpp"
+#include <string>
 
 static GLuint boundVertexArrayObject = 0;
-static GLuint boundVertexBufferObject = 0;
+// FIXME: Only counts GL_ARRAY_BUFFER and GL_ELEMENT_ARRAY_BUFFER, but it's enough for now
+static GLuint boundVertexBufferObjects[2] = {0};
 static GLuint boundTexture2Ds[32] = {0};
 static GLuint activeTextureUnit = 0;
 static GLuint boundShaderProgram = 0;
@@ -11,21 +13,23 @@ namespace GL {
         if (boundVertexArrayObject == vao) { return; }
         glBindVertexArray(vao);
         boundVertexArrayObject = vao;
+        boundVertexBufferObjects[1] = 0xFFFFFFFF; // Invalidate element buffer object;
     }
     void unbindVertexArray() {
         if (boundVertexArrayObject == 0) { return; }
         glBindVertexArray(0);
         boundVertexArrayObject = 0;
+        boundVertexBufferObjects[1] = 0xFFFFFFFF; // Invalidate element buffer object;
     }
-    void bindVertexBuffer(GLuint vbo) {
-        if (boundVertexBufferObject == vbo) { return; }
-        glBindBuffer(GL_ARRAY_BUFFER, vbo);
-        boundVertexBufferObject = vbo;
+    void bindVertexBuffer(GLuint vbo, GLenum usage) {
+        if (boundVertexBufferObjects[usage - GL_ARRAY_BUFFER] == vbo) { return; }
+        glBindBuffer(usage, vbo);
+        boundVertexBufferObjects[usage - GL_ARRAY_BUFFER] = vbo;
     }
-    void unbindVertexBuffer() {
-        if (boundVertexBufferObject == 0) { return; }
-        glBindBuffer(GL_ARRAY_BUFFER, 0);
-        boundVertexBufferObject = 0;
+    void unbindVertexBuffer(GLenum usage) {
+        if (boundVertexBufferObjects[usage - GL_ARRAY_BUFFER] == 0) { return; }
+        glBindBuffer(usage, 0);
+        boundVertexBufferObjects[usage - GL_ARRAY_BUFFER] = 0;
     }
     void bindShaderProgram(GLuint program) {
         if (boundShaderProgram == program) { return; }
@@ -80,7 +84,7 @@ namespace GL {
     VertexBufferObject::~VertexBufferObject() {
         if (this->id != 0) { glDeleteBuffers(1, &this->id); }
     }
-    void VertexBufferObject::bind() const { bindVertexBuffer(this->id); }
+    void VertexBufferObject::bind(GLenum usage) const { bindVertexBuffer(this->id, usage); }
     GLuint VertexBufferObject::get() const { return this->id; }
 
     Texture2D::Texture2D() : id(0) { glGenTextures(1, &this->id); }
@@ -110,6 +114,20 @@ namespace GL {
     ShaderProgram::~ShaderProgram() {
         if (this->id != 0) { glDeleteProgram(this->id); }
     }
+    bool ShaderProgram::tryToLink() {
+        glLinkProgram(this->id);
+        GLint success = 0;
+        glGetProgramiv(this->id, GL_LINK_STATUS, &success);
+        if (success == GL_FALSE) {
+            GLint logLength = 0;
+            glGetProgramiv(this->id, GL_INFO_LOG_LENGTH, &logLength);
+            std::string log = std::string(logLength, ' ');
+            glGetProgramInfoLog(this->id, logLength, nullptr, log.data());
+            fprintf(stderr, "Failed to link Sprite2D shader program:\n%s\n", log.c_str());
+            return false;
+        }
+        return true;
+    }
     void ShaderProgram::bind() const { bindShaderProgram(this->id); }
     GLuint ShaderProgram::get() const { return this->id; }
 
@@ -124,6 +142,23 @@ namespace GL {
     }
     Shader::~Shader() {
         if (this->id != 0) { glDeleteShader(this->id); }
+    }
+
+    std::optional<Shader> Shader::fromSource(GLenum type, const char *source) {
+        Shader shader = Shader(type);
+        glShaderSource(shader.get(), 1, &source, nullptr);
+        glCompileShader(shader.get());
+        GLint success = 0;
+        glGetShaderiv(shader.get(), GL_COMPILE_STATUS, &success);
+        if (success == GL_FALSE) {
+            GLint logLength = 0;
+            glGetShaderiv(shader.get(), GL_INFO_LOG_LENGTH, &logLength);
+            std::string log = std::string(logLength, ' ');
+            glGetShaderInfoLog(shader.get(), logLength, nullptr, log.data());
+            fprintf(stderr, "Failed to compile Sprite2D fragment shader:\n%s\n", log.c_str());
+            return std::nullopt;
+        }
+        return shader;
     }
     GLuint Shader::get() const { return this->id; }
 }

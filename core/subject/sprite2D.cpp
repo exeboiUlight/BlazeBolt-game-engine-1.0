@@ -1,30 +1,35 @@
 #include "sprite2D.hpp"
 
 namespace BlazeBolt {
-    SpriteMesh2D::SpriteMesh2D() : vao(), vbo() {
-        constexpr float vertices[] = { 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 1.0f, 0.0f, 1.0f };
-        this->vao.bind();
-        this->vbo.bind();
-        glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-        glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), nullptr);
+    SpriteMesh2D::SpriteMesh2D() : vertexArrayObject() {}
+    SpriteMesh2D::SpriteMesh2D(const QuadVertexBufferObject2D &vertexBufferObject) : vertexArrayObject() {
+        this->setVertexBuffer(vertexBufferObject);
+    }
+
+    void SpriteMesh2D::setVertexBuffer(const QuadVertexBufferObject2D &vbo) {
+        this->vertexArrayObject.bind();
+        vbo.bind();
+        glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(QuadVertexBufferObject2D::Vertex), nullptr);
         glEnableVertexAttribArray(0);
     }
     void SpriteMesh2D::draw() const {
-        this->vao.bind();
-        glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
+        this->vertexArrayObject.bind();
+        glDrawArrays(QuadVertexBufferObject2D::DRAW_MODE, 0, QuadVertexBufferObject2D::VERTEX_COUNT);
     }
 
     SpriteShader2D::SpriteShader2D() : shaderProgram() {
         constexpr GLchar vertexShaderSource[] = R"(
             #version 410
             layout (location = 0) in vec2 a_Position;
-
-            uniform mat3 u_MVPMatrix;
             layout (location = 0) out vec2 v_TexCoord;
+
+            uniform float u_AspectRatio;
+            uniform mat3 u_MVPMatrix;
 
             void main() {
                 vec3 transformed = u_MVPMatrix * vec3(a_Position, 1.0);
                 gl_Position = vec4(transformed.xy, 0.0, 1.0);
+                gl_Position.x /= u_AspectRatio;
                 v_TexCoord = a_Position;
             }
         )";
@@ -42,49 +47,15 @@ namespace BlazeBolt {
         )";
 
         {
-            GL::Shader vertexShader = GL::Shader(GL_VERTEX_SHADER);
-            const GLchar *vertexShaderSourcePtr[] = { vertexShaderSource };
-            glShaderSource(vertexShader.get(), 1, vertexShaderSourcePtr, nullptr);
-            glCompileShader(vertexShader.get());
-            GLint success = 0;
-            glGetShaderiv(vertexShader.get(), GL_COMPILE_STATUS, &success);
-            if (success == GL_FALSE) {
-                GLint logLength = 0;
-                glGetShaderiv(vertexShader.get(), GL_INFO_LOG_LENGTH, &logLength);
-                std::string log = std::string(logLength, ' ');
-                glGetShaderInfoLog(vertexShader.get(), logLength, nullptr, log.data());
-                fprintf(stderr, "Failed to compile Sprite2D vertex shader:\n%s\n", log.c_str());
-                return;
-            }
+            std::optional<GL::Shader> vertexShader = GL::Shader::fromSource(GL_VERTEX_SHADER, vertexShaderSource);
+            if (!vertexShader.has_value()) { return; }
             
-            GL::Shader fragmentShader = GL::Shader(GL_FRAGMENT_SHADER);
-            const GLchar *fragmentShaderSourcePtr[] = { fragmentShaderSource };
-            glShaderSource(fragmentShader.get(), 1, fragmentShaderSourcePtr, nullptr);
-            glCompileShader(fragmentShader.get());
-            success = 0;
-            glGetShaderiv(fragmentShader.get(), GL_COMPILE_STATUS, &success);
-            if (success == GL_FALSE) {
-                GLint logLength = 0;
-                glGetShaderiv(fragmentShader.get(), GL_INFO_LOG_LENGTH, &logLength);
-                std::string log = std::string(logLength, ' ');
-                glGetShaderInfoLog(fragmentShader.get(), logLength, nullptr, log.data());
-                fprintf(stderr, "Failed to compile Sprite2D fragment shader:\n%s\n", log.c_str());
-                return;
-            }
+            std::optional<GL::Shader> fragmentShader = GL::Shader::fromSource(GL_FRAGMENT_SHADER, fragmentShaderSource);
+            if (!fragmentShader.has_value()) { return; }
 
-            glAttachShader(this->shaderProgram.get(), vertexShader.get());
-            glAttachShader(this->shaderProgram.get(), fragmentShader.get());
-            glLinkProgram(this->shaderProgram.get());
-            success = 0;
-            glGetProgramiv(this->shaderProgram.get(), GL_LINK_STATUS, &success);
-            if (success == GL_FALSE) {
-                GLint logLength = 0;
-                glGetProgramiv(this->shaderProgram.get(), GL_INFO_LOG_LENGTH, &logLength);
-                std::string log = std::string(logLength, ' ');
-                glGetProgramInfoLog(this->shaderProgram.get(), logLength, nullptr, log.data());
-                fprintf(stderr, "Failed to link Sprite2D shader program:\n%s\n", log.c_str());
-                return;
-            }
+            glAttachShader(this->shaderProgram.get(), vertexShader->get());
+            glAttachShader(this->shaderProgram.get(), fragmentShader->get());
+            if (!this->shaderProgram.tryToLink()) { return; }
         }
 
         this->shaderProgram.bind();
@@ -94,6 +65,9 @@ namespace BlazeBolt {
     }
     void SpriteShader2D::bind() const {
         this->shaderProgram.bind();
+    }
+    void SpriteShader2D::setAspectRatio(float aspectRatio) const {
+        glUniform1f(glGetUniformLocation(this->shaderProgram.get(), "u_AspectRatio"), aspectRatio);
     }
     void SpriteShader2D::setMVPMatrix(const Matrix3x3 &matrix) const {
         // FIXME: Might not work, but the "toFloatArray" method must be removed anyways
@@ -187,20 +161,17 @@ namespace BlazeBolt {
         return this->visible;
     }
 
-    void Sprite2D::draw(const TextureManager &textureManager, const SpriteShader2D &shader, const SpriteMesh2D &mesh, const Matrix3x3 &projectionViewMatrix) const {
-        if (!this->visible) {
-            return;
-        }
-        
+    void Sprite2D::draw(const GL::Texture2D &defaultTexture, const SpriteShader2D &shader, const SpriteMesh2D &mesh, const Matrix3x3 &projectionViewMatrix) const {
+        if (!this->visible) { return; }
         shader.bind();
-        shader.setColor(this->color);
         shader.setMVPMatrix(projectionViewMatrix * this->modelMatrix);
+        shader.setColor(this->color);
         
         GL::setActiveTextureUnit(0);
         if (this->texture != nullptr) {
             this->texture->bind();
         } else {
-            textureManager.getDefault2D().bind();
+            defaultTexture.bind();
         }
 
         mesh.draw();

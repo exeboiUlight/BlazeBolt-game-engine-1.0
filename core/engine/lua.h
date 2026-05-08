@@ -8,8 +8,9 @@
 #include <physics/physics.h>
 #include <subject/sprite2D.hpp>
 #include <subject/animatad2D.h>
-#include <subject/text.h>
+#include <subject/text2D.hpp>
 #include <subject/audio.h>
+#include <engine/managers.hpp>
 #include <graphics/mesh.h>
 #include <utils/input/input.h>
 #include <graphics/window.h>
@@ -149,7 +150,7 @@ namespace LuaEngine {
         lua_State* state;
         World<BlazeBolt::Sprite2D> spriteWorld;
         World<Animation2D> animationWorld;
-        World<Text> textWorld;
+        World<BlazeBolt::Text2D> textWorld;
         World<Mesh2D> meshWorld;
         
         Audio audioEngine;
@@ -179,9 +180,12 @@ namespace LuaEngine {
         Window* mainWindow;
 
         Matrix3x3 projectionViewMatrix2D;
+        BlazeBolt::QuadVertexBufferObject2D quadVertexBufferObject;
         BlazeBolt::SpriteShader2D spriteShader2D;
+        BlazeBolt::FontShader2D fontShader2D;
         BlazeBolt::SpriteMesh2D spriteMesh2D;
         BlazeBolt::TextureManager textureManager;
+        BlazeBolt::FontManager fontManager;
         
         // Shader management
         std::unordered_map<unsigned int, ShaderInfo> shaders;
@@ -219,16 +223,22 @@ namespace LuaEngine {
         bool callEnd();
         
         // Sprite management
-        Entity createSprite(const std::string& texturePath, const Vector2& position);
-        void spriteSetTexture(Entity entity, const std::string& texturePath);
-        void spriteSetPosition(Entity entity, const Vector2& pos);
+        // TODO: Replace this huge function definition list, all these implementations far below and the huge array of Lua function definitions with something that generates automatically, or at least has a structure.
+        // e.g. When the types(subjects) will have a Node-based approach
+        Entity createSprite(const std::string &texturePath, const Vector2 &position);
+        void spriteSetTexture(Entity entity, const std::string &texturePath);
+        void spriteSetPosition(Entity entity, const Vector2 &position);
         Vector2 spriteGetPosition(Entity entity);
-        void spriteSetSize(Entity entity, const Vector2& size);
+        void spriteSetSize(Entity entity, const Vector2 &size);
         Vector2 spriteGetSize(Entity entity);
-        void spriteSetOrigin(Entity entity, const Vector2& origin);
+        void spriteSetOrigin(Entity entity, const Vector2 &origin);
+        Vector2 spriteGetOrigin(Entity entity);
         void spriteSetRotation(Entity entity, float rotation);
-        void spriteSetColor(Entity entity, const Vector4& color);
+        float spriteGetRotation(Entity entity);
+        void spriteSetColor(Entity entity, const Vector4 &color);
+        Vector4 spriteGetColor(Entity entity);
         void spriteSetVisible(Entity entity, bool visible);
+        bool spriteIsVisible(Entity entity);
         void drawAllSprites() const;
         
         // Animation management
@@ -251,16 +261,24 @@ namespace LuaEngine {
         void drawAllAnimations();
         
         // Text management
-        Entity createText(const std::string& fontPath, const std::string& text, 
-                          const Vector2& position, int fontSize);
-        void textSetString(Entity entity, const std::string& text);
+        Entity createText(const std::string &fontPath, const std::string &text, const Vector2 &position);
+        void textSetString(Entity entity, const std::string &text);
         std::string textGetString(Entity entity);
-        void textSetPosition(Entity entity, const Vector2& pos);
-        void textSetColor(Entity entity, const Vector4& color);
-        void textSetScale(Entity entity, float scale);
+        void textSetPosition(Entity entity, const Vector2 &position);
+        Vector2 textGetPosition(Entity entity);
+        void textSetScale(Entity entity, const Vector2 &scale);
+        Vector2 textGetScale(Entity entity);
+        void textSetOrigin(Entity entity, const Vector2 &origin);
+        Vector2 textGetOrigin(Entity entity);
+        void textSetRotation(Entity entity, float rotation);
+        float textGetRotation(Entity entity);
+        void textSetColor(Entity entity, const Vector4 &color);
+        Vector4 textGetColor(Entity entity);
+        void textSetAlignment(Entity entity, BlazeBolt::Text2D::Alignment alignment);
+        BlazeBolt::Text2D::Alignment textGetAlignment(Entity entity);
         void textSetVisible(Entity entity, bool visible);
+        bool textIsVisible(Entity entity);
         void drawAllTexts();
-        void setTextScreenSize(int width, int height);
         void setSpriteScreenSize(int width, int height);
         
         // Mesh management
@@ -552,175 +570,395 @@ namespace LuaEngine {
         }
         
         // Sprite functions
-        static int CreateSprite(lua_State* state) {
-            LuaEngine* engine = getEngine(state);
-            if (!engine) { lua_pushnil(state); return 1; }
-            const char* texturePath = luaL_checkstring(state, 1);
+        static int CreateSprite(lua_State *state) {
+            LuaEngine *engine = _functions::getEngine(state);
+            if (engine == nullptr) {
+                lua_pushnil(state);
+                return 1;
+            }
+            
+            const char *texturePath = luaL_checkstring(state, 1);
             float x = luaL_optnumber(state, 2, 0);
             float y = luaL_optnumber(state, 3, 0);
             Entity entity = engine->createSprite(texturePath, Vector2(x, y));
             lua_pushinteger(state, entity);
             return 1;
         }
-        
-        static int SpriteSetTexture(lua_State* state) {
+        static int SpriteSetTexture(lua_State *state) {
+            LuaEngine *engine = _functions::getEngine(state);
+            if (engine == nullptr) {
+                return 0;
+            }
+
             Entity entity = luaL_checkinteger(state, 1);
             const char* texturePath = luaL_checkstring(state, 2);
-            LuaEngine* engine = getEngine(state);
-            if (!engine) return 0;
             engine->spriteSetTexture(entity, texturePath);
             return 0;
         }
-        
-        static int SpriteSetPosition(lua_State* state) {
+        static int SpriteSetPosition(lua_State *state) {
+            LuaEngine *engine = _functions::getEngine(state);
+            if (engine == nullptr) {
+                return 0;
+            }
+
             Entity entity = luaL_checkinteger(state, 1);
             float x = luaL_checknumber(state, 2);
             float y = luaL_checknumber(state, 3);
-            LuaEngine* engine = getEngine(state);
-            if (!engine) return 0;
             engine->spriteSetPosition(entity, Vector2(x, y));
             return 0;
         }
-        
-        static int SpriteGetPosition(lua_State* state) {
+        static int SpriteGetPosition(lua_State *state) {
+            LuaEngine *engine = _functions::getEngine(state);
+            if (engine == nullptr) {
+                lua_pushnil(state);
+                lua_pushnil(state);
+                return 2;
+            }
             Entity entity = luaL_checkinteger(state, 1);
-            LuaEngine* engine = getEngine(state);
-            if (!engine) { lua_pushnil(state); lua_pushnil(state); return 2; }
-            Vector2 pos = engine->spriteGetPosition(entity);
-            lua_pushnumber(state, pos.x);
-            lua_pushnumber(state, pos.y);
+            Vector2 position = engine->spriteGetPosition(entity);
+            lua_pushnumber(state, position.x);
+            lua_pushnumber(state, position.y);
             return 2;
         }
-        
-        static int SpriteSetSize(lua_State* state) {
+        static int SpriteSetSize(lua_State *state) {
+            LuaEngine* engine = _functions::getEngine(state);
+            if (engine == nullptr) {
+                lua_pushnil(state);
+                lua_pushnil(state);
+                return 2;
+            }
+
             Entity entity = luaL_checkinteger(state, 1);
-            float w = luaL_checknumber(state, 2);
-            float h = luaL_checknumber(state, 3);
-            LuaEngine* engine = getEngine(state);
-            if (!engine) return 0;
-            engine->spriteSetSize(entity, Vector2(w, h));
+            float width = luaL_checknumber(state, 2);
+            float height = luaL_checknumber(state, 3);
+            engine->spriteSetSize(entity, Vector2(width, height));
             return 0;
         }
-        
-        static int SpriteGetSize(lua_State* state) {
+        static int SpriteGetSize(lua_State *state) {
+            LuaEngine *engine = _functions::getEngine(state);
+            if (engine == nullptr) {
+                lua_pushnil(state);
+                lua_pushnil(state);
+                return 2;
+            }
             Entity entity = luaL_checkinteger(state, 1);
-            LuaEngine* engine = getEngine(state);
-            if (!engine) { lua_pushnil(state); lua_pushnil(state); return 2; }
             Vector2 size = engine->spriteGetSize(entity);
             lua_pushnumber(state, size.x);
             lua_pushnumber(state, size.y);
             return 2;
         }
-        
-        static int SpriteSetOrigin(lua_State* state) {
+        static int SpriteSetOrigin(lua_State *state) {
+            LuaEngine *engine = _functions::getEngine(state);
+            if (engine == nullptr) {
+                return 0;
+            }
+
             Entity entity = luaL_checkinteger(state, 1);
             float x = luaL_checknumber(state, 2);
             float y = luaL_checknumber(state, 3);
-            LuaEngine* engine = getEngine(state);
-            if (!engine) return 0;
             engine->spriteSetOrigin(entity, Vector2(x, y));
             return 0;
         }
-        
-        static int SpriteSetRotation(lua_State* state) {
+        static int SpriteGetOrigin(lua_State *state) {
+            LuaEngine *engine = _functions::getEngine(state);
+            if (engine == nullptr) {
+                lua_pushnil(state);
+                return 1;
+            }
+
+            Entity entity = luaL_checkinteger(state, 1);
+            Vector2 origin = engine->spriteGetOrigin(entity);
+            lua_pushnumber(state, origin.x);
+            lua_pushnumber(state, origin.y);
+            return 2;
+        }
+        static int SpriteSetRotation(lua_State *state) {
+            LuaEngine *engine = _functions::getEngine(state);
+            if (engine == nullptr) {
+                return 0;
+            }
+
             Entity entity = luaL_checkinteger(state, 1);
             float rotation = luaL_checknumber(state, 2);
-            LuaEngine* engine = getEngine(state);
-            if (!engine) return 0;
             engine->spriteSetRotation(entity, rotation);
             return 0;
         }
-        
-        static int SpriteSetColor(lua_State* state) {
+        static int SpriteGetRotation(lua_State *state) {
+            LuaEngine *engine = _functions::getEngine(state);
+            if (engine == nullptr) {
+                lua_pushnil(state);
+                return 1;
+            }
+
+            Entity entity = luaL_checkinteger(state, 1);
+            float rotation = engine->spriteGetRotation(entity);
+            lua_pushnumber(state, rotation);
+            return 1;
+        }
+        static int SpriteSetColor(lua_State *state) {
+            LuaEngine *engine = _functions::getEngine(state);
+            if (engine == nullptr) {
+                return 0;
+            }
+
             Entity entity = luaL_checkinteger(state, 1);
             float r = luaL_checknumber(state, 2);
             float g = luaL_checknumber(state, 3);
             float b = luaL_checknumber(state, 4);
             float a = luaL_optnumber(state, 5, 1.0f);
-            LuaEngine* engine = getEngine(state);
-            if (!engine) return 0;
             engine->spriteSetColor(entity, Vector4(r, g, b, a));
             return 0;
         }
-        
-        static int SpriteSetVisible(lua_State* state) {
+        static int SpriteGetColor(lua_State *state) {
+            LuaEngine *engine = _functions::getEngine(state);
+            if (engine == nullptr) {
+                lua_pushnil(state);
+                lua_pushnil(state);
+                lua_pushnil(state);
+                lua_pushnil(state);
+                return 4;
+            }
+
+            Entity entity = luaL_checkinteger(state, 1);
+            Vector4 color = engine->spriteGetColor(entity);
+            lua_pushnumber(state, color.x);
+            lua_pushnumber(state, color.y);
+            lua_pushnumber(state, color.z);
+            lua_pushnumber(state, color.w);
+            return 4;
+        }
+        static int SpriteSetVisible(lua_State *state) {
+            LuaEngine *engine = _functions::getEngine(state);
+            if (engine == nullptr) {
+                return 0;
+            }
+
             Entity entity = luaL_checkinteger(state, 1);
             bool visible = lua_toboolean(state, 2);
-            LuaEngine* engine = getEngine(state);
-            if (!engine) return 0;
             engine->spriteSetVisible(entity, visible);
             return 0;
         }
+        static int SpriteIsVisible(lua_State *state) {
+            LuaEngine *engine = _functions::getEngine(state);
+            if (engine == nullptr) {
+                lua_pushnil(state);
+                return 1;
+            }
+
+            Entity entity = luaL_checkinteger(state, 1);
+            bool visible = engine->spriteIsVisible(entity);
+            lua_pushboolean(state, visible);
+            return 1;
+        }
         
         // Text functions
-        static int CreateText(lua_State* state) {
-            LuaEngine* engine = getEngine(state);
-            if (!engine) { lua_pushnil(state); return 1; }
-            const char* fontPath = luaL_checkstring(state, 1);
-            const char* text = luaL_checkstring(state, 2);
-            float x = luaL_optnumber(state, 3, 0);
-            float y = luaL_optnumber(state, 4, 0);
-            int fontSize = luaL_optinteger(state, 5, 48);
-            Entity entity = engine->createText(fontPath, text, Vector2(x, y), fontSize);
+        static int CreateText(lua_State *state) {
+            LuaEngine *engine = _functions::getEngine(state);
+            if (engine == nullptr) {
+                lua_pushnil(state);
+                return 1;
+            }
+
+            const char *fontPath = luaL_checkstring(state, 1);
+            const char *text = luaL_checkstring(state, 2);
+            float x = luaL_optnumber(state, 3, 0.0f);
+            float y = luaL_optnumber(state, 4, 0.0f);
+            Entity entity = engine->createText(fontPath, text, Vector2(x, y));
             lua_pushinteger(state, entity);
             return 1;
         }
-        
-        static int TextSetString(lua_State* state) {
+        static int TextSetString(lua_State *state) {
+            LuaEngine *engine = _functions::getEngine(state);
+            if (engine == nullptr) {
+                return 0;
+            }
             Entity entity = luaL_checkinteger(state, 1);
-            const char* text = luaL_checkstring(state, 2);
-            LuaEngine* engine = getEngine(state);
-            if (!engine) return 0;
+            const char *text = luaL_checkstring(state, 2);
             engine->textSetString(entity, text);
             return 0;
         }
-        
-        static int TextGetString(lua_State* state) {
+        static int TextGetString(lua_State *state) {
+            LuaEngine *engine = _functions::getEngine(state);
+            if (engine == nullptr) {
+                lua_pushnil(state);
+                return 1;
+            }
+
             Entity entity = luaL_checkinteger(state, 1);
-            LuaEngine* engine = getEngine(state);
-            if (!engine) { lua_pushstring(state, ""); return 1; }
             lua_pushstring(state, engine->textGetString(entity).c_str());
             return 1;
         }
-        
-        static int TextSetPosition(lua_State* state) {
+        static int TextSetPosition(lua_State *state) {
+            LuaEngine *engine = _functions::getEngine(state);
+            if (engine == nullptr) {
+                return 0;
+            }
+
             Entity entity = luaL_checkinteger(state, 1);
             float x = luaL_checknumber(state, 2);
             float y = luaL_checknumber(state, 3);
-            LuaEngine* engine = getEngine(state);
-            if (!engine) return 0;
             engine->textSetPosition(entity, Vector2(x, y));
             return 0;
         }
-        
-        static int TextSetColor(lua_State* state) {
+        static int TextGetPosition(lua_State *state) {
+            LuaEngine *engine = _functions::getEngine(state);
+            if (engine == nullptr) {
+                lua_pushnil(state);
+                lua_pushnil(state);
+                return 2;
+            }
+
+            Entity entity = luaL_checkinteger(state, 1);
+            Vector2 position = engine->textGetPosition(entity);
+            lua_pushnumber(state, position.x);
+            lua_pushnumber(state, position.y);
+            return 2;
+        }
+        static int TextSetColor(lua_State *state) {
+            LuaEngine *engine = _functions::getEngine(state);
+            if (engine == nullptr) {
+                return 0;
+            }
+
             Entity entity = luaL_checkinteger(state, 1);
             float r = luaL_checknumber(state, 2);
             float g = luaL_checknumber(state, 3);
             float b = luaL_checknumber(state, 4);
             float a = luaL_optnumber(state, 5, 1.0f);
-            LuaEngine* engine = getEngine(state);
-            if (!engine) return 0;
             engine->textSetColor(entity, Vector4(r, g, b, a));
             return 0;
         }
-        
-        static int TextSetScale(lua_State* state) {
+        static int TextGetColor(lua_State *state) {
+            LuaEngine *engine = _functions::getEngine(state);
+            if (engine == nullptr) {
+                lua_pushnil(state);
+                lua_pushnil(state);
+                return 2;
+            }
+
             Entity entity = luaL_checkinteger(state, 1);
-            float scale = luaL_checknumber(state, 2);
-            LuaEngine* engine = getEngine(state);
-            if (!engine) return 0;
-            engine->textSetScale(entity, scale);
+            Vector4 color = engine->textGetColor(entity);
+            lua_pushnumber(state, color.x);
+            lua_pushnumber(state, color.y);
+            lua_pushnumber(state, color.z);
+            lua_pushnumber(state, color.w);
+            return 4;
+        }
+        static int TextSetScale(lua_State *state) {
+            LuaEngine *engine = _functions::getEngine(state);
+            if (engine == nullptr) {
+                return 0;
+            }
+            Entity entity = luaL_checkinteger(state, 1);
+            float width = luaL_checknumber(state, 2);
+            float height = luaL_checknumber(state, 3);
+            engine->textSetScale(entity, Vector2(width, height));
             return 0;
         }
-        
-        static int TextSetVisible(lua_State* state) {
+        static int TextGetScale(lua_State *state) {
+            LuaEngine *engine = _functions::getEngine(state);
+            if (engine == nullptr) {
+                lua_pushnil(state);
+                lua_pushnil(state);
+                return 2;
+            }
+
+            Entity entity = luaL_checkinteger(state, 1);
+            Vector2 scale = engine->textGetScale(entity);
+            lua_pushnumber(state, scale.x);
+            lua_pushnumber(state, scale.y);
+            return 2;
+        }
+        static int TextSetOrigin(lua_State *state) {
+            LuaEngine *engine = _functions::getEngine(state);
+            if (engine == nullptr) {
+                return 0;
+            }
+            Entity entity = luaL_checkinteger(state, 1);
+            float x = luaL_checknumber(state, 2);
+            float y = luaL_checknumber(state, 3);
+            engine->textSetOrigin(entity, Vector2(x, y));
+            return 0;
+        }
+        static int TextGetOrigin(lua_State *state) {
+            LuaEngine *engine = _functions::getEngine(state);
+            if (engine == nullptr) {
+                lua_pushnil(state);
+                lua_pushnil(state);
+                return 2;
+            }
+
+            Entity entity = luaL_checkinteger(state, 1);
+            Vector2 origin = engine->textGetOrigin(entity);
+            lua_pushnumber(state, origin.x);
+            lua_pushnumber(state, origin.y);
+            return 2;
+        }
+        static int TextSetRotation(lua_State *state) {
+            LuaEngine *engine = _functions::getEngine(state);
+            if (engine == nullptr) {
+                return 0;
+            }
+            Entity entity = luaL_checkinteger(state, 1);
+            float rotation = luaL_checknumber(state, 2);
+            engine->textSetRotation(entity, rotation);
+            return 0;
+        }
+        static int TextGetRotation(lua_State *state) {
+            LuaEngine *engine = _functions::getEngine(state);
+            if (engine == nullptr) {
+                lua_pushnil(state);
+                return 1;
+            }
+
+            Entity entity = luaL_checkinteger(state, 1);
+            float rotation = engine->textGetRotation(entity);
+            lua_pushnumber(state, rotation);
+            return 1;
+        }
+        static int TextSetAlignment(lua_State *state) {
+            LuaEngine *engine = _functions::getEngine(state);
+            if (engine == nullptr) {
+                return 0;
+            }
+            Entity entity = luaL_checkinteger(state, 1);
+            int alignment = luaL_checkinteger(state, 2);
+            engine->textSetAlignment(entity, static_cast<BlazeBolt::Text2D::Alignment>(alignment));
+            return 0;
+        }
+        static int TextGetAlignment(lua_State *state) {
+            LuaEngine *engine = _functions::getEngine(state);
+            if (engine == nullptr) {
+                lua_pushnil(state);
+                return 1;
+            }
+
+            Entity entity = luaL_checkinteger(state, 1);
+            BlazeBolt::Text2D::Alignment alignment = engine->textGetAlignment(entity);
+            lua_pushinteger(state, static_cast<int>(alignment));
+            return 1;
+        }
+        static int TextSetVisible(lua_State *state) {
+            LuaEngine *engine = _functions::getEngine(state);
+            if (engine == nullptr) {
+                return 0;
+            }
             Entity entity = luaL_checkinteger(state, 1);
             bool visible = lua_toboolean(state, 2);
-            LuaEngine* engine = getEngine(state);
-            if (!engine) return 0;
             engine->textSetVisible(entity, visible);
             return 0;
+        }
+        static int TextIsVisible(lua_State *state) {
+            LuaEngine *engine = _functions::getEngine(state);
+            if (engine == nullptr) {
+                lua_pushnil(state);
+                return 1;
+            }
+
+            Entity entity = luaL_checkinteger(state, 1);
+            bool visible = engine->textIsVisible(entity);
+            lua_pushboolean(state, visible);
+            return 1;
         }
         
         // Animation functions
@@ -1665,9 +1903,13 @@ namespace LuaEngine {
         {"SpriteSetSize", _functions::SpriteSetSize},
         {"SpriteGetSize", _functions::SpriteGetSize},
         {"SpriteSetOrigin", _functions::SpriteSetOrigin},
+        {"SpriteGetOrigin", _functions::SpriteGetOrigin},
         {"SpriteSetRotation", _functions::SpriteSetRotation},
+        {"SpriteGetRotation", _functions::SpriteGetRotation},
         {"SpriteSetColor", _functions::SpriteSetColor},
+        {"SpriteGetColor", _functions::SpriteGetColor},
         {"SpriteSetVisible", _functions::SpriteSetVisible},
+        {"SpriteIsVisible", _functions::SpriteIsVisible},
         
         // Animation functions
         {"CreateAnimation", _functions::CreateAnimation},
@@ -1689,9 +1931,19 @@ namespace LuaEngine {
         {"TextSetString", _functions::TextSetString},
         {"TextGetString", _functions::TextGetString},
         {"TextSetPosition", _functions::TextSetPosition},
+        {"TextGetPosition", _functions::TextGetPosition},
         {"TextSetColor", _functions::TextSetColor},
+        {"TextGetColor", _functions::TextGetColor},
         {"TextSetScale", _functions::TextSetScale},
+        {"TextGetScale", _functions::TextGetScale},
+        {"TextSetOrigin", _functions::TextSetOrigin},
+        {"TextGetOrigin", _functions::TextGetOrigin},
+        {"TextSetRotation", _functions::TextSetRotation},
+        {"TextGetRotation", _functions::TextGetRotation},
+        {"TextSetAlignment", _functions::TextSetAlignment},
+        {"TextGetAlignment", _functions::TextGetAlignment},
         {"TextSetVisible", _functions::TextSetVisible},
+        {"TextIsVisible", _functions::TextIsVisible},
         
         // Mesh functions
         {"CreateMesh", _functions::CreateMesh},
@@ -1814,10 +2066,12 @@ namespace LuaEngine {
         scripts(), scriptsListPath(), projectFileName(),
         sceneManager(),
         additionalWindows(), mainWindow(&window),
-        projectionViewMatrix2D(),
-        spriteShader2D(), spriteMesh2D(), textureManager(),
+        projectionViewMatrix2D(), quadVertexBufferObject(),
+        spriteShader2D(), fontShader2D(), spriteMesh2D(),
+        textureManager(), fontManager(),
         shaders(), entityShaderMap(), nextShaderId(1)
     {
+        this->spriteMesh2D.setVertexBuffer(this->quadVertexBufferObject);
         this->sceneManager = std::make_unique<SceneManager>(this);
 
         this->state = luaL_newstate();
@@ -1932,6 +2186,13 @@ namespace LuaEngine {
         
         lua_pushlightuserdata(state, this);
         lua_setglobal(state, "__lua_engine");
+        
+        // Text constants
+        lua_newtable(state);
+        lua_pushinteger(state, static_cast<int>(BlazeBolt::Text2D::Alignment::Left)); lua_setfield(state, -2, "LEFT");
+        lua_pushinteger(state, static_cast<int>(BlazeBolt::Text2D::Alignment::Center)); lua_setfield(state, -2, "CENTER");
+        lua_pushinteger(state, static_cast<int>(BlazeBolt::Text2D::Alignment::Right)); lua_setfield(state, -2, "RIGHT");
+        lua_setglobal(state, "TextAlignment");
         
         // Keyboard constants
         lua_newtable(state);
@@ -2060,6 +2321,7 @@ namespace LuaEngine {
     }
     
     // Sprite implementations
+    // FIXME: Maybe, we shouldn't create every entity (e.g. Sprite2D, Text2D, etc.) on heap?
     Entity LuaEngine::createSprite(const std::string &texturePath, const Vector2 &position) {
         BlazeBolt::Sprite2D *sprite = new BlazeBolt::Sprite2D();
         const GL::Texture2D *texture = this->textureManager.loadFromFile2D(texturePath);
@@ -2089,12 +2351,10 @@ namespace LuaEngine {
         }
         sprite->setPosition(position);
     }
-    
     Vector2 LuaEngine::spriteGetPosition(Entity entity) {
         BlazeBolt::Sprite2D *sprite = spriteWorld.getEntity(entity);
         return sprite == nullptr ? Vector2(0.0f, 0.0f) : sprite->getPosition();
     }
-    
     // ! IMPORTANT: Only if allowed by the host.
     // TODO: Rename to spriteSetScale and do the same in the Lua implementation.
     void LuaEngine::spriteSetSize(Entity entity, const Vector2 &size) {
@@ -2104,12 +2364,10 @@ namespace LuaEngine {
         }
         sprite->setScale(size);
     }
-    
     Vector2 LuaEngine::spriteGetSize(Entity entity) {
         BlazeBolt::Sprite2D *sprite = spriteWorld.getEntity(entity);
         return sprite == nullptr ? Vector2(1.0f, 1.0f) : sprite->getScale();
     }
-    
     void LuaEngine::spriteSetOrigin(Entity entity, const Vector2& origin) {
         BlazeBolt::Sprite2D *sprite = spriteWorld.getEntity(entity);
         if (sprite == nullptr) {
@@ -2117,7 +2375,10 @@ namespace LuaEngine {
         }
         sprite->setOrigin(origin);
     }
-    
+    Vector2 LuaEngine::spriteGetOrigin(Entity entity) {
+        BlazeBolt::Sprite2D *sprite = spriteWorld.getEntity(entity);
+        return sprite == nullptr ? Vector2(0.0f, 0.0f) : sprite->getOrigin();
+    }
     void LuaEngine::spriteSetRotation(Entity entity, float rotation) {
         BlazeBolt::Sprite2D *sprite = spriteWorld.getEntity(entity);
         if (sprite == nullptr) {
@@ -2125,7 +2386,10 @@ namespace LuaEngine {
         }
         sprite->setRotation(rotation);
     }
-    
+    float LuaEngine::spriteGetRotation(Entity entity) {
+        BlazeBolt::Sprite2D *sprite = spriteWorld.getEntity(entity);
+        return sprite == nullptr ? 0.0f : sprite->getRotation();
+    }
     void LuaEngine::spriteSetColor(Entity entity, const Vector4& color) {
         BlazeBolt::Sprite2D *sprite = spriteWorld.getEntity(entity);
         if (sprite == nullptr) {
@@ -2133,7 +2397,10 @@ namespace LuaEngine {
         }
         sprite->setColor(color);
     }
-    
+    Vector4 LuaEngine::spriteGetColor(Entity entity) {
+        BlazeBolt::Sprite2D *sprite = spriteWorld.getEntity(entity);
+        return sprite == nullptr ? Vector4(0.0f, 0.0f, 0.0f, 0.0f) : sprite->getColor();
+    }
     void LuaEngine::spriteSetVisible(Entity entity, bool visible) {
         BlazeBolt::Sprite2D *sprite = spriteWorld.getEntity(entity);
         if (sprite == nullptr) {
@@ -2141,19 +2408,24 @@ namespace LuaEngine {
         }
         sprite->setVisible(visible);
     }
-    
+    bool LuaEngine::spriteIsVisible(Entity entity) {
+        BlazeBolt::Sprite2D *sprite = spriteWorld.getEntity(entity);
+        return sprite == nullptr ? false : sprite->isVisible();
+    }
     void LuaEngine::drawAllSprites() const {
-        for (const auto& pair : spriteWorld.getAllEntities()) {
+        this->spriteShader2D.bind();
+        this->spriteShader2D.setAspectRatio(static_cast<float>(getScreenWidth()) / static_cast<float>(getScreenHeight()));
+        for (const auto &pair : spriteWorld.getAllEntities()) {
             if (pair.first && !pair.second) {
                 // Check if entity has a custom shader
                 auto shaderIt = entityShaderMap.find(pair.second);
                 if (shaderIt != entityShaderMap.end()) {
-                    Shader* customShader = getShader(shaderIt->second);
+                    Shader *customShader = getShader(shaderIt->second);
                     if (customShader) {
                         customShader->use();
                     }
                 }
-                pair.first->draw(this->textureManager, this->spriteShader2D, this->spriteMesh2D, this->projectionViewMatrix2D);
+                pair.first->draw(this->textureManager.getDefault2D(), this->spriteShader2D, this->spriteMesh2D, this->projectionViewMatrix2D);
             }
         }
     }
@@ -2271,71 +2543,122 @@ namespace LuaEngine {
     }
     
     // Text implementations
-    Entity LuaEngine::createText(const std::string& fontPath, const std::string& text,
-                                   const Vector2& position, int fontSize) {
-        Text* textObj = new Text(fontPath, fontSize);
-        textObj->setScreenSize(getScreenWidth(), getScreenHeight());
-        textObj->setText(text);
-        textObj->setPosition(position);
-        Entity entity = textWorld.spawn(textObj);
-        objectMap[entity] = RegisteredObject(RegisteredObject::TEXT, textObj, entity);
+    // FIXME: Maybe, we shouldn't create every entity (e.g. Sprite2D, Text2D, etc.) on heap?
+    Entity LuaEngine::createText(const std::string &fontPath, const std::string &text, const Vector2 &position) {
+        BlazeBolt::Text2D *textObject = new BlazeBolt::Text2D(this->quadVertexBufferObject, this->fontManager.loadFromFile(fontPath));
+        textObject->setText(text);
+        textObject->setPosition(position);
+        Entity entity = this->textWorld.spawn(textObject);
+        this->objectMap[entity] = RegisteredObject(RegisteredObject::TEXT, textObject, entity);
         return entity;
     }
-    
-    void LuaEngine::textSetString(Entity entity, const std::string& text) {
-        Text* txt = textWorld.getEntity(entity);
-        if (txt) txt->setText(text);
+    void LuaEngine::textSetString(Entity entity, const std::string &text) {
+        BlazeBolt::Text2D *textObject = this->textWorld.getEntity(entity);
+        if (textObject == nullptr) {
+            return;
+        }
+        textObject->setText(text);
     }
-    
     std::string LuaEngine::textGetString(Entity entity) {
-        Text* txt = textWorld.getEntity(entity);
-        return txt ? txt->getText() : "";
+        BlazeBolt::Text2D *textObject = this->textWorld.getEntity(entity);
+        return textObject ? textObject->getText() : "";
     }
-    
-    void LuaEngine::textSetPosition(Entity entity, const Vector2& pos) {
-        Text* txt = textWorld.getEntity(entity);
-        if (txt) txt->setPosition(pos);
+    void LuaEngine::textSetPosition(Entity entity, const Vector2 &position) {
+        BlazeBolt::Text2D *textObject = this->textWorld.getEntity(entity);
+        if (textObject == nullptr) {
+            return;
+        }
+        textObject->setPosition(position);
     }
-    
-    void LuaEngine::textSetColor(Entity entity, const Vector4& color) {
-        Text* txt = textWorld.getEntity(entity);
-        if (txt) txt->setColor(color);
+    Vector2 LuaEngine::textGetPosition(Entity entity) {
+        BlazeBolt::Text2D *textObject = this->textWorld.getEntity(entity);
+        return textObject ? textObject->getPosition() : Vector2(0.0f, 0.0f);
     }
-    
-    void LuaEngine::textSetScale(Entity entity, float scale) {
-        Text* txt = textWorld.getEntity(entity);
-        if (txt) txt->setScale(scale);
+    void LuaEngine::textSetScale(Entity entity, const Vector2 &scale) {
+        BlazeBolt::Text2D *textObject = this->textWorld.getEntity(entity);
+        if (textObject == nullptr) {
+            return;
+        }
+        textObject->setScale(scale);
     }
-    
+    Vector2 LuaEngine::textGetScale(Entity entity) {
+        BlazeBolt::Text2D *textObject = this->textWorld.getEntity(entity);
+        return textObject ? textObject->getScale() : Vector2(0.0f, 0.0f);
+    }
+    void LuaEngine::textSetOrigin(Entity entity, const Vector2 &origin) {
+        BlazeBolt::Text2D *textObject = this->textWorld.getEntity(entity);
+        if (textObject == nullptr) {
+            return;
+        }
+        textObject->setOrigin(origin);
+    }
+    Vector2 LuaEngine::textGetOrigin(Entity entity) {
+        BlazeBolt::Text2D *textObject = this->textWorld.getEntity(entity);
+        return textObject ? textObject->getOrigin() : Vector2(0.0f, 0.0f);
+    }
+    void LuaEngine::textSetRotation(Entity entity, float rotation) {
+        BlazeBolt::Text2D *textObject = this->textWorld.getEntity(entity);
+        if (textObject == nullptr) {
+            return;
+        }
+        textObject->setRotation(rotation);
+    }
+    float LuaEngine::textGetRotation(Entity entity) {
+        BlazeBolt::Text2D *textObject = this->textWorld.getEntity(entity);
+        return textObject ? textObject->getRotation() : 0.0f;
+    }
+    void LuaEngine::textSetColor(Entity entity, const Vector4 &color) {
+        BlazeBolt::Text2D *textObject = this->textWorld.getEntity(entity);
+        if (textObject == nullptr) {
+            return;
+        }
+        textObject->setColor(color);
+    }
+    Vector4 LuaEngine::textGetColor(Entity entity) {
+        BlazeBolt::Text2D *textObject = this->textWorld.getEntity(entity);
+        return textObject ? textObject->getColor() : Vector4(0.0f, 0.0f, 0.0f, 0.0f);
+    }
+    void LuaEngine::textSetAlignment(Entity entity, BlazeBolt::Text2D::Alignment alignment) {
+        BlazeBolt::Text2D *textObject = this->textWorld.getEntity(entity);
+        if (textObject == nullptr) {
+            return;
+        }
+        textObject->setAlignment(alignment);
+    }
+    BlazeBolt::Text2D::Alignment LuaEngine::textGetAlignment(Entity entity) {
+        BlazeBolt::Text2D *textObject = this->textWorld.getEntity(entity);
+        return textObject ? textObject->getAlignment() : BlazeBolt::Text2D::Alignment::Left;
+    }
     void LuaEngine::textSetVisible(Entity entity, bool visible) {
-        Text* txt = textWorld.getEntity(entity);
-        if (txt) txt->setVisible(visible);
+        BlazeBolt::Text2D *textObject = this->textWorld.getEntity(entity);
+        if (textObject == nullptr) {
+            return;
+        }
+        textObject->setVisible(visible);
+    }
+    bool LuaEngine::textIsVisible(Entity entity) {
+        BlazeBolt::Text2D *textObject = this->textWorld.getEntity(entity);
+        return textObject ? textObject->isVisible() : false;
     }
     
     void LuaEngine::drawAllTexts() {
+        this->fontShader2D.bind();
+        this->fontShader2D.setAspectRatio(static_cast<float>(this->getScreenWidth()) / static_cast<float>(this->getScreenHeight()));
         for (const auto& pair : textWorld.getAllEntities()) {
             if (pair.first && !pair.second) {
                 auto shaderIt = entityShaderMap.find(pair.second);
                 if (shaderIt != entityShaderMap.end()) {
-                    Shader* customShader = getShader(shaderIt->second);
+                    Shader *customShader = getShader(shaderIt->second);
                     if (customShader) {
                         customShader->use();
                     }
                 }
-                pair.first->draw();
+                pair.first->draw(this->fontShader2D, this->projectionViewMatrix2D);
             }
         }
     }
 
     // FIXME: Setting screen (window) size for each entity is the worst idea ever, we need to just pass it at the render stage and use it anywhere we want
-    void LuaEngine::setTextScreenSize(int width, int height) {
-        for (const auto& pair : textWorld.getAllEntities()) {
-            if (pair.first && !pair.second) {
-                pair.first->setScreenSize(width, height);
-            }
-        }
-    }
-    // FIXME: The same thing as above ^^^
     void LuaEngine::setSpriteScreenSize(int width, int height) {
         for (const auto& pair : animationWorld.getAllEntities()) {
             if (pair.first && !pair.second) {

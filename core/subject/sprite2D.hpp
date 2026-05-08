@@ -2,17 +2,19 @@
 #include <string>
 #include <graphics/gl.hpp>
 #include <graphics/shader.h>
-#include <graphics/textureManager.hpp>
+#include <graphics/quad.hpp>
 #include <utils/math/vector.h>
 
 namespace BlazeBolt {
     struct SpriteMesh2D {
     private:
-        GL::VertexArrayObject vao;
-        GL::VertexBufferObject vbo;
+        GL::VertexArrayObject vertexArrayObject;
     public:
         SpriteMesh2D();
+        explicit SpriteMesh2D(const QuadVertexBufferObject2D &vertexBufferObject);
         ~SpriteMesh2D() = default;
+
+        void setVertexBuffer(const QuadVertexBufferObject2D &vertexBufferObject);
         void draw() const;
     };
     struct SpriteShader2D {
@@ -22,10 +24,12 @@ namespace BlazeBolt {
         SpriteShader2D();
         ~SpriteShader2D() = default;
         void bind() const;
+        void setAspectRatio(float aspectRatio) const;
         void setMVPMatrix(const Matrix3x3 &matrix) const;
         void setColor(const Vector4 &color) const;
     };
 
+    // TODO: Either implement ECS or a Node (OOP) system, so parts of the objects like visibility, transform and rendering could be part of a base, e.g. "Node2D/Object2D" class, and just add a custom objects, or just have an object with Transform2D component, Text2D/Sprite2D component, etc.
     class Sprite2D {
     private:
         const GL::Texture2D *texture;
@@ -63,7 +67,7 @@ namespace BlazeBolt {
         void setVisible(bool visible);
         bool isVisible() const;
 
-        void draw(const TextureManager &textureManager, const SpriteShader2D &shader, const SpriteMesh2D &mesh, const Matrix3x3 &projectionViewMatrix) const;
+        void draw(const GL::Texture2D &defaultTexture, const SpriteShader2D &shader, const SpriteMesh2D &mesh, const Matrix3x3 &projectionViewMatrix) const;
     };
     
     /*

@@ -21,8 +21,6 @@ int main() {
         fprintf(stderr, "Failed to initialize Lua engine\n");
         return 1;
     }
-    luaEngine.setTextScreenSize(window.getWidth(), window.getHeight());
-
     if (!luaEngine.loadScriptsFromList("engine/.BlazeBoltProject")) {
         fprintf(stderr, "Failed to load scripts\n");
         return 1;
@@ -31,6 +29,8 @@ int main() {
     // Вызываем Start с передачей размеров экрана
     luaEngine.callFunction("Start");
     std::chrono::steady_clock::time_point lastTime = std::chrono::steady_clock::now();
+    float fpsTimer = 0.0f;
+    uint32_t frameCount = 0;
 
     printf("Game Engine initialized successfully\n");
     printf("Screen size: %dx%d\n", window.getWidth(), window.getHeight());
@@ -44,7 +44,6 @@ int main() {
         int newWindowWidth = window.getWidth();
         int newWindowHeight = window.getHeight();
         if (newWindowWidth != previousWindowWidth || newWindowHeight != previousWindowHeight) {
-            luaEngine.setTextScreenSize(newWindowWidth, newWindowHeight);
             luaEngine.setSpriteScreenSize(newWindowWidth, newWindowHeight);
             previousWindowWidth = newWindowWidth;
             previousWindowHeight = newWindowHeight;
@@ -54,6 +53,14 @@ int main() {
         std::chrono::steady_clock::time_point currentTime = std::chrono::steady_clock::now();
         float deltaTime = std::chrono::duration<float>(currentTime - lastTime).count();
         lastTime = currentTime;
+
+        fpsTimer += deltaTime;
+        frameCount++;
+        if (fpsTimer >= 1.0f) {
+            printf("FPS: %u\n", frameCount);
+            fpsTimer -= 1.0f;
+            frameCount = 0;
+        }
 
         // Update
         Input::getInstance().update();

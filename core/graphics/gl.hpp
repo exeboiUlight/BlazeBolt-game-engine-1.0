@@ -1,11 +1,12 @@
 #pragma once
+#include <optional>
 #include <glad/glad.h>
 
 namespace GL {
     void bindVertexArray(GLuint vao);
     void unbindVertexArray();
-    void bindVertexBuffer(GLuint vbo);
-    void unbindVertexBuffer();
+    void bindVertexBuffer(GLuint vbo, GLenum usage);
+    void unbindVertexBuffer(GLenum usage);
     void bindShaderProgram(GLuint program);
     void unbindShaderProgram();
     void setActiveTextureUnit(GLuint unit);
@@ -37,7 +38,7 @@ namespace GL {
         VertexBufferObject &operator=(VertexBufferObject&& other) noexcept;
         ~VertexBufferObject();
 
-        void bind() const;
+        void bind(GLenum usage) const;
         GLuint get() const;
     };
     struct Texture2D {
@@ -65,6 +66,8 @@ namespace GL {
         ShaderProgram &operator=(ShaderProgram&& other) noexcept;
         ~ShaderProgram();
 
+        bool tryToLink();
+
         void bind() const;
         GLuint get() const;
     };
@@ -78,6 +81,8 @@ namespace GL {
         Shader(Shader&& other) noexcept;
         Shader &operator=(Shader&& other) noexcept;
         ~Shader();
+
+        static std::optional<Shader> fromSource(GLenum type, const char *source);
 
         GLuint get() const;
     };
