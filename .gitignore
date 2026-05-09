@@ -1,7 +1,7 @@
 .vscode/
 bin/
 build/
-engine/
+/engine/
 blazebolt_projects.json
 blazebolt_settings.json
 void.zip
