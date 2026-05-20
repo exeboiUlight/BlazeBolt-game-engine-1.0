@@ -2,7 +2,7 @@
 #include <cstdio>
 #include <chrono>
 #include <graphics/window.h>
-#include <utils/input/input.h>
+#include <utils/input.hpp>
 #include <engine/lua.h>
 
 int main() {
@@ -37,9 +37,8 @@ int main() {
     int previousWindowWidth = window.getWidth();
     int previousWindowHeight = window.getHeight();
     while (!window.shouldClose()) {
-        Input::getInstance().update();
-
         window.pollEvents();
+        Input::getInstance().preUpdate(); // IMPORTANT! Must be called after pollEvents() and before anything else
 
         int newWindowWidth = window.getWidth();
         int newWindowHeight = window.getHeight();
@@ -62,7 +61,6 @@ int main() {
         }
 
         // Update
-        Input::getInstance().update();
         luaEngine.callUpdate(deltaTime);
         luaEngine.physicsStep();
         luaEngine.updateAll(deltaTime);
@@ -71,6 +69,8 @@ int main() {
         luaEngine.callDraw();
         luaEngine.drawAll();
         window.swapBuffers();
+
+        Input::getInstance().postUpdate(); // IMPORTANT! Must be called at the end of the frame after everything else
     }
 
     luaEngine.callEnd();
