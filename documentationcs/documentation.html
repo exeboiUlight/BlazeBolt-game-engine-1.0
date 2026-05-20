@@ -3,230 +3,373 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>BlazeBolt Lua API 1.0 — документация</title>
+<title>BlazeBolt Lua API 1.0 � ������������</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   html { scroll-behavior: smooth; scroll-padding-top: 24px; }
 
   :root {
-    --bg: #0d1117;
-    --bg2: #161b22;
-    --bg3: #1c2333;
-    --border: #30363d;
-    --text: #e6edf3;
-    --text2: #8b949e;
-    --accent: #ff6b6b;
-    --accent2: #ffa502;
-    --accent3: #54a0ff;
-    --green: #2ed573;
-    --code-bg: #1c2333;
+    --bg: #0a0e17;
+    --bg2: #111827;
+    --bg3: #1a2332;
+    --bg4: #1f2a3f;
+    --border: #1e2d4a;
+    --border-light: #2a3d5e;
+    --text: #e2e8f0;
+    --text2: #8899b4;
+    --text3: #5a6d8a;
+    --accent: #f43f5e;
+    --accent2: #f59e0b;
+    --accent3: #3b82f6;
+    --cyan: #06b6d4;
+    --purple: #8b5cf6;
+    --green: #10b981;
+    --orange: #f97316;
+    --gradient: linear-gradient(135deg, #f43f5e, #f59e0b);
+    --gradient2: linear-gradient(135deg, #3b82f6, #8b5cf6);
+    --code-bg: #0d1520;
     --sidebar-w: 280px;
   }
 
   body {
-    font-family: -apple-system, 'Segoe UI', 'Noto Sans', system-ui, sans-serif;
+    font-family: 'Inter', -apple-system, 'Segoe UI', system-ui, sans-serif;
     background: var(--bg);
     color: var(--text);
-    line-height: 1.7;
+    line-height: 1.75;
     font-size: 15px;
   }
 
-  /* ===== SIDEBAR ===== */
+  ::selection { background: rgba(244, 63, 94, 0.3); color: #fff; }
+
   .sidebar {
     position: fixed; top: 0; left: 0; bottom: 0; width: var(--sidebar-w);
-    background: var(--bg2); border-right: 1px solid var(--border);
+    background: var(--bg2);
+    border-right: 1px solid var(--border);
     overflow-y: auto; z-index: 100;
-    padding: 20px 0;
+    padding: 0;
   }
-  .sidebar::-webkit-scrollbar { width: 5px; }
-  .sidebar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  .sidebar::-webkit-scrollbar { width: 4px; }
+  .sidebar::-webkit-scrollbar-thumb { background: var(--border-light); border-radius: 2px; }
+  .sidebar::-webkit-scrollbar-track { background: transparent; }
 
-  .sidebar-logo {
-    padding: 0 20px 16px; border-bottom: 1px solid var(--border); margin-bottom: 12px;
-    font-size: 13px; color: var(--text2); letter-spacing: 0.5px;
+  .sidebar-header {
+    padding: 24px 20px 20px;
+    border-bottom: 1px solid var(--border);
+    background: linear-gradient(180deg, rgba(244,63,94,0.05) 0%, transparent 100%);
+    position: sticky; top: 0; z-index: 2;
+    backdrop-filter: blur(12px);
   }
-  .sidebar-logo strong { color: var(--accent); font-size: 16px; display: block; letter-spacing: 0; }
+  .sidebar-header strong {
+    font-size: 22px; font-weight: 800;
+    background: var(--gradient);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    display: block;
+    letter-spacing: -0.5px;
+  }
+  .sidebar-header span {
+    font-size: 12px; color: var(--text2);
+    text-transform: uppercase; letter-spacing: 2px;
+    margin-top: 2px; display: block;
+  }
 
+  .sidebar nav { padding: 8px 0 24px; }
   .sidebar nav a {
-    display: flex; align-items: center; gap: 8px;
-    padding: 7px 20px; color: var(--text2); text-decoration: none;
-    font-size: 13.5px; transition: all 0.15s; border-left: 3px solid transparent;
+    display: flex; align-items: center; gap: 10px;
+    padding: 6px 20px; color: var(--text2); text-decoration: none;
+    font-size: 13.5px; font-weight: 450;
+    transition: all 0.2s ease;
+    border-left: 3px solid transparent;
+    position: relative;
   }
-  .sidebar nav a:hover { color: var(--text); background: var(--bg3); }
-  .sidebar nav a.active { color: var(--accent); border-left-color: var(--accent); background: rgba(255,107,107,0.06); }
-  .sidebar .nav-icon { width: 16px; text-align: center; font-size: 14px; flex-shrink: 0; }
+  .sidebar nav a:hover { color: var(--text); background: rgba(59,130,246,0.06); }
+  .sidebar nav a.active {
+    color: var(--accent3);
+    border-left-color: var(--accent3);
+    background: rgba(59,130,246,0.08);
+  }
+  .sidebar nav a.active::after {
+    content: ''; position: absolute; right: 12px; top: 50%;
+    transform: translateY(-50%);
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--accent3);
+    box-shadow: 0 0 8px rgba(59,130,246,0.5);
+  }
+  .sidebar .nav-icon { width: 16px; text-align: center; font-size: 12px; flex-shrink: 0; opacity: 0.6; }
   .sidebar .nav-cat {
-    padding: 16px 20px 4px; font-size: 11px; font-weight: 700; text-transform: uppercase;
-    letter-spacing: 1px; color: var(--accent); opacity: 0.7; cursor: default;
+    padding: 18px 20px 6px; font-size: 10px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 1.5px; color: var(--accent2); opacity: 0.6; cursor: default;
   }
-  .sidebar .nav-cat-warn { color: var(--accent2); opacity: 0.5; }
-  .sidebar .section-scene a { padding-left: 36px; font-size: 12.5px; color: var(--text2); opacity: 0.7; }
-  .sidebar .section-scene a:hover { opacity: 1; }
+  .sidebar .nav-cat-warn { color: var(--orange); }
+  .sidebar .section-scene a { padding-left: 40px; font-size: 12.5px; color: var(--text3); }
 
-  /* ===== MAIN ===== */
   .main { margin-left: var(--sidebar-w); min-height: 100vh; }
 
   .header {
-    border-bottom: 1px solid var(--border); padding: 32px 48px 28px;
-    background: linear-gradient(135deg, #0d1117 0%, #161b22 100%);
+    padding: 48px 56px 40px;
+    background: linear-gradient(135deg, #0a0e17 0%, #111827 50%, #1a2332 100%);
+    border-bottom: 1px solid var(--border);
+    position: relative;
+    overflow: hidden;
   }
-  .header h1 { font-size: 32px; font-weight: 800; color: var(--accent); }
-  .header p { color: var(--text2); margin-top: 6px; font-size: 15px; }
+  .header::before {
+    content: ''; position: absolute; top: -50%; right: -20%;
+    width: 600px; height: 600px;
+    background: radial-gradient(circle, rgba(244,63,94,0.08) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .header::after {
+    content: ''; position: absolute; bottom: -50%; left: 10%;
+    width: 400px; height: 400px;
+    background: radial-gradient(circle, rgba(59,130,246,0.06) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .header h1 {
+    font-size: 38px; font-weight: 800;
+    background: var(--gradient);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    position: relative;
+    letter-spacing: -1px;
+  }
+  .header p {
+    color: var(--text2); margin-top: 8px; font-size: 16px;
+    position: relative;
+    max-width: 600px;
+  }
 
-  .content { padding: 32px 48px 64px; max-width: 900px; }
+  .content { padding: 40px 56px 64px; max-width: 960px; }
 
-  /* ===== TYPOGRAPHY ===== */
   h2 {
-    font-size: 22px; font-weight: 700; margin: 40px 0 16px; padding-bottom: 8px;
-    border-bottom: 1px solid var(--border); color: var(--accent2);
+    font-size: 24px; font-weight: 700; margin: 48px 0 20px; padding-bottom: 12px;
+    border-bottom: 2px solid var(--border);
+    color: var(--text);
+    display: flex; align-items: center; gap: 12px;
+    letter-spacing: -0.3px;
+  }
+  h2::before {
+    content: ''; display: inline-block; width: 4px; height: 28px;
+    border-radius: 2px;
+    background: var(--gradient);
+    flex-shrink: 0;
   }
   h2:first-of-type { margin-top: 0; }
   h3 {
-    font-size: 17px; font-weight: 600; margin: 28px 0 10px; color: var(--accent3);
+    font-size: 18px; font-weight: 600; margin: 32px 0 12px;
+    color: var(--cyan);
+    letter-spacing: -0.2px;
   }
-  h4 { font-size: 14px; font-weight: 600; margin: 20px 0 8px; color: var(--text2); text-transform: uppercase; letter-spacing: 0.5px; }
-  p { margin: 10px 0; }
-  a { color: var(--accent3); text-decoration: none; }
-  a:hover { text-decoration: underline; }
+  h4 { font-size: 13px; font-weight: 700; margin: 24px 0 8px; color: var(--text2); text-transform: uppercase; letter-spacing: 1px; }
+  p { margin: 12px 0; }
+  a { color: var(--accent3); text-decoration: none; transition: color 0.2s; }
+  a:hover { color: var(--cyan); text-decoration: none; }
 
-  ul, ol { margin: 8px 0 8px 24px; }
-  li { margin: 4px 0; }
-  li > ul, li > ol { margin: 2px 0 2px 20px; }
+  ul, ol { margin: 10px 0 10px 24px; }
+  li { margin: 5px 0; line-height: 1.6; }
+  li > ul, li > ol { margin: 3px 0 3px 20px; }
 
   strong { color: var(--accent2); }
   em { color: var(--text2); }
 
-  hr { border: none; border-top: 1px solid var(--border); margin: 40px 0; }
+  hr {
+    border: none;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--border-light), transparent);
+    margin: 48px 0;
+  }
 
-  /* ===== CODE ===== */
   code {
-    background: var(--code-bg); padding: 2px 6px; border-radius: 4px;
-    font-family: 'Cascadia Code', 'JetBrains Mono', 'Fira Code', monospace;
-    font-size: 0.88em; color: #f8c291;
+    background: var(--bg3); padding: 2px 7px; border-radius: 4px;
+    font-family: 'JetBrains Mono', 'Cascadia Code', 'Fira Code', monospace;
+    font-size: 0.85em; color: #fbbf24;
+    border: 1px solid rgba(251,191,36,0.1);
   }
   pre {
-    background: var(--code-bg); border: 1px solid var(--border); border-left: 3px solid var(--accent);
-    padding: 16px 20px; margin: 12px 0; overflow-x: auto; border-radius: 6px;
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    padding: 20px 24px;
+    margin: 16px 0;
+    overflow-x: auto;
+    border-radius: 10px;
     position: relative;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.3);
   }
-  pre code { background: none; padding: 0; color: var(--text); font-size: 0.83em; line-height: 1.55; }
   pre::before {
-    content: 'lua'; position: absolute; top: 6px; right: 12px;
-    font-size: 11px; color: var(--text2); text-transform: uppercase; letter-spacing: 1px;
-    font-family: -apple-system, sans-serif; opacity: 0.5;
+    content: 'lua'; position: absolute; top: 10px; right: 16px;
+    font-size: 10px; color: var(--text3); text-transform: uppercase; letter-spacing: 1.5px;
+    font-family: 'Inter', sans-serif;
+    background: var(--bg3); padding: 2px 10px; border-radius: 4px;
+    border: 1px solid var(--border);
   }
-  .hl-comment { color: #6a9955; font-style: italic; }
-  .hl-keyword { color: #c586c0; font-weight: 500; }
-  .hl-string { color: #ce9178; }
-  .hl-number { color: #b5cea8; }
-  .hl-builtin { color: #569cd6; }
-  .hl-constant { color: #4fc1ff; }
-  .hl-function { color: #dcdcaa; }
-  .hl-operator { color: #d4d4d4; }
+  pre code {
+    background: none; padding: 0; color: var(--text);
+    font-size: 0.82em; line-height: 1.6;
+    border: none;
+  }
+  .hl-comment { color: #5a7a4a; font-style: italic; }
+  .hl-keyword { color: #c084fc; font-weight: 500; }
+  .hl-string { color: #fbbf24; }
+  .hl-number { color: #34d399; }
+  .hl-builtin { color: #60a5fa; }
+  .hl-constant { color: #22d3ee; }
+  .hl-function { color: #fbbf24; }
 
-  /* ===== TABLES ===== */
-  .table-wrap { overflow-x: auto; margin: 12px 0; border-radius: 6px; border: 1px solid var(--border); }
-  table { border-collapse: collapse; width: 100%; font-size: 14px; }
-  th, td { padding: 10px 14px; text-align: left; border-bottom: 1px solid var(--border); }
-  th { background: var(--bg3); color: var(--accent2); font-weight: 600; font-size: 13px; text-transform: uppercase; letter-spacing: 0.3px; }
-  td { background: var(--bg2); }
+  .table-wrap { overflow-x: auto; margin: 16px 0; border-radius: 10px; border: 1px solid var(--border); box-shadow: 0 2px 12px rgba(0,0,0,0.15); }
+  table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
+  th, td { padding: 12px 16px; text-align: left; border-bottom: 1px solid var(--border); }
+  th { background: var(--bg3); color: var(--accent2); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
+  td { background: var(--bg2); color: var(--text2); }
+  td:first-child code { color: #fbbf24; font-size: 0.9em; }
   tr:last-child td { border-bottom: none; }
-  tr:hover td { background: var(--bg3); }
+  tr:hover td { background: var(--bg4); }
   td code, th code { font-size: 0.9em; }
 
-  /* ===== BLOCKQUOTE ===== */
   blockquote {
-    border-left: 4px solid var(--accent); background: var(--bg3); padding: 14px 18px;
-    margin: 14px 0; border-radius: 6px;
+    border-left: 4px solid var(--gradient);
+    background: linear-gradient(135deg, rgba(244,63,94,0.05), rgba(245,158,11,0.05));
+    padding: 16px 20px;
+    margin: 16px 0;
+    border-radius: 8px;
+    border-left-color: var(--accent);
   }
-  blockquote p { margin: 0; }
   blockquote strong { color: var(--accent); }
 
-  /* ===== WARNING ===== */
   .warning {
-    display: flex; gap: 12px; align-items: flex-start;
-    background: rgba(255,107,107,0.08); border: 1px solid rgba(255,107,107,0.25);
-    padding: 14px 18px; border-radius: 6px; margin: 14px 0;
-    color: #ff9f9f; font-size: 14px;
+    display: flex; gap: 14px; align-items: flex-start;
+    background: rgba(244,63,94,0.06);
+    border: 1px solid rgba(244,63,94,0.2);
+    padding: 16px 20px;
+    border-radius: 10px;
+    margin: 16px 0;
+    color: #fca5a5;
+    font-size: 14px;
+    box-shadow: 0 2px 12px rgba(244,63,94,0.05);
   }
-  .warning-icon { font-size: 20px; flex-shrink: 0; line-height: 1.4; }
+  .warning-icon { font-size: 22px; flex-shrink: 0; line-height: 1.4; }
 
-  /* ===== TODO / NOT IMPLEMENTED ===== */
   .unimplemented {
-    display: inline-block; background: rgba(255,165,2,0.12); color: var(--accent2);
-    border: 1px solid rgba(255,165,2,0.3); padding: 2px 10px; border-radius: 4px;
-    font-size: 12px; font-weight: 600; letter-spacing: 0.3px; text-transform: uppercase;
-    margin-bottom: 8px;
+    display: inline-flex; align-items: center; gap: 6px;
+    background: rgba(249,115,22,0.12); color: var(--orange);
+    border: 1px solid rgba(249,115,22,0.3);
+    padding: 4px 12px; border-radius: 6px;
+    font-size: 11px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase;
+    margin-bottom: 10px;
+  }
+  .unimplemented::before {
+    content: '!'; display: inline-flex; align-items: center; justify-content: center;
+    width: 16px; height: 16px; border-radius: 50%;
+    background: rgba(249,115,22,0.2);
+    font-size: 10px; font-weight: 800;
   }
 
-  /* ===== BADGE ===== */
   .badge {
-    display: inline-block; background: var(--accent3); color: #fff;
-    padding: 1px 9px; border-radius: 10px; font-size: 11px; font-weight: 600;
-    margin-left: 6px; vertical-align: middle;
+    display: inline-block;
+    background: var(--gradient2);
+    color: #fff;
+    padding: 2px 10px; border-radius: 20px;
+    font-size: 10px; font-weight: 600;
+    margin-left: 8px; vertical-align: middle;
+    letter-spacing: 0.3px;
   }
 
-  /* ===== RESPONSIVE ===== */
-  @media (max-width: 860px) {
-    .sidebar { display: none; }
+  h2[id], h3[id] { scroll-margin-top: 24px; }
+
+  .footer {
+    text-align: center; padding: 32px 0 16px;
+    color: var(--text3); font-size: 13px;
+    border-top: 1px solid var(--border);
+    margin-top: 48px;
+  }
+
+  @media (max-width: 900px) {
+    .sidebar {
+      transform: translateX(-100%);
+      transition: transform 0.3s ease;
+      box-shadow: 4px 0 24px rgba(0,0,0,0.4);
+    }
+    .sidebar.open { transform: translateX(0); }
     .main { margin-left: 0; }
-    .header { padding: 24px 20px 20px; }
-    .header h1 { font-size: 24px; }
-    .content { padding: 20px; }
-    pre { padding: 12px 14px; }
+    .header { padding: 28px 20px 24px; }
+    .header h1 { font-size: 26px; }
+    .content { padding: 24px 20px 48px; }
+    pre { padding: 16px 16px; }
+    .mobile-toggle {
+      display: flex !important;
+      position: fixed; top: 12px; left: 12px; z-index: 200;
+      width: 40px; height: 40px;
+      background: var(--bg2); border: 1px solid var(--border);
+      border-radius: 10px;
+      align-items: center; justify-content: center;
+      cursor: pointer;
+      color: var(--text);
+      font-size: 20px;
+      backdrop-filter: blur(12px);
+      box-shadow: 0 2px 12px rgba(0,0,0,0.3);
+    }
   }
+  .mobile-toggle { display: none; }
 
-  /* ===== SCROLLBAR ===== */
-  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  .sidebar-overlay {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 99;
+    backdrop-filter: blur(4px);
+  }
+  .sidebar-overlay.show { display: block; }
+  @media (min-width: 901px) { .sidebar-overlay { display: none !important; } }
+
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
   ::-webkit-scrollbar-track { background: var(--bg); }
-  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
-  ::-webkit-scrollbar-thumb:hover { background: #484f58; }
+  ::-webkit-scrollbar-thumb { background: var(--border-light); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--text3); }
 </style>
 </head>
 <body>
 
-<div class="sidebar">
-  <div class="sidebar-logo">
+<div class="mobile-toggle" id="mobileToggle">&#9776;</div>
+<div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+<div class="sidebar" id="sidebar">
+  <div class="sidebar-header">
     <strong>BlazeBolt</strong>
-    Lua API 1.0
+    <span>Lua API 1.0</span>
   </div>
   <nav>
-    <div class="nav-cat">Основы</div>
-    <a href="#koordinatnaya-sistema"><span class="nav-icon">&#9679;</span> Система координат</a>
-    <a href="#zhiznennyy-cikl"><span class="nav-icon">&#9679;</span> Жизненный цикл</a>
-
-    <div class="nav-cat">Объекты</div>
-    <a href="#sprayty"><span class="nav-icon">&#9679;</span> Спрайты</a>
-    <a href="#animacii"><span class="nav-icon">&#9679;</span> Анимации</a>
-    <a href="#tekst"><span class="nav-icon">&#9679;</span> Текст</a>
-    <a href="#meshi"><span class="nav-icon">&#9679;</span> Меши</a>
-    <a href="#upravlenie-obektami"><span class="nav-icon">&#9679;</span> Объекты</a>
-
-    <div class="nav-cat">Системы</div>
-    <a href="#okno"><span class="nav-icon">&#9679;</span> Окно</a>
-    <a href="#vvod"><span class="nav-icon">&#9679;</span> Ввод</a>
-    <a href="#zvuk"><span class="nav-icon">&#9679;</span> Звук</a>
-    <a href="#fizika"><span class="nav-icon">&#9679;</span> Физика</a>
+    <div class="nav-cat">������</div>
+    <a href="#koordinatnaya-sistema"><span class="nav-icon">&#9679;</span> ������� ���������</a>
+    <a href="#zhiznennyy-cikl"><span class="nav-icon">&#9679;</span> ��������� ����</a>
+    <div class="nav-cat">�������</div>
+    <a href="#sprayty"><span class="nav-icon">&#9679;</span> �������</a>
+    <a href="#animacii"><span class="nav-icon">&#9679;</span> ��������</a>
+    <a href="#tekst"><span class="nav-icon">&#9679;</span> �����</a>
+    <a href="#meshi"><span class="nav-icon">&#9679;</span> ����</a>
+    <a href="#upravlenie-obektami"><span class="nav-icon">&#9679;</span> �������</a>
+    <div class="nav-cat">�������</div>
+    <a href="#okno"><span class="nav-icon">&#9679;</span> ����</a>
+    <a href="#vvod"><span class="nav-icon">&#9679;</span> ����</a>
+    <a href="#zvuk"><span class="nav-icon">&#9679;</span> ����</a>
+    <a href="#fizika"><span class="nav-icon">&#9679;</span> ������</a>
     <a href="#gui"><span class="nav-icon">&#9679;</span> GUI</a>
-    <a href="#sheydery"><span class="nav-icon">&#9679;</span> Шейдеры</a>
-    <a href="#osveshchenie"><span class="nav-icon">&#9679;</span> Освещение</a>
-    <a href="#chasticy-particles"><span class="nav-icon">&#9679;</span> Частицы</a>
-
-    <div class="nav-cat">Скриптинг</div>
-    <a href="#skripty-i-sceny"><span class="nav-icon">&#9679;</span> Скрипты и сцены</a>
-    <a href="#utility"><span class="nav-icon">&#9679;</span> Утилиты</a>
-
-    <div class="nav-cat">Референс</div>
-    <a href="#spravochnik-vseh-funkciy"><span class="nav-icon">&#9733;</span> Справочник функций</a>
-    <a href="#primer-polnaya-mini-igra"><span class="nav-icon">&#9679;</span> Мини-игра</a>
-    <a href="#luchshie-praktiki"><span class="nav-icon">&#9679;</span> Лучшие практики</a>
-    <a href="#struktura-proekta"><span class="nav-icon">&#9679;</span> Структура проекта</a>
-
-    <div class="nav-cat nav-cat-warn">В разработке</div>
+    <a href="#sheydery"><span class="nav-icon">&#9679;</span> �������</a>
+    <a href="#osveshchenie"><span class="nav-icon">&#9679;</span> ���������</a>
+    <a href="#chasticy-particles"><span class="nav-icon">&#9679;</span> �������</a>
+    <div class="nav-cat">���������</div>
+    <a href="#skripty-i-sceny"><span class="nav-icon">&#9679;</span> ������� � �����</a>
+    <a href="#utility"><span class="nav-icon">&#9679;</span> �������</a>
+    <div class="nav-cat">��������</div>
+    <a href="#spravochnik-vseh-funkciy"><span class="nav-icon">&#9733;</span> ���������� �������</a>
+    <a href="#primer-polnaya-mini-igra"><span class="nav-icon">&#9679;</span> ����-����</a>
+    <a href="#luchshie-praktiki"><span class="nav-icon">&#9679;</span> ������ ��������</a>
+    <a href="#struktura-proekta"><span class="nav-icon">&#9679;</span> ��������� �������</a>
+    <div class="nav-cat nav-cat-warn">� ����������</div>
     <div class="section-scene">
-      <a href="#scene-sistema"><span class="nav-icon">&#9888;</span> Scene-система</a>
-      <a href="#worldentity"><span class="nav-icon">&#9888;</span> World/Entity</a>
+      <a href="#scene-sistema">Scene-�������</a>
+      <a href="#worldentity">World/Entity</a>
     </div>
   </nav>
 </div>
@@ -234,11 +377,10 @@
 <div class="main">
   <div class="header">
     <h1>&#9889; BlazeBolt Lua API 1.0</h1>
-    <p>Полная документация по Lua API игрового движка BlazeBolt 1.0</p>
+    <p>������ ������������ �� Lua API �������� ������ BlazeBolt 1.0</p>
   </div>
 
   <div class="content">
-
     <!-- ==================== СИСТЕМА КООРДИНАТ ==================== -->
     <h2 id="koordinatnaya-sistema">Система координат</h2>
     <p>Движок использует стандартные координаты OpenGL NDC (Normalized Device Coordinates):</p>
@@ -250,35 +392,25 @@
       <li><strong>Левый верхний угол:</strong> <code>(-1, 1)</code></li>
     </ul>
     <p>Размеры задаются в NDC: <code>0.1</code> = 10% от высоты экрана.</p>
-
     <h3>Конвертация пикселей в NDC</h3>
     <pre><code>function pixelsToNDC(px, py)
     local ndcX = (px / GetScreenWidth()) * 2 - 1
     local ndcY = 1 - (py / GetScreenHeight()) * 2
     return ndcX, ndcY
 end</code></pre>
-
     <hr>
-
-    <!-- ==================== ЖИЗНЕННЫЙ ЦИКЛ ==================== -->
     <h2 id="zhiznennyy-cikl">Жизненный цикл</h2>
-
     <h3>Callbacks</h3>
     <pre><code>function Start()       -- вызывается один раз при запуске
 function Update(dt)    -- вызывается каждый кадр (dt в секундах)
 function Draw()        -- вызывается для отрисовки каждый кадр
 function End()         -- вызывается при завершении работы</code></pre>
-
     <h3>Callbacks сцен</h3>
     <pre><code>function OnMenuLoad()    -- при загрузке сцены "Menu"
 function OnMenuUnload()  -- при выгрузке сцены "Menu"</code></pre>
     <p>Имя функции формируется как <code>On&lt;SceneName&gt;Load</code> / <code>On&lt;SceneName&gt;Unload</code>.</p>
-
     <hr>
-
-    <!-- ==================== СПРАЙТЫ ==================== -->
     <h2 id="sprayty">Спрайты</h2>
-
     <h3>Создание</h3>
     <pre><code>entity = BlazeBolt.CreateSprite(texturePath, x, y)</code></pre>
     <div class="table-wrap">
@@ -290,39 +422,31 @@ function OnMenuUnload()  -- при выгрузке сцены "Menu"</code></pr
     </table>
     </div>
     <p><strong>Возвращает:</strong> <code>entity</code> (integer) — идентификатор объекта</p>
-
     <h3>Позиция</h3>
     <pre><code>BlazeBolt.SpriteSetPosition(entity, x, y)
 x, y = BlazeBolt.SpriteGetPosition(entity)</code></pre>
-
     <h3>Размер</h3>
     <pre><code>BlazeBolt.SpriteSetSize(entity, width, height)
 width, height = BlazeBolt.SpriteGetSize(entity)</code></pre>
-
     <h3>Точка привязки</h3>
     <pre><code>BlazeBolt.SpriteSetOrigin(entity, originX, originY)
 originX, originY = BlazeBolt.SpriteGetOrigin(entity)</code></pre>
     <p>Значения от <code>0</code> до <code>1</code>. <code>(0.5, 0.5)</code> — центр, <code>(0, 0)</code> — левый нижний угол.</p>
-
     <h3>Вращение</h3>
     <pre><code>BlazeBolt.SpriteSetRotation(entity, degrees)
 degrees = BlazeBolt.SpriteGetRotation(entity)</code></pre>
     <p>Угол в градусах.</p>
-
     <h3>Цвет</h3>
     <pre><code>BlazeBolt.SpriteSetColor(entity, r, g, b, a)
 r, g, b, a = BlazeBolt.SpriteGetColor(entity)</code></pre>
     <p>Значения от <code>0</code> до <code>1</code>. По умолчанию <code>(1, 1, 1, 1)</code> — белый.</p>
-
     <h3>Текстура</h3>
     <pre><code>BlazeBolt.SpriteSetTexture(entity, texturePath)</code></pre>
     <p>Смена текстуры во время выполнения.</p>
-
     <h3>Видимость</h3>
     <pre><code>BlazeBolt.SpriteSetVisible(entity, visible)
 visible = BlazeBolt.SpriteIsVisible(entity)</code></pre>
     <p><code>visible</code> — <code>true</code> или <code>false</code>.</p>
-
     <h3>Полный пример</h3>
     <pre><code>function Start()
     local sprite = BlazeBolt.CreateSprite("icon.png", 0, 0)
@@ -331,15 +455,10 @@ visible = BlazeBolt.SpriteIsVisible(entity)</code></pre>
     BlazeBolt.SpriteSetColor(sprite, 1, 0.5, 0, 1)
     BlazeBolt.SpriteSetRotation(sprite, 45)
 end</code></pre>
-
     <hr>
-
-    <!-- ==================== АНИМАЦИИ ==================== -->
     <h2 id="animacii">Анимации</h2>
-
     <h3>Создание из GIF</h3>
     <pre><code>entity = BlazeBolt.CreateAnimation(gifPath, true, x, y)</code></pre>
-
     <h3>Создание из спрайт-листа</h3>
     <pre><code>entity = BlazeBolt.CreateAnimationFromSheet(texturePath, frameWidth, frameHeight, totalFrames, framesPerRow, frameDelayMs, x, y)</code></pre>
     <div class="table-wrap">
@@ -354,26 +473,21 @@ end</code></pre>
       <tr><td>x, y</td><td>number</td><td>Позиция в NDC</td></tr>
     </table>
     </div>
-
     <h3>Воспроизведение</h3>
     <pre><code>BlazeBolt.AnimationPlay(entity)
 BlazeBolt.AnimationPause(entity)
 BlazeBolt.AnimationStop(entity)        -- остановить, сброс на первый кадр
 BlazeBolt.AnimationRestart(entity)     -- перезапустить с начала</code></pre>
-
     <h3>Настройки</h3>
     <pre><code>BlazeBolt.AnimationSetLooping(entity, looping)  -- зацикливание (boolean)
 BlazeBolt.AnimationSetSpeed(entity, speed)       -- множитель скорости (1.0 = норма)
 BlazeBolt.AnimationSetFrame(entity, frameIndex)  -- перейти к конкретному кадру</code></pre>
-
     <h3>Информация</h3>
     <pre><code>frameCount = BlazeBolt.AnimationGetFrameCount(entity)
 isPlaying  = BlazeBolt.AnimationIsPlaying(entity)</code></pre>
-
     <h3>Позиция и размер</h3>
     <pre><code>BlazeBolt.AnimationSetPosition(entity, x, y)
 BlazeBolt.AnimationSetSize(entity, width, height)</code></pre>
-
     <h3>Пример</h3>
     <pre><code>function Start()
     local anim = BlazeBolt.CreateAnimationFromSheet("player_sheet.png", 32, 32, 8, 4, 100, 0, 0)
@@ -381,18 +495,13 @@ BlazeBolt.AnimationSetSize(entity, width, height)</code></pre>
     BlazeBolt.AnimationSetLooping(anim, true)
     BlazeBolt.AnimationSetSpeed(anim, 2.0)
 end
-
 function Update(dt)
     if not BlazeBolt.AnimationIsPlaying(anim) then
         BlazeBolt.AnimationRestart(anim)
     end
 end</code></pre>
-
     <hr>
-
-    <!-- ==================== ТЕКСТ ==================== -->
     <h2 id="tekst">Текст</h2>
-
     <h3>Создание</h3>
     <pre><code>entity = BlazeBolt.CreateText(fontPath, text, x, y)</code></pre>
     <div class="table-wrap">
@@ -404,34 +513,25 @@ end</code></pre>
     </table>
     </div>
     <p><strong>Возвращает:</strong> <code>entity</code> (integer) — идентификатор объекта</p>
-
     <h3>Содержимое</h3>
     <pre><code>BlazeBolt.TextSetString(entity, text)
 text = BlazeBolt.TextGetString(entity)</code></pre>
-
     <h3>Позиция</h3>
     <pre><code>BlazeBolt.TextSetPosition(entity, x, y)
 x, y = BlazeBolt.TextGetPosition(entity)</code></pre>
-
     <h3>Цвет</h3>
     <pre><code>BlazeBolt.TextSetColor(entity, r, g, b, a)
 r, g, b, a = BlazeBolt.TextGetColor(entity)</code></pre>
     <p>Значения от <code>0</code> до <code>1</code>.</p>
-
     <h3>Масштаб</h3>
     <pre><code>BlazeBolt.TextSetScale(entity, scaleX, scaleY)
 scaleX, scaleY = BlazeBolt.TextGetScale(entity)</code></pre>
-
     <h3>Точка привязки</h3>
     <pre><code>BlazeBolt.TextSetOrigin(entity, originX, originY)
 originX, originY = BlazeBolt.TextGetOrigin(entity)</code></pre>
-    <p>Значения от <code>0</code> до <code>1</code>. <code>(0.5, 0.5)</code> — центр текста.</p>
-
     <h3>Вращение</h3>
     <pre><code>BlazeBolt.TextSetRotation(entity, degrees)
 degrees = BlazeBolt.TextGetRotation(entity)</code></pre>
-    <p>Угол в градусах.</p>
-
     <h3>Выравнивание</h3>
     <pre><code>BlazeBolt.TextSetAlignment(entity, alignment)
 alignment = BlazeBolt.TextGetAlignment(entity)</code></pre>
@@ -443,11 +543,9 @@ alignment = BlazeBolt.TextGetAlignment(entity)</code></pre>
       <tr><td><code>TextAlignment.RIGHT</code></td><td>По правому краю</td></tr>
     </table>
     </div>
-
     <h3>Видимость</h3>
     <pre><code>BlazeBolt.TextSetVisible(entity, visible)
 visible = BlazeBolt.TextIsVisible(entity)</code></pre>
-
     <h3>Пример</h3>
     <pre><code>function Start()
     fpsText = BlazeBolt.CreateText('fonts/arial.ttf', 'FPS: 60', -0.8, 0.8)
@@ -456,48 +554,26 @@ visible = BlazeBolt.TextIsVisible(entity)</code></pre>
     BlazeBolt.TextSetOrigin(fpsText, 0.5, 0.5)
     BlazeBolt.TextSetAlignment(fpsText, TextAlignment.CENTER)
 end
-
 function Update(dt)
     local fps = math.floor(1 / dt)
     BlazeBolt.TextSetString(fpsText, 'FPS: ' .. fps)
 end</code></pre>
-
     <hr>
-
-    <!-- ==================== МЕШИ ==================== -->
     <h2 id="meshi">Меши</h2>
-
     <h3>Создание</h3>
     <pre><code>entity = BlazeBolt.CreateMesh()</code></pre>
-
     <h3>Установка данных</h3>
     <pre><code>BlazeBolt.MeshSetData(entity, vertices, indices)</code></pre>
     <p><code>vertices</code> — таблица вершин, каждая вершина:</p>
     <pre><code>{ x = &lt;number&gt;, y = &lt;number&gt;, u = &lt;number&gt;, v = &lt;number&gt; }</code></pre>
-    <p>где <code>x, y</code> — позиция в NDC, <code>u, v</code> — UV-координаты текстуры (0-1).</p>
-    <p><code>indices</code> — таблица индексов для отрисовки треугольников.</p>
-
     <h3>Текстура</h3>
     <pre><code>BlazeBolt.MeshSetTexture(entity, texturePath)</code></pre>
-    <p>Натягивает текстуру на меш. Путь указывается относительно папки <code>assets/</code>.</p>
-
     <h3>Шейдер</h3>
     <pre><code>BlazeBolt.MeshSetShader(entity, shaderId)</code></pre>
-    <p>Привязывает пользовательский шейдер к мешу. <code>shaderId</code> — идентификатор, полученный от <code>CreateShader</code>.</p>
-    <p>При использовании кастомного шейдера меш автоматически устанавливает uniform-переменные:</p>
-    <ul>
-      <li><code>u_Color</code> (<code>vec4</code>) — цвет меша</li>
-      <li><code>u_Texture</code> (<code>sampler2D</code>) — текстурный слот 0</li>
-    </ul>
-
     <h3>Цвет</h3>
     <pre><code>BlazeBolt.MeshSetColor(entity, r, g, b, a)</code></pre>
-    <p>Устанавливает цвет меша. Значения от <code>0</code> до <code>1</code>. По умолчанию <code>(1, 1, 1, 1)</code> — белый.</p>
-    <p>Цвет применяется только при использовании шейдера (с uniform <code>u_Color</code>).</p>
-
     <h3>Отрисовка</h3>
     <pre><code>BlazeBolt.MeshDraw(entity)</code></pre>
-
     <h3>Пример</h3>
     <pre><code>function Start()
     local mesh = BlazeBolt.CreateMesh()
@@ -509,132 +585,89 @@ end</code></pre>
     }
     local indices = { 0, 1, 2, 2, 3, 0 }
     BlazeBolt.MeshSetData(mesh, vertices, indices)
-
-    -- Текстура
     BlazeBolt.MeshSetTexture(mesh, "icon.png")
-
-    -- Цвет
     BlazeBolt.MeshSetColor(mesh, 1.0, 0.5, 0.0, 1.0)
-
-    -- Кастомный шейдер (опционально)
     local shader = BlazeBolt.CreateShader("custom", "shaders/custom.vert", "shaders/custom.frag")
     BlazeBolt.MeshSetShader(mesh, shader)
 end
-
 function Draw()
     BlazeBolt.MeshDraw(mesh)
 end</code></pre>
-
     <hr>
-
-    <!-- ==================== ОКНО ==================== -->
     <h2 id="okno">Окно</h2>
-
     <h3>Главное окно — установка</h3>
     <pre><code>BlazeBolt.SetMainWindowTitle(title)
 BlazeBolt.SetMainWindowSize(width, height)
 BlazeBolt.SetMainWindowPosition(x, y)
 BlazeBolt.SetMainWindowIcon(iconPath)
 BlazeBolt.SetMainWindowShouldClose(flag)</code></pre>
-
     <h3>Главное окно — получение</h3>
-    <pre><code>title  = BlazeBolt.GetMainWindowTitle()          -- string
-width  = BlazeBolt.GetMainWindowWidth()          -- integer (px)
-height = BlazeBolt.GetMainWindowHeight()         -- integer (px)
-x, y   = BlazeBolt.GetMainWindowPosition()       -- integer, integer (px)
-should = BlazeBolt.IsMainWindowShouldClose()     -- boolean</code></pre>
-
+    <pre><code>title  = BlazeBolt.GetMainWindowTitle()
+width  = BlazeBolt.GetMainWindowWidth()
+height = BlazeBolt.GetMainWindowHeight()
+x, y   = BlazeBolt.GetMainWindowPosition()
+should = BlazeBolt.IsMainWindowShouldClose()</code></pre>
     <h3>Дополнительные окна</h3>
     <pre><code>windowPtr = BlazeBolt.CreateWindow(width, height, title)
 BlazeBolt.SetWindowTitle(windowPtr, title)
 BlazeBolt.SetWindowSize(windowPtr, width, height)
 BlazeBolt.SetWindowIcon(windowPtr, iconPath)</code></pre>
-
     <h3>Размеры экрана</h3>
-    <pre><code>width  = GetScreenWidth()    -- integer (px), аналог BlazeBolt.GetMainWindowWidth()
-height = GetScreenHeight()   -- integer (px), аналог BlazeBolt.GetMainWindowHeight()</code></pre>
-
+    <pre><code>width  = GetScreenWidth()
+height = GetScreenHeight()</code></pre>
     <h3>Пример</h3>
     <pre><code>function Start()
     BlazeBolt.SetMainWindowTitle("My Game")
     print("Window: " .. GetScreenWidth() .. "x" .. GetScreenHeight())
 end
-
 function Update(dt)
     if BlazeBolt.IsKeyJustPressed(Keys.F11) then
         BlazeBolt.SetMainWindowSize(1920, 1080)
     end
 end</code></pre>
-
     <hr>
-
-    <!-- ==================== ВВОД ==================== -->
     <h2 id="vvod">Ввод</h2>
-
     <h3>Клавиатура</h3>
-    <pre><code>isDown    = BlazeBolt.IsKeyPressed(key)          -- зажата ли клавиша сейчас
-isPressed = BlazeBolt.IsKeyJustPressed(key)      -- нажата в этом кадре
-isReleased = BlazeBolt.IsKeyJustReleased(key)    -- отпущена в этом кадре</code></pre>
-
+    <pre><code>isDown    = BlazeBolt.IsKeyPressed(key)
+isPressed = BlazeBolt.IsKeyJustPressed(key)
+isReleased = BlazeBolt.IsKeyJustReleased(key)</code></pre>
     <h3>Мышь — позиция</h3>
-    <pre><code>x  = BlazeBolt.GetMouseX()            -- позиция X курсора (px от левого края)
-y  = BlazeBolt.GetMouseY()            -- позиция Y курсора (px от верхнего края)
-dx = BlazeBolt.GetMouseDeltaX()       -- изменение X с прошлого кадра
-dy = BlazeBolt.GetMouseDeltaY()       -- изменение Y с прошлого кадра</code></pre>
-
+    <pre><code>x  = BlazeBolt.GetMouseX()
+y  = BlazeBolt.GetMouseY()
+dx = BlazeBolt.GetMouseDeltaX()
+dy = BlazeBolt.GetMouseDeltaY()</code></pre>
     <h3>Мышь — кнопки</h3>
     <pre><code>isDown    = BlazeBolt.IsMouseButtonPressed(button)
 isPressed = BlazeBolt.IsMouseButtonJustPressed(button)
 isReleased = BlazeBolt.IsMouseButtonJustReleased(button)</code></pre>
-
     <h3>Мышь — прокрутка</h3>
-    <pre><code>scrollY = BlazeBolt.GetScrollY()      -- вертикальная прокрутка за кадр
-scrollX = BlazeBolt.GetScrollX()      -- горизонтальная прокрутка за кадр</code></pre>
-
+    <pre><code>scrollY = BlazeBolt.GetScrollY()
+scrollX = BlazeBolt.GetScrollX()</code></pre>
     <h3>Геймпад</h3>
-    <pre><code>connected = BlazeBolt.IsGamepadConnected(id)                    -- подключен ли геймпад (id: 0-15)
-
--- Кнопки (аналог Keyboard)
-isDown    = BlazeBolt.IsGamepadButtonPressed(id, button)       -- кнопка зажата
-isPressed = BlazeBolt.IsGamepadButtonJustPressed(id, button)  -- нажата в этом кадре
-isReleased = BlazeBolt.IsGamepadButtonJustReleased(id, button) -- отпущена в этом кадре
-
--- Стики (ось)
-axisX = BlazeBolt.GetGamepadAxis(id, axis)                      -- значение оси (-1 до 1)</code></pre>
-
-    <p><strong>Константы кнопок геймпада:</strong></p>
+    <pre><code>connected = BlazeBolt.IsGamepadConnected(id)
+isDown    = BlazeBolt.IsGamepadButtonPressed(id, button)
+isPressed = BlazeBolt.IsGamepadButtonJustPressed(id, button)
+isReleased = BlazeBolt.IsGamepadButtonJustReleased(id, button)
+axisX = BlazeBolt.GetGamepadAxis(id, axis)</code></pre>
+    <h3>Константы кнопок геймпада</h3>
     <pre><code>GamepadButtons.A, GamepadButtons.B, GamepadButtons.X, GamepadButtons.Y
 GamepadButtons.LEFT_BUMPER, GamepadButtons.RIGHT_BUMPER
 GamepadButtons.BACK, GamepadButtons.START
 GamepadButtons.LEFT_STICK, GamepadButtons.RIGHT_STICK
 GamepadButtons.DPAD_UP, GamepadButtons.DPAD_RIGHT, GamepadButtons.DPAD_DOWN, GamepadButtons.DPAD_LEFT</code></pre>
-
-    <p><strong>Константы осей:</strong></p>
-    <pre><code>GamepadAxes.LEFT_X, GamepadAxes.LEFT_Y      -- левый стик
-GamepadAxes.RIGHT_X, GamepadAxes.RIGHT_Y     -- правый стик
-GamepadAxes.LEFT_TRIGGER, GamepadAxes.RIGHT_TRIGGER  -- триггеры</code></pre>
-
-    <p><strong>Deadzone:</strong> Значения осей меньше 0.15 игнорируются (убирает дрейф стиков).</p>
-
+    <h3>Константы осей</h3>
+    <pre><code>GamepadAxes.LEFT_X, GamepadAxes.LEFT_Y
+GamepadAxes.RIGHT_X, GamepadAxes.RIGHT_Y
+GamepadAxes.LEFT_TRIGGER, GamepadAxes.RIGHT_TRIGGER</code></pre>
+    <p><strong>Deadzone:</strong> Значения осей меньше 0.15 игнорируются.</p>
     <h3>Пример</h3>
     <pre><code>function Update(dt)
-    -- Клавиатура
     if BlazeBolt.IsKeyPressed(Keys.A) then print("Move left") end
     if BlazeBolt.IsKeyJustPressed(Keys.SPACE) then print("Jump!") end
-    
-    -- Мышь
     if BlazeBolt.IsMouseButtonPressed(MouseButtons.LEFT) then
         local mx, my = BlazeBolt.GetMouseX(), BlazeBolt.GetMouseY()
         print("Click at: " .. mx .. ", " .. my)
     end
-    
-    -- Прокрутка
-    local scrollY = BlazeBolt.GetScrollY()
-    if scrollY ~= 0 then
-        print("Scroll: " .. scrollY)
-    end
-    
-    -- Геймпад
     if BlazeBolt.IsGamepadConnected(0) then
         local lx = BlazeBolt.GetGamepadAxis(0, GamepadAxes.LEFT_X)
         if BlazeBolt.IsGamepadButtonJustPressed(0, GamepadButtons.A) then
@@ -642,51 +675,23 @@ GamepadAxes.LEFT_TRIGGER, GamepadAxes.RIGHT_TRIGGER  -- триггеры</code><
         end
     end
 end</code></pre>
-
     <h3>Константы клавиш</h3>
-    <pre><code>-- Буквы
-Keys.A, Keys.B, Keys.C, ..., Keys.Z
-
--- Цифры
-Keys._0, Keys._1, ..., Keys._9
-
--- Стрелки
+    <pre><code>Keys.A .. Keys.Z, Keys._0 .. Keys._9
 Keys.UP, Keys.DOWN, Keys.LEFT, Keys.RIGHT
-
--- Специальные
 Keys.SPACE, Keys.ENTER, Keys.ESCAPE
 Keys.TAB, Keys.BACKSPACE, Keys.DELETE
 Keys.INSERT, Keys.HOME, Keys.END, Keys.PAGE_UP, Keys.PAGE_DOWN
-
--- Модификаторы
-Keys.LEFT_SHIFT, Keys.RIGHT_SHIFT
-Keys.LEFT_CONTROL, Keys.RIGHT_CONTROL
-Keys.LEFT_ALT, Keys.RIGHT_ALT
-Keys.LEFT_SUPER, Keys.RIGHT_SUPER
-
--- Функциональные
-Keys.F1, Keys.F2, ..., Keys.F25
-
--- Цифровая клавиатура
+Keys.LEFT_SHIFT, Keys.RIGHT_SHIFT, Keys.LEFT_CONTROL, Keys.RIGHT_CONTROL
+Keys.LEFT_ALT, Keys.RIGHT_ALT, Keys.LEFT_SUPER, Keys.RIGHT_SUPER
+Keys.F1 .. Keys.F25
 Keys.KP_0 .. Keys.KP_9, Keys.KP_DECIMAL, Keys.KP_DIVIDE
 Keys.KP_MULTIPLY, Keys.KP_SUBTRACT, Keys.KP_ADD, Keys.KP_ENTER, Keys.KP_EQUAL
-
--- Блокировка
 Keys.CAPS_LOCK, Keys.SCROLL_LOCK, Keys.NUM_LOCK, Keys.PRINT_SCREEN, Keys.PAUSE
-
--- Прочее
 Keys.MENU</code></pre>
-
     <h3>Константы кнопок мыши</h3>
-    <pre><code>MouseButtons.LEFT
-MouseButtons.RIGHT
-MouseButtons.MIDDLE</code></pre>
-
+    <pre><code>MouseButtons.LEFT, MouseButtons.RIGHT, MouseButtons.MIDDLE</code></pre>
     <hr>
-
-    <!-- ==================== ЗВУК ==================== -->
     <h2 id="zvuk">Звук</h2>
-
     <h3>Загрузка</h3>
     <pre><code>soundId = BlazeBolt.LoadSound(filename, soundName, loop)</code></pre>
     <div class="table-wrap">
@@ -697,22 +702,16 @@ MouseButtons.MIDDLE</code></pre>
       <tr><td>loop</td><td>boolean</td><td>Зацикливание воспроизведения</td></tr>
     </table>
     </div>
-    <p><strong>Возвращает:</strong> <code>soundId</code> (integer) — идентификатор звука</p>
-
     <h3>Воспроизведение</h3>
     <pre><code>BlazeBolt.PlaySound(soundName)
 BlazeBolt.PlaySoundById(soundId)</code></pre>
-
     <h3>Остановка</h3>
     <pre><code>BlazeBolt.StopSound(soundName)
 BlazeBolt.StopAllSounds()</code></pre>
-
     <h3>Громкость</h3>
-    <pre><code>BlazeBolt.SetSoundVolume(soundName, volume)   -- 0.0 - 1.0</code></pre>
-
+    <pre><code>BlazeBolt.SetSoundVolume(soundName, volume)</code></pre>
     <h3>Проверка</h3>
     <pre><code>isPlaying = BlazeBolt.IsSoundPlaying(soundName)</code></pre>
-
     <h3>Пример</h3>
     <pre><code>function Start()
     BlazeBolt.LoadSound("music/bgm.wav", "bgm", true)
@@ -720,149 +719,88 @@ BlazeBolt.StopAllSounds()</code></pre>
     BlazeBolt.PlaySound("bgm")
     BlazeBolt.SetSoundVolume("bgm", 0.5)
 end
-
 function Update(dt)
     if BlazeBolt.IsKeyJustPressed(Keys.SPACE) then
         BlazeBolt.PlaySound("click")
     end
 end</code></pre>
-
     <hr>
-
-    <!-- ==================== УПРАВЛЕНИЕ ОБЪЕКТАМИ ==================== -->
     <h2 id="upravlenie-obektami">Управление объектами</h2>
-
     <h3>Удаление</h3>
-    <pre><code>BlazeBolt.Destroy(entity)      -- удалить конкретный объект
-BlazeBolt.DestroyAll()         -- удалить все объекты</code></pre>
-
+    <pre><code>BlazeBolt.Destroy(entity)
+BlazeBolt.DestroyAll()</code></pre>
     <h3>Пример</h3>
     <pre><code>function Start()
     local temp = BlazeBolt.CreateSprite("icon.png", 0, 0)
-    BlazeBolt.Destroy(temp)    -- удалить сразу
+    BlazeBolt.Destroy(temp)
 end
-
 function Update(dt)
     if BlazeBolt.IsKeyJustPressed(Keys.R) then
-        BlazeBolt.DestroyAll() -- удалить всё
+        BlazeBolt.DestroyAll()
     end
 end</code></pre>
-
     <hr>
-
-    <!-- ==================== ФИЗИКА ==================== -->
     <h2 id="fizika">Физика</h2>
-    <p>Движок использует собственную физическую систему с дискретным детектированием коллизий. Поддерживаются коллайдеры: окружность, прямоугольник. Физические тела привязываются к спрайтам для визуального отображения.</p>
-
+    <p>Движок использует собственную физическую систему с дискретным детектированием коллизий.</p>
     <h3>Инициализация</h3>
     <pre><code>BlazeBolt.PhysicsInit(gravityX, gravityY)</code></pre>
-    <div class="table-wrap">
-    <table>
-      <tr><th>Параметр</th><th>Тип</th><th>Описание</th></tr>
-      <tr><td>gravityX</td><td>number</td><td>Гравитация по X</td></tr>
-      <tr><td>gravityY</td><td>number</td><td>Гравитация по Y</td></tr>
-    </table>
-    </div>
-
     <h3>Гравитация</h3>
     <pre><code>BlazeBolt.PhysicsSetGravity(x, y)
 x, y = BlazeBolt.PhysicsGetGravity()</code></pre>
-
     <h3>Создание тела</h3>
     <pre><code>entity = BlazeBolt.PhysicsCreateBody(bodyType, x, y, mass, friction, restitution)</code></pre>
-    <div class="table-wrap">
-    <table>
-      <tr><th>Параметр</th><th>Тип</th><th>Описание</th></tr>
-      <tr><td>bodyType</td><td>int</td><td>Тип: <code>0</code> = static, <code>1</code> = dynamic, <code>2</code> = kinematic</td></tr>
-      <tr><td>x, y</td><td>number</td><td>Позиция в NDC</td></tr>
-      <tr><td>mass</td><td>number</td><td>Масса тела</td></tr>
-      <tr><td>friction</td><td>number</td><td>Трение (0–1)</td></tr>
-      <tr><td>restitution</td><td>number</td><td>Упругость (0–1)</td></tr>
-    </table>
-    </div>
-
     <h3>Формы</h3>
     <pre><code>BlazeBolt.PhysicsAddCircle(bodyEntity, radius, offsetX, offsetY)
 BlazeBolt.PhysicsAddRectangle(bodyEntity, halfWidth, halfHeight)</code></pre>
-
     <h3>Скорость</h3>
     <pre><code>BlazeBolt.PhysicsSetLinearVelocity(bodyEntity, vx, vy)
 vx, vy = BlazeBolt.PhysicsGetLinearVelocity(bodyEntity)
-
 BlazeBolt.PhysicsSetAngularVelocity(bodyEntity, av)
 av = BlazeBolt.PhysicsGetAngularVelocity(bodyEntity)</code></pre>
-
     <h3>Силы и импульсы</h3>
     <pre><code>BlazeBolt.PhysicsApplyForce(bodyEntity, fx, fy)
 BlazeBolt.PhysicsApplyForceAtPoint(bodyEntity, fx, fy, px, py)
 BlazeBolt.PhysicsApplyImpulse(bodyEntity, ix, iy)
 BlazeBolt.PhysicsApplyImpulseAtPoint(bodyEntity, ix, iy, px, py)
 BlazeBolt.PhysicsApplyTorque(bodyEntity, torque)</code></pre>
-
     <h3>Позиция и вращение</h3>
     <pre><code>BlazeBolt.PhysicsSetPosition(bodyEntity, x, y)
 x, y = BlazeBolt.PhysicsGetPosition(bodyEntity)
-
 BlazeBolt.PhysicsSetAngle(bodyEntity, angle)
 angle = BlazeBolt.PhysicsGetAngle(bodyEntity)</code></pre>
-
     <h3>Свойства тела</h3>
-    <pre><code>BlazeBolt.PhysicsSetGravityScale(bodyEntity, scale)    -- множитель гравитации
+    <pre><code>BlazeBolt.PhysicsSetGravityScale(bodyEntity, scale)
 scale = BlazeBolt.PhysicsGetGravityScale(bodyEntity)
-
-BlazeBolt.PhysicsSetActive(bodyEntity, active)         -- вкл/выкл тело
+BlazeBolt.PhysicsSetActive(bodyEntity, active)
 active = BlazeBolt.PhysicsIsActive(bodyEntity)
-
-BlazeBolt.PhysicsSetFixedRotation(bodyEntity, fixed)   -- фиксировать вращение
+BlazeBolt.PhysicsSetFixedRotation(bodyEntity, fixed)
 fixed = BlazeBolt.PhysicsIsFixedRotation(bodyEntity)
-
-BlazeBolt.PhysicsSetBullet(bodyEntity, bullet)         -- режим пули (для быстрых объектов)
+BlazeBolt.PhysicsSetBullet(bodyEntity, bullet)
 bullet = BlazeBolt.PhysicsIsBullet(bodyEntity)
-
 mass = BlazeBolt.PhysicsGetMass(bodyEntity)</code></pre>
-
-    <h3>Синхронизация со спрайтом</h3>
-    <pre><code>BlazeBolt.PhysicsSyncSprite(bodyEntity, spriteEntity)</code></pre>
-    <p>Автоматически копирует позицию и угол физического тела в спрайт. Вызывайте в <code>Update()</code>.</p>
-
-    <h3>Синхронизация с анимацией</h3>
-    <pre><code>BlazeBolt.PhysicsSyncAnimation(bodyEntity, animationEntity)</code></pre>
-    <p>Копирует позицию и угол физического тела в анимацию (Animation2D). Вызывайте в <code>Update()</code>.</p>
-
-    <h3>Синхронизация с текстом</h3>
-    <pre><code>BlazeBolt.PhysicsSyncText(bodyEntity, textEntity)</code></pre>
-    <p>Копирует позицию и угол физического тела в текст (Text2D). Вызывайте в <code>Update()</code>.</p>
-
+    <h3>Синхронизация</h3>
+    <pre><code>BlazeBolt.PhysicsSyncSprite(bodyEntity, spriteEntity)
+BlazeBolt.PhysicsSyncAnimation(bodyEntity, animationEntity)
+BlazeBolt.PhysicsSyncText(bodyEntity, textEntity)</code></pre>
     <h3>Обновление симуляции</h3>
     <pre><code>BlazeBolt.PhysicsStep()</code></pre>
-    <p>Выполняет один шаг физической симуляции. Вызывайте в <code>Update(dt)</code>.</p>
-
     <h3>Удаление</h3>
     <pre><code>BlazeBolt.PhysicsDestroyBody(bodyEntity)</code></pre>
-
     <h3>Пример</h3>
     <pre><code>function Start()
     BlazeBolt.PhysicsInit(0, -9.8)
-    
     player = BlazeBolt.CreateSprite("icon.png", 0, 0)
     BlazeBolt.SpriteSetSize(player, 0.1, 0.1)
-    
     body = BlazeBolt.PhysicsCreateBody(1, 0, 0, 1, 0.3, 0.5)
     BlazeBolt.PhysicsAddCircle(body, 0.05, 0, 0)
-    
     ground = BlazeBolt.CreateSprite("ground.png", 0, -0.8)
     BlazeBolt.SpriteSetSize(ground, 2, 0.1)
-    
     groundBody = BlazeBolt.PhysicsCreateBody(0, 0, -0.8, 0, 0.5, 0.3)
     BlazeBolt.PhysicsAddRectangle(groundBody, 1, 0.05)
 end
-
 function Update(dt)
     BlazeBolt.PhysicsStep()
     BlazeBolt.PhysicsSyncSprite(body, player)
-    BlazeBolt.PhysicsSyncSprite(groundBody, ground)
-    BlazeBolt.PhysicsSyncAnimation(body, playerAnim)  -- для Animation2D
-    
     if BlazeBolt.IsKeyJustPressed(Keys.SPACE) then
         local _, vy = BlazeBolt.PhysicsGetLinearVelocity(body)
         if vy &lt; 0.1 then
@@ -870,548 +808,218 @@ function Update(dt)
         end
     end
 end</code></pre>
-
     <hr>
-
-    <!-- ==================== УТИЛИТЫ ==================== -->
     <h2 id="utility">Утилиты</h2>
-
     <h3>Консоль</h3>
-    <pre><code>BlazeBolt.Print(...)           -- вывод в консоль (поддерживает любые типы)
-BlazeBolt.AddConsoleMessage(msg, type)  -- добавить сообщение в консоль (type: 0=info, 1=warning, 2=error)</code></pre>
-
+    <pre><code>BlazeBolt.Print(...)
+BlazeBolt.AddConsoleMessage(msg, type)</code></pre>
     <h3>Время</h3>
-    <pre><code>dt   = BlazeBolt.GetDeltaTime()  -- время между кадрами в секундах
-time = GetTime()                 -- время с запуска движка в секундах</code></pre>
-
+    <pre><code>dt   = BlazeBolt.GetDeltaTime()
+time = GetTime()</code></pre>
     <h3>Случайные числа</h3>
-    <pre><code>val      = BlazeBolt.Random(min, max)        -- float, min по умолчанию 0, max по умолчанию 1
-intVal   = BlazeBolt.RandomInt(min, max)     -- integer (min и max обязательны)
-BlazeBolt.SetRandomSeed(seed)                -- установить seed генератора</code></pre>
-
+    <pre><code>val      = BlazeBolt.Random(min, max)
+intVal   = BlazeBolt.RandomInt(min, max)
+BlazeBolt.SetRandomSeed(seed)</code></pre>
     <h3>Выход</h3>
-    <pre><code>BlazeBolt.Quit()               -- закрыть приложение</code></pre>
-
+    <pre><code>BlazeBolt.Quit()</code></pre>
     <h3>Пример</h3>
     <pre><code>function Start()
     BlazeBolt.SetRandomSeed(42)
     BlazeBolt.Print("Hello from BlazeBolt!")
 end
-
 function Update(dt)
     local r = BlazeBolt.Random(0, 100)
-    local ri = BlazeBolt.RandomInt(1, 6)  -- кубик
+    local ri = BlazeBolt.RandomInt(1, 6)
     BlazeBolt.Print("Float: " .. r .. ", Int: " .. ri)
-    BlazeBolt.Print("Delta: " .. dt .. ", Time: " .. GetTime())
 end</code></pre>
-
     <hr>
-
-    <!-- ==================== GUI ==================== -->
     <h2 id="gui">GUI</h2>
-    <p>Графический интерфейс пользователя (панели, кнопки, метки, слайдеры, чекбоксы).</p>
-
-    <blockquote><strong>Система координат:</strong> GUI использует <strong>экранные пиксели</strong> (не NDC). Начало координат <code>(0, 0)</code> — левый верхний угол экрана. Ось Y направлена вниз. Размеры и позиции задаются в пикселях.</blockquote>
-
+    <p>Графический интерфейс пользователя.</p>
+    <blockquote><strong>Система координат:</strong> GUI использует <strong>экранные пиксели</strong> (не NDC).</blockquote>
     <h3>Шрифт</h3>
     <pre><code>BlazeBolt.GuiSetFont(fontPath, fontSize)</code></pre>
-    <div class="table-wrap">
-    <table>
-      <tr><th>Параметр</th><th>Тип</th><th>Описание</th></tr>
-      <tr><td>fontPath</td><td>string</td><td>Путь к TTF-шрифту</td></tr>
-      <tr><td>fontSize</td><td>int</td><td>Размер шрифта (по умолч. 24)</td></tr>
-    </table>
-    </div>
-    <p>Устанавливает глобальный шрифт для всех GUI-виджетов. Вызывается один раз при создании GUI.</p>
-
     <h3>Панель</h3>
     <pre><code>entity = BlazeBolt.GuiPanel(id, x, y, width, height)</code></pre>
-    <div class="table-wrap">
-    <table>
-      <tr><th>Параметр</th><th>Тип</th><th>Описание</th></tr>
-      <tr><td>id</td><td>string</td><td>Уникальный строковый идентификатор</td></tr>
-      <tr><td>x, y</td><td>number</td><td>Позиция в пикселях (левый верхний угол)</td></tr>
-      <tr><td>width, height</td><td>number</td><td>Размер в пикселях. Если <code>0</code> — растягивается на весь экран</td></tr>
-    </table>
-    </div>
-    <p>Прямоугольная панель с прозрачным тёмным фоном. Поддерживает границу (см. <code>GuiSetBorder</code>).</p>
-
     <h3>Кнопка</h3>
     <pre><code>entity = BlazeBolt.GuiButton(id, x, y, width, height, text)</code></pre>
-    <div class="table-wrap">
-    <table>
-      <tr><th>Параметр</th><th>Тип</th><th>Описание</th></tr>
-      <tr><td>id</td><td>string</td><td>Уникальный строковый идентификатор</td></tr>
-      <tr><td>x, y</td><td>number</td><td>Позиция в пикселях</td></tr>
-      <tr><td>width, height</td><td>number</td><td>Размер в пикселях</td></tr>
-      <tr><td>text</td><td>string</td><td>Текст на кнопке</td></tr>
-    </table>
-    </div>
-    <p><strong>Состояния:</strong></p>
-    <ul>
-      <li><strong>Normal</strong> — синий фон <code>(0.28, 0.48, 0.78)</code></li>
-      <li><strong>Hover</strong> — голубоватый фон <code>(0.4, 0.6, 0.9)</code> (наведение мыши)</li>
-      <li><strong>Pressed</strong> — тёмно-синий фон <code>(0.15, 0.35, 0.65)</code> (зажатие)</li>
-    </ul>
-
     <h3>Метка</h3>
     <pre><code>entity = BlazeBolt.GuiLabel(id, x, y, text)</code></pre>
-    <div class="table-wrap">
-    <table>
-      <tr><th>Параметр</th><th>Тип</th><th>Описание</th></tr>
-      <tr><td>id</td><td>string</td><td>Уникальный строковый идентификатор</td></tr>
-      <tr><td>x, y</td><td>number</td><td>Позиция в пикселях</td></tr>
-      <tr><td>text</td><td>string</td><td>Текст для отображения</td></tr>
-    </table>
-    </div>
-    <p>Текстовое поле без фона. Используется для подписей и инструкций.</p>
-
     <h3>Слайдер</h3>
     <pre><code>entity = BlazeBolt.GuiSlider(id, x, y, width, minVal, maxVal, initialVal)</code></pre>
-    <div class="table-wrap">
-    <table>
-      <tr><th>Параметр</th><th>Тип</th><th>Описание</th></tr>
-      <tr><td>id</td><td>string</td><td>Уникальный строковый идентификатор</td></tr>
-      <tr><td>x, y</td><td>number</td><td>Позиция в пикселях</td></tr>
-      <tr><td>width</td><td>number</td><td>Ширина слайдера в пикселях</td></tr>
-      <tr><td>minVal</td><td>number</td><td>Минимальное значение</td></tr>
-      <tr><td>maxVal</td><td>number</td><td>Максимальное значение</td></tr>
-      <tr><td>initialVal</td><td>number</td><td>Начальное значение (по умолч. = minVal)</td></tr>
-    </table>
-    </div>
-    <p>Состоит из трека (полоса) и ползунка (квадрат). <code>OnChange</code> вызывается при перетаскивании ползунка.</p>
-
     <h3>Чекбокс</h3>
     <pre><code>entity = BlazeBolt.GuiCheckbox(id, x, y, text, checked)</code></pre>
-    <div class="table-wrap">
-    <table>
-      <tr><th>Параметр</th><th>Тип</th><th>Описание</th></tr>
-      <tr><td>id</td><td>string</td><td>Уникальный строковый идентификатор</td></tr>
-      <tr><td>x, y</td><td>number</td><td>Позиция в пикселях</td></tr>
-      <tr><td>text</td><td>string</td><td>Текст подписи справа от квадрата</td></tr>
-      <tr><td>checked</td><td>boolean</td><td>Начальное состояние: <code>true</code> / <code>false</code></td></tr>
-    </table>
-    </div>
-    <p>Автоматически переключает состояние при клике и вызывает <code>OnChange</code>.</p>
-
     <h3>Удаление виджетов</h3>
-    <pre><code>BlazeBolt.GuiRemove(id)              -- удалить по строковому ID
-BlazeBolt.GuiRemoveByEntity(entity)   -- удалить по числовому entity
-BlazeBolt.GuiClear()                  -- удалить все виджеты</code></pre>
-
+    <pre><code>BlazeBolt.GuiRemove(id)
+BlazeBolt.GuiRemoveByEntity(entity)
+BlazeBolt.GuiClear()</code></pre>
     <h3>Общие свойства</h3>
-    <pre><code>BlazeBolt.GuiSetPosition(entity, x, y)       -- позиция в пикселях
-BlazeBolt.GuiSetSize(entity, width, height)   -- размер в пикселях
-BlazeBolt.GuiSetColor(entity, r, g, b, a)     -- цвет фона (0–1)
-BlazeBolt.GuiSetText(entity, text)            -- текст (кнопка, метка, чекбокс)
-BlazeBolt.GuiSetVisible(entity, visible)      -- показать/скрыть (boolean)
-BlazeBolt.GuiSetEnabled(entity, enabled)      -- вкл/выкл взаимодействие (boolean)
-BlazeBolt.GuiSetZOrder(entity, z)             -- порядок отрисовки (ниже = раньше)</code></pre>
-
-    <h3>Граница панели</h3>
-    <pre><code>BlazeBolt.GuiSetBorder(entity, r, g, b, a, borderWidth)</code></pre>
-    <p>Только для панелей. <code>r, g, b, a</code> — цвет границы (0–1), <code>borderWidth</code> — толщина в пикселях.</p>
-
-    <h3>Значения</h3>
-    <pre><code>BlazeBolt.GuiSetValue(entity, value)          -- установить значение (число для слайдера)
-val = BlazeBolt.GuiGetValue(entity)           -- число для слайдера, boolean для чекбокса</code></pre>
-
-    <h3>Callbacks</h3>
-    <pre><code>BlazeBolt.GuiSetOnClick(entity, function)     -- вызывается при клике
-BlazeBolt.GuiSetOnChange(entity, function)    -- вызывается при изменении значения</code></pre>
-    <p><code>OnClick</code> срабатывает при отпускании кнопки мыши над виджетом.<br><code>OnChange</code> срабатывает при изменении значения слайдера или переключении чекбокса.</p>
-
+    <pre><code>BlazeBolt.GuiSetPosition(entity, x, y)
+BlazeBolt.GuiSetSize(entity, w, h)
+BlazeBolt.GuiSetColor(entity, r, g, b, a)
+BlazeBolt.GuiSetText(entity, text)
+BlazeBolt.GuiSetVisible(entity, visible)
+BlazeBolt.GuiSetEnabled(entity, enabled)
+BlazeBolt.GuiSetZOrder(entity, z)
+BlazeBolt.GuiSetBorder(entity, r, g, b, a, w)
+BlazeBolt.GuiSetValue(entity, value)
+val = BlazeBolt.GuiGetValue(entity)
+BlazeBolt.GuiSetOnClick(entity, function)
+BlazeBolt.GuiSetOnChange(entity, function)</code></pre>
     <h3>Полный пример</h3>
     <pre><code>function Start()
     BlazeBolt.GuiSetFont("fonts/arial.ttf", 24)
-
-    -- Панель на весь экран
     local panel = BlazeBolt.GuiPanel("bg", 0, 0, 0, 0)
     BlazeBolt.GuiSetColor(panel, 0.05, 0.05, 0.1, 0.85)
-
-    -- Кнопка
     local btn = BlazeBolt.GuiButton("btn_start", 300, 200, 160, 50, "Start Game")
     BlazeBolt.GuiSetOnClick(btn, function()
         BlazeBolt.Print("Button clicked!")
-        BlazeBolt.LoadScene("game")
     end)
-
-    -- Метка
-    local lbl = BlazeBolt.GuiLabel("title", 300, 100, "BlazeBolt Game")
-    BlazeBolt.GuiSetColor(lbl, 1, 1, 1, 1)
-
-    -- Слайдер громкости
     local slider = BlazeBolt.GuiSlider("volume", 300, 300, 300, 0, 100, 50)
     BlazeBolt.GuiSetOnChange(slider, function()
         local val = BlazeBolt.GuiGetValue(slider)
         BlazeBolt.SetSoundVolume("bgm", val / 100)
     end)
-
-    -- Чекбокс
-    local cb = BlazeBolt.GuiCheckbox("fs", 300, 350, "Fullscreen", false)
-    BlazeBolt.GuiSetOnChange(cb, function()
-        if BlazeBolt.GuiGetValue(cb) then
-            BlazeBolt.SetMainWindowSize(1920, 1080)
-        end
-    end)
-end
-
-function Update(dt)
-    -- GUI обновляется автоматически в updateAll()
 end</code></pre>
-
     <h3>Конвертация NDC в пиксели</h3>
     <pre><code>function ndcToPixels(ndcX, ndcY)
     local px = (ndcX + 1) * 0.5 * GetScreenWidth()
     local py = (1 - ndcY) * 0.5 * GetScreenHeight()
     return px, py
-end
-
--- Пример: кнопка в центре экрана
-function Start()
-    local cx, cy = ndcToPixels(0, 0)
-    local btn = BlazeBolt.GuiButton("center_btn", cx - 80, cy - 25, 160, 50, "Center")
 end</code></pre>
-
     <hr>
-
-    <!-- ==================== ШЕЙДЕРЫ ==================== -->
     <h2 id="sheydery">Шейдеры</h2>
-
     <h3>Создание шейдера</h3>
     <pre><code>shaderId = BlazeBolt.CreateShader(name, vertexPath, fragmentPath)</code></pre>
-    <div class="table-wrap">
-    <table>
-      <tr><th>Параметр</th><th>Тип</th><th>Описание</th></tr>
-      <tr><td>name</td><td>string</td><td>Имя шейдера для идентификации</td></tr>
-      <tr><td>vertexPath</td><td>string</td><td>Путь к вершинному шейдеру (.vert)</td></tr>
-      <tr><td>fragmentPath</td><td>string</td><td>Путь к фрагментному шейдеру (.frag)</td></tr>
-    </table>
-    </div>
-    <p><strong>Возвращает:</strong> <code>shaderId</code> (integer) — идентификатор шейдера</p>
-
     <h3>Удаление шейдера</h3>
     <pre><code>BlazeBolt.DestroyShader(shaderId)</code></pre>
-
-    <h3>Привязка шейдера к объекту</h3>
+    <h3>Привязка шейдера</h3>
     <pre><code>BlazeBolt.SetEntityShader(entity, shaderId)
 shaderId = BlazeBolt.GetEntityShader(entity)</code></pre>
-    <p><code>shaderId = 0</code> — использовать стандартный шейдер.</p>
-
-    <h3>Использование шейдера</h3>
+    <h3>Использование</h3>
     <pre><code>BlazeBolt.UseShader(shaderId)</code></pre>
-    <p>Активирует шейдер для последующей отрисовки.</p>
-
-    <h3>Установка uniform-переменных</h3>
+    <h3>Uniform-переменные</h3>
     <pre><code>BlazeBolt.SetShaderFloat(shaderId, name, value)
 BlazeBolt.SetShaderInt(shaderId, name, value)
 BlazeBolt.SetShaderVec2(shaderId, name, x, y)
 BlazeBolt.SetShaderVec3(shaderId, name, x, y, z)
 BlazeBolt.SetShaderVec4(shaderId, name, x, y, z, w)</code></pre>
-
     <h3>Пример</h3>
     <pre><code>function Start()
-    -- Создание шейдера
     local shader = BlazeBolt.CreateShader("invert", "shaders/invert.vert", "shaders/invert.frag")
-    
-    -- Создание спрайта
     local sprite = BlazeBolt.CreateSprite("icon.png", 0, 0)
     BlazeBolt.SpriteSetSize(sprite, 0.5, 0.5)
-    
-    -- Привязка шейдера к спрайту
     BlazeBolt.SetEntityShader(sprite, shader)
 end
-
 function Update(dt)
-    -- Можно менять uniform-переменные каждый кадр
     BlazeBolt.UseShader(shader)
     BlazeBolt.SetShaderFloat(shader, "time", GetTime())
 end</code></pre>
-
     <hr>
-
-    <!-- ==================== ОСВЕЩЕНИЕ ==================== -->
     <h2 id="osveshchenie">Освещение</h2>
-
-    <p>Движок поддерживает различные типы источников света для создания атмосферных эффектов. Каждый источник света имеет настраиваемую полупрозрачность (пенумбру) для создания мягких градиентов свечения.</p>
-    <p><strong>Важно:</strong> Свет автоматически отрисовывается в функции <code>drawAll()</code> движка. Нет необходимости вызывать дополнительные функции для рендеринга.</p>
-
+    <p>Движок поддерживает различные типы источников света.</p>
     <h3>Типы света</h3>
-    <p>Константы <code>LightType</code> доступны как глобальные переменные в Lua:</p>
-    <pre><code>LightType.Point         -- 0: Точечный свет (по умолчанию)
+    <pre><code>LightType.Point         -- 0: Точечный свет
 LightType.Directional   -- 1: Направленный свет
-LightType.Spot         -- 2: Прожектор (конус света)
+LightType.Spot         -- 2: Прожектор
 LightType.Ambient      -- 3: Окружающий свет
-LightType.Sun          -- 4: Солнце (лучи с центральным ядром)</code></pre>
-
-    <table>
-      <thead>
-        <tr><th>Тип</th><th>Значение</th><th>Описание</th></tr>
-      </thead>
-      <tbody>
-        <tr><td><code>LightType.Point</code></td><td>0</td><td>Точечный свет — излучает свет во все стороны</td></tr>
-        <tr><td><code>LightType.Directional</code></td><td>1</td><td>Направленный свет — параллельные лучи</td></tr>
-        <tr><td><code>LightType.Spot</code></td><td>2</td><td>Прожектор — конус света</td></tr>
-        <tr><td><code>LightType.Ambient</code></td><td>3</td><td>Окружающий свет — равномерное освещение</td></tr>
-        <tr><td><code>LightType.Sun</code></td><td>4</td><td>Солнце — лучи с центральным ядром</td></tr>
-      </tbody>
-    </table>
-
+LightType.Sun          -- 4: Солнце</code></pre>
     <h3>Создание света</h3>
     <pre><code>lightEntity = BlazeBolt.CreateLight(lightType, x, y)</code></pre>
-    <table>
-      <thead><tr><th>Параметр</th><th>Тип</th><th>Описание</th></tr></thead>
-      <tbody>
-        <tr><td>lightType</td><td>int</td><td>Тип света (0-4)</td></tr>
-        <tr><td>x, y</td><td>number</td><td>Позиция в NDC</td></tr>
-      </tbody>
-    </table>
-
-    <h3>Счетчик источников</h3>
-    <pre><code>count = BlazeBolt.GetLightCount()</code></pre>
-    <p>Возвращает количество созданных источников света.</p>
-
-    <h3>Позиция</h3>
-    <pre><code>BlazeBolt.LightSetPosition(lightEntity, x, y)
-x, y = BlazeBolt.LightGetPosition(lightEntity)</code></pre>
-
-    <h3>Размер</h3>
-    <pre><code>BlazeBolt.LightSetSize(lightEntity, width, height)</code></pre>
-
-    <h3>Цвет</h3>
-    <pre><code>BlazeBolt.LightSetColor(lightEntity, r, g, b, a)
-r, g, b, a = BlazeBolt.LightGetColor(lightEntity)</code></pre>
-
-    <h3>Интенсивность</h3>
-    <pre><code>BlazeBolt.LightSetIntensity(lightEntity, intensity)
-intensity = BlazeBolt.LightGetIntensity(lightEntity)</code></pre>
-
-    <h3>Диапазон (радиус)</h3>
-    <pre><code>BlazeBolt.LightSetRange(lightEntity, range)
-range = BlazeBolt.LightGetRange(lightEntity)</code></pre>
-    <p>Максимальное расстояние распространения света в NDC.</p>
-
-    <h3>Угол (для Directional/Spot/Sun)</h3>
-    <pre><code>BlazeBolt.LightSetAngle(lightEntity, degrees)
-degrees = BlazeBolt.LightGetAngle(lightEntity)</code></pre>
-
-    <h3>Конусы (только для Spot)</h3>
-    <pre><code>BlazeBolt.LightSetInnerCone(lightEntity, degrees)
-BlazeBolt.LightGetInnerCone(lightEntity)
-BlazeBolt.LightSetOuterCone(lightEntity, degrees)
-BlazeBolt.LightGetOuterCone(lightEntity)</code></pre>
-    <ul>
-      <li><code>innerCone</code> — внутренний конус полной яркости</li>
-      <li><code>outerCone</code> — внешний конус с затуханием</li>
-    </ul>
-
-    <h3>Пенумбра (полупрозрачность)</h3>
-    <pre><code>BlazeBolt.LightSetPenumbra(lightEntity, startAlpha, endAlpha)
-startAlpha, endAlpha = BlazeBolt.LightGetPenumbra(lightEntity)</code></pre>
-    <table>
-      <thead><tr><th>Параметр</th><th>Описание</th></tr></thead>
-      <tbody>
-        <tr><td>startAlpha</td><td>Прозрачность в центре (0.0-1.0)</td></tr>
-        <tr><td>endAlpha</td><td>Прозрачность на краю (0.0-1.0)</td></tr>
-      </tbody>
-    </table>
-    <p>Пенумбра создаёт мягкий градиент от центра к краю света. Примеры:</p>
-    <ul>
-      <li><code>0.9, 0.1</code> — яркий центр, мягкие края</li>
-      <li><code>1.0, 0.0</code> — полностью прозрачные края</li>
-      <li><code>0.5, 0.5</code> — равномерная прозрачность</li>
-    </ul>
-
-    <h3>Сегменты (детализация)</h3>
-    <pre><code>BlazeBolt.LightSetSegments(lightEntity, segments)
-segments = BlazeBolt.LightGetSegments(lightEntity)</code></pre>
-    <p>Количество сегментов для окружности света (3-360, по умолчанию 64). Больше сегментов — плавнее границы.</p>
-
-    <h3>Тип света</h3>
-    <pre><code>BlazeBolt.LightSetType(lightEntity, lightType)
-lightType = BlazeBolt.LightGetType(lightEntity)</code></pre>
-
-    <h3>Видимость</h3>
-    <pre><code>BlazeBolt.LightSetVisible(lightEntity, visible)
-visible = BlazeBolt.LightIsVisible(lightEntity)</code></pre>
-
-    <h3>Тени</h3>
-    <pre><code>BlazeBolt.LightSetCastShadows(lightEntity, cast)
-cast = BlazeBolt.LightIsCastShadows(lightEntity)</code></pre>
-
+    <h3>Свойства света</h3>
+    <pre><code>count = BlazeBolt.GetLightCount()
+BlazeBolt.LightSetPosition(entity, x, y)
+x, y = BlazeBolt.LightGetPosition(entity)
+BlazeBolt.LightSetSize(entity, width, height)
+BlazeBolt.LightSetColor(entity, r, g, b, a)
+r, g, b, a = BlazeBolt.LightGetColor(entity)
+BlazeBolt.LightSetIntensity(entity, intensity)
+intensity = BlazeBolt.LightGetIntensity(entity)
+BlazeBolt.LightSetRange(entity, range)
+range = BlazeBolt.LightGetRange(entity)
+BlazeBolt.LightSetAngle(entity, degrees)
+degrees = BlazeBolt.LightGetAngle(entity)
+BlazeBolt.LightSetInnerCone(entity, degrees)
+BlazeBolt.LightGetInnerCone(entity)
+BlazeBolt.LightSetOuterCone(entity, degrees)
+BlazeBolt.LightGetOuterCone(entity)
+BlazeBolt.LightSetPenumbra(entity, startAlpha, endAlpha)
+startAlpha, endAlpha = BlazeBolt.LightGetPenumbra(entity)
+BlazeBolt.LightSetSegments(entity, segments)
+segments = BlazeBolt.LightGetSegments(entity)
+BlazeBolt.LightSetType(entity, lightType)
+lightType = BlazeBolt.LightGetType(entity)
+BlazeBolt.LightSetVisible(entity, visible)
+visible = BlazeBolt.LightIsVisible(entity)
+BlazeBolt.LightSetCastShadows(entity, cast)
+cast = BlazeBolt.LightIsCastShadows(entity)</code></pre>
     <h3>Пример: солнечный свет</h3>
     <pre><code>function Start()
     local sun = BlazeBolt.CreateLight(LightType.Sun, 0.5, 0.8)
     BlazeBolt.LightSetRange(sun, 0.8)
     BlazeBolt.LightSetColor(sun, 1.0, 0.95, 0.7, 1.0)
-    BlazeBolt.LightSetPenumbra(sun, 0.95, 0.3)
-    BlazeBolt.LightSetSegments(sun, 72)
 end</code></pre>
-
-    <h3>Пример: мягкий прожектор</h3>
-    <pre><code>function Start()
-    local spotlight = BlazeBolt.CreateLight(LightType.Spot, 0, 0)
-    BlazeBolt.LightSetRange(spotlight, 0.6)
-    BlazeBolt.LightSetAngle(spotlight, 45)
-    BlazeBolt.LightSetInnerCone(spotlight, 30)
-    BlazeBolt.LightSetOuterCone(spotlight, 45)
-    BlazeBolt.LightSetPenumbra(spotlight, 0.85, 0.15)
-end</code></pre>
-
-    <h3>Пример: пламя свечи</h3>
-    <pre><code>function Start()
-    local candle = BlazeBolt.CreateLight(LightType.Point, 0, -0.5)
-    BlazeBolt.LightSetRange(candle, 0.15)
-    BlazeBolt.LightSetColor(candle, 1.0, 0.7, 0.3, 0.9)
-    BlazeBolt.LightSetPenumbra(candle, 0.8, 0.1)
-    BlazeBolt.LightSetSegments(candle, 24)
-end</code></pre>
-
-    <h3>Пример: динамический свет (фонарик игрока)</h3>
-    <pre><code>function Start()
-    torchLight = BlazeBolt.CreateLight(LightType.Point, 0, 0)
-    BlazeBolt.LightSetRange(torchLight, 0.4)
-    BlazeBolt.LightSetColor(torchLight, 1.0, 0.8, 0.5, 0.9)
-    BlazeBolt.LightSetPenumbra(torchLight, 0.9, 0.2)
-    BlazeBolt.LightSetSegments(torchLight, 32)
-end
-
-function Update(dt)
-    local px, py = BlazeBolt.SpriteGetPosition(player)
-    BlazeBolt.LightSetPosition(torchLight, px, py)
-end</code></pre>
-
     <hr>
-
-    <!-- ==================== ЧАСТИЦЫ ==================== -->
     <h2 id="chasticy-particles">Частицы (Particles)</h2>
-
     <h3>Установка текстуры</h3>
     <pre><code>BlazeBolt.ParticleSetTexture(texturePath)</code></pre>
-
     <h3>Испускание частицы</h3>
     <pre><code>BlazeBolt.ParticleEmit(x, y, vx, vy, sizeX, sizeY, r, g, b, a, life, rotation, angularVelocity, startAlpha, endAlpha)</code></pre>
-    <p>Все параметры кроме <code>x, y, vx, vy, life</code> опциональны.</p>
-
     <h3>Взрыв (burst)</h3>
     <pre><code>BlazeBolt.ParticleBurst(x, y, count, speed, spread, sizeX, sizeY, r, g, b, a, life)</code></pre>
-
     <h3>Обновление и отрисовка</h3>
     <pre><code>function Update(dt)
     BlazeBolt.ParticleUpdate(dt)
 end
-
 function Draw()
     BlazeBolt.ParticleDraw()
 end</code></pre>
-
     <h3>Управление</h3>
     <pre><code>BlazeBolt.ParticleClear()
 BlazeBolt.ParticleGetCount()
 BlazeBolt.ParticleSetMaxCount(count)</code></pre>
-
-    <h3>Пример: взрыв при клике</h3>
+    <h3>Пример</h3>
     <pre><code>function Start()
     BlazeBolt.ParticleSetTexture("particle.png")
     BlazeBolt.ParticleSetMaxCount(10000)
 end
-
 function Draw()
     BlazeBolt.ParticleDraw()
-end
-
-function OnClick()
-    local mx = BlazeBolt.GetMouseX()
-    local my = BlazeBolt.GetMouseY()
-    local ndcX = mx / GetScreenWidth() * 2 - 1
-    local ndcY = 1 - my / GetScreenHeight() * 2
-    BlazeBolt.ParticleBurst(ndcX, ndcY, 50, 2.0, 360, 0.02, 0.02, 1, 0.5, 0, 1, 0.5)
 end</code></pre>
-
     <hr>
-
-    <!-- ==================== СКРИПТЫ И СЦЕНЫ ==================== -->
     <h2 id="skripty-i-sceny">Скрипты и сцены</h2>
-
     <h3>Загрузка скриптов</h3>
-    <pre><code>result = BlazeBolt.LoadScript(path)              -- загрузить Lua-скрипт
-result = BlazeBolt.LoadScriptsFromList(path)     -- загрузить список скриптов из .BlazeBoltProject
-result = BlazeBolt.ReloadScript(path)            -- перезагрузить скрипт
-result = BlazeBolt.ReloadAllScripts()            -- перезагрузить все скрипты
-BlazeBolt.EnableScript(name, enabled)            -- включить/выключить скрипт
-loaded = BlazeBolt.IsScriptLoaded(name)          -- проверить, загружен ли
-list = BlazeBolt.GetLoadedScripts()              -- таблица загруженных скриптов</code></pre>
-
-    <h3>Файл .BlazeBoltProject / scripts.list</h3>
-    <pre><code># Комментарии начинаются с #
-# Обычные скрипты: имя=путь
-main=engine/scripts/main.lua
-player=engine/scripts/player.lua
-
-# Сцены (с префиксом @):
+    <pre><code>result = BlazeBolt.LoadScript(path)
+result = BlazeBolt.LoadScriptsFromList(path)
+result = BlazeBolt.ReloadScript(path)
+result = BlazeBolt.ReloadAllScripts()
+BlazeBolt.EnableScript(name, enabled)
+loaded = BlazeBolt.IsScriptLoaded(name)
+list = BlazeBolt.GetLoadedScripts()</code></pre>
+    <h3>Файл .BlazeBoltProject</h3>
+    <pre><code>main=engine/scripts/main.lua
 @menu=engine/scenes/menu.lua
 @game=engine/scenes/game.lua</code></pre>
-    <p>Файл может называться <code>scripts.list</code> или иметь расширение <code>.BlazeBoltProject</code>.</p>
-
     <h3>Параллельное выполнение</h3>
-    <p>Все скрипты из списка загружаются и работают одновременно (параллельно):</p>
-    <ul>
-      <li>Каждый скрипт может определять функции <code>Start()</code>, <code>Update(dt)</code>, <code>Draw()</code>, <code>End()</code></li>
-      <li>Функции <code>Update(dt)</code> всех скриптов вызываются каждый кадр</li>
-      <li>Функции <code>Draw()</code> всех скриптов вызываются каждый кадр</li>
-    </ul>
-
+    <p>Все скрипты из списка загружаются и работают одновременно.</p>
     <h3>Формат модуля</h3>
-    <p>Рекомендуется использовать формат модуля для избежания конфликтов:</p>
     <pre><code>-- player.lua
 local player = {}
-
 function player:Start()
     print("Player initialized")
 end
-
 function player:Update(dt)
-    -- обновление игрока
 end
-
 function player:Draw()
-    -- отрисовка игрока
 end
-
 function player:End()
-    -- код завершения
 end
-
 return player</code></pre>
-
     <h3>Сцены</h3>
-    <p>Сцены регистрируются с префиксом <code>@</code>. При вызове <code>BlazeBolt.LoadScene(sceneName)</code>:</p>
-    <ol>
-      <li>Выгружается текущая сцена (<code>On&lt;Scene&gt;Unload</code>)</li>
-      <li>Загружается новая сцена (<code>On&lt;Scene&gt;Load</code>)</li>
-      <li>Сцена добавляется в список активных скриптов</li>
-    </ol>
-
-    <h3>Callbacks сцен</h3>
-    <pre><code>BlazeBolt.LoadScene(sceneName)       -- переключить на другую сцену
-name = BlazeBolt.GetCurrentScene()   -- получить имя текущей сцены</code></pre>
-
-    <h3>Пример переключения сцен</h3>
-    <pre><code>function Start()
-    print("Current scene: " .. BlazeBolt.GetCurrentScene())
-end
-
-function Update(dt)
-    if BlazeBolt.IsKeyJustPressed(Keys.ENTER) then
-        BlazeBolt.LoadScene("game")
-    end
-end</code></pre>
-
+    <p>Сцены регистрируются с префиксом @.</p>
+    <pre><code>BlazeBolt.LoadScene(sceneName)
+name = BlazeBolt.GetCurrentScene()</code></pre>
     <hr>
-
-    <!-- ==================== МИНИ-ИГРА ==================== -->
     <h2 id="primer-polnaya-mini-igra">Пример: полная мини-игра</h2>
-
     <pre><code>-- player.lua
 local playerSprite
 local playerBody
@@ -1420,45 +1028,20 @@ local scoreText
 
 function Start()
     BlazeBolt.SetMainWindowTitle("Mini Game")
-    
-    -- Игрок
     playerSprite = BlazeBolt.CreateSprite("player.png", 0, 0)
     BlazeBolt.SpriteSetSize(playerSprite, 0.08, 0.08)
     BlazeBolt.SpriteSetOrigin(playerSprite, 0.5, 0.5)
-    
-    -- Физика игрока
     playerBody = BlazeBolt.PhysicsCreateBody(1, 0, 0, 1, 0.2, 0.6)
     BlazeBolt.PhysicsAddRectangle(playerBody, 0.04, 0.04)
-    
-    -- Земля
     local ground = BlazeBolt.CreateSprite("ground.png", 0, -0.85)
     BlazeBolt.SpriteSetSize(ground, 3, 0.05)
-    
     local groundBody = BlazeBolt.PhysicsCreateBody(0, 0, -0.85, 0, 0.5, 0.3)
     BlazeBolt.PhysicsAddRectangle(groundBody, 1.5, 0.025)
-    
-    -- Стены
-    for _, x in ipairs({-0.95, 0.95}) do
-        local wall = BlazeBolt.CreateSprite("wall.png", x, 0)
-        BlazeBolt.SpriteSetSize(wall, 0.05, 2)
-        local wb = BlazeBolt.PhysicsCreateBody(0, x, 0, 0, 0.5, 0.3)
-        BlazeBolt.PhysicsAddRectangle(wb, 0.025, 1)
-    end
-    
-    -- HUD
     scoreText = BlazeBolt.CreateText("fonts/arial.ttf", "Score: 0", -0.8, 0.85)
     BlazeBolt.TextSetColor(scoreText, 1, 1, 1, 1)
-    
-    -- Музыка
     BlazeBolt.LoadSound("music/bgm.wav", "bgm", true)
-    BlazeBolt.LoadSound("sfx/jump.wav", "jump", false)
-    BlazeBolt.LoadSound("sfx/collect.wav", "collect", false)
     BlazeBolt.PlaySound("bgm")
-    
-    -- Физика
     BlazeBolt.PhysicsInit(0, -9.8)
-    
-    -- Сбор монет
     spawnCoins()
 end
 
@@ -1471,35 +1054,23 @@ function spawnCoins()
         local coin = BlazeBolt.CreateSprite("coin.png", cx, cy)
         BlazeBolt.SpriteSetSize(coin, 0.06, 0.06)
         BlazeBolt.SpriteSetOrigin(coin, 0.5, 0.5)
-        
         local cb = BlazeBolt.PhysicsCreateBody(0, cx, cy, 0, 0, 0)
         BlazeBolt.PhysicsAddCircle(cb, 0.03, 0, 0)
-        
         table.insert(coins, coin)
         table.insert(coinBodies, cb)
     end
 end
 
 function Update(dt)
-    -- Управление
     local vx, vy = BlazeBolt.PhysicsGetLinearVelocity(playerBody)
-    
-    if BlazeBolt.IsKeyPressed(Keys.A) then
-        BlazeBolt.PhysicsApplyForce(playerBody, -15, 0)
-    end
-    if BlazeBolt.IsKeyPressed(Keys.D) then
-        BlazeBolt.PhysicsApplyForce(playerBody, 15, 0)
-    end
+    if BlazeBolt.IsKeyPressed(Keys.A) then BlazeBolt.PhysicsApplyForce(playerBody, -15, 0) end
+    if BlazeBolt.IsKeyPressed(Keys.D) then BlazeBolt.PhysicsApplyForce(playerBody, 15, 0) end
     if BlazeBolt.IsKeyJustPressed(Keys.SPACE) and vy &lt; 0.1 then
         BlazeBolt.PhysicsApplyImpulse(playerBody, 0, 8)
         BlazeBolt.PlaySound("jump")
     end
-    
-    -- Физика
     BlazeBolt.PhysicsStep()
     BlazeBolt.PhysicsSyncSprite(playerBody, playerSprite)
-    
-    -- Проверка сбора монет
     local px, py = BlazeBolt.PhysicsGetPosition(playerBody)
     for i = #coins, 1, -1 do
         local cx, cy = BlazeBolt.PhysicsGetPosition(coinBodies[i])
@@ -1514,574 +1085,65 @@ function Update(dt)
             BlazeBolt.PlaySound("collect")
         end
     end
-    
-    -- Респавн монет
-    if #coins == 0 then
-        spawnCoins()
-    end
-    
-    -- Выход
-    if BlazeBolt.IsKeyJustPressed(Keys.ESCAPE) then
-        BlazeBolt.Quit()
-    end
+    if #coins == 0 then spawnCoins() end
+    if BlazeBolt.IsKeyJustPressed(Keys.ESCAPE) then BlazeBolt.Quit() end
 end</code></pre>
-
     <hr>
-
-    <!-- ==================== ЛУЧШИЕ ПРАКТИКИ ==================== -->
     <h2 id="luchshie-praktiki">Лучшие практики</h2>
-
-    <h3>Организация кода</h3>
     <ul>
-      <li>Разделяйте логику на отдельные скрипты через <code>.BlazeBoltProject</code> / <code>scripts.list</code></li>
-      <li>Используйте <code>BlazeBolt.EnableScript(name, false)</code> для отладки</li>
-      <li>Храните пути к ресурсам в константах</li>
+      <li>Разделяйте логику на отдельные скрипты</li>
+      <li>Не создавайте объекты в Update() — создавайте в Start()</li>
+      <li>Используйте Destroy() для удаления ненужных объектов</li>
+      <li>Проектируйте игру в NDC — будет работать на любом разрешении</li>
+      <li>Проверяйте entity ~= 0 после создания</li>
     </ul>
-
-    <h3>Производительность</h3>
-    <ul>
-      <li>Не создавайте объекты в <code>Update()</code> — создавайте в <code>Start()</code></li>
-      <li>Используйте <code>Destroy()</code> для удаления ненужных объектов</li>
-      <li>Не загружайте текстуры повторно — <code>SpriteSetTexture</code> использует кеш</li>
-    </ul>
-
-    <h3>Масштабирование</h3>
-    <ul>
-      <li>Проектируйте игру в NDC — она будет работать на любом разрешении</li>
-      <li>Для pixel-art используйте <code>Nearest</code> фильтр текстур (по умолчанию)</li>
-      <li>Тестируйте на разных размерах окна через <code>SetMainWindowSize</code></li>
-    </ul>
-
-    <h3>Отладка</h3>
-    <ul>
-      <li>Используйте <code>BlazeBolt.Print()</code> для вывода значений</li>
-      <li><code>BlazeBolt.GetDeltaTime()</code> помогает отслеживать FPS: <code>1 / dt</code></li>
-      <li>Перезагружайте скрипты через <code>ReloadAllScripts</code> без перезапуска</li>
-    </ul>
-
-    <h3>Обработка ошибок</h3>
-    <ul>
-      <li>Проверяйте <code>entity ~= 0</code> после создания — <code>0</code> означает ошибку</li>
-      <li>Проверяйте <code>loaded = IsScriptLoaded(name)</code> перед использованием</li>
-      <li>Звуки могут не загрузиться — проверяйте <code>soundId &gt;= 0</code></li>
-    </ul>
-
     <hr>
-
-    <!-- ==================== СТРУКТУРА ПРОЕКТА ==================== -->
     <h2 id="struktura-proekta">Структура проекта</h2>
-
     <pre><code>bin/versions/engine/
-├── .BlazeBoltProject         # Список загружаемых скриптов
+├── .BlazeBoltProject
 ├── engine/
 │   ├── scripts/
-│   │   ├── main.lua          # Главный скрипт (обязательно)
-│   │   ├── player.lua        # Логика игрока
-│   │   └── enemy.lua         # Логика врагов
+│   │   ├── main.lua
+│   │   ├── player.lua
+│   │   └── enemy.lua
 │   ├── scenes/
-│   │   ├── menu.lua          # Сцена меню
-│   │   └── game.lua          # Сцена игры
+│   │   ├── menu.lua
+│   │   └── game.lua
 │   ├── assets/
-│   │   ├── textures/         # PNG-текстуры
-│   │   ├── fonts/            # TTF-шрифты
-│   │   ├── music/            # Фоновая музыка
-│   │   └── sfx/              # Звуковые эффекты
-│   └── icon.png              # Иконка окна</code></pre>
-
-    <h3>.BlazeBoltProject — формат</h3>
-    <pre><code># Комментарии начинаются с #
-# Скрипты: имя=путь
-main=engine/scripts/main.lua
-player=engine/scripts/player.lua
-
-# Сцены (префикс @):
-@menu=engine/scenes/menu.lua
-@game=engine/scenes/game.lua</code></pre>
-
+│   │   ├── textures/
+│   │   ├── fonts/
+│   │   ├── music/
+│   │   └── sfx/
+│   └── icon.png</code></pre>
     <hr>
-
-    <!-- ==================== СПРАВОЧНИК ФУНКЦИЙ ==================== -->
     <h2 id="spravochnik-vseh-funkciy">Справочник всех функций</h2>
-
-    <h3>Частицы</h3>
-    <div class="table-wrap">
-    <table>
-      <tr><th>Функция</th><th>Параметры</th><th>Возврат</th></tr>
-      <tr><td><code>BlazeBolt.ParticleSetTexture</code></td><td><code>path</code></td><td>—</td></tr>
-      <tr><td><code>BlazeBolt.ParticleEmit</code></td><td><code>x, y, vx, vy, sx, sy, r, g, b, a, life, rot, av, sa, ea</code></td><td>—</td></tr>
-      <tr><td><code>BlazeBolt.ParticleBurst</code></td><td><code>x, y, count, speed, spread, sx, sy, r, g, b, a, life</code></td><td>—</td></tr>
-      <tr><td><code>BlazeBolt.ParticleUpdate</code></td><td><code>dt</code></td><td>—</td></tr>
-      <tr><td><code>BlazeBolt.ParticleDraw</code></td><td>—</td><td>—</td></tr>
-      <tr><td><code>BlazeBolt.ParticleClear</code></td><td>—</td><td>—</td></tr>
-      <tr><td><code>BlazeBolt.ParticleGetCount</code></td><td>—</td><td><code>count</code></td></tr>
-      <tr><td><code>BlazeBolt.ParticleSetMaxCount</code></td><td><code>maxCount</code></td><td>—</td></tr>
-    </table>
-    </div>
-
-    <h3>Освещение</h3>
-    <div class="table-wrap">
-    <table>
-      <tr><th>Функция</th><th>Параметры</th><th>Возврат</th></tr>
-      <tr><td><code>BlazeBolt.CreateLight</code></td><td><code>type, x, y</code></td><td><code>entity</code></td></tr>
-      <tr><td><code>BlazeBolt.LightSetPosition</code></td><td><code>entity, x, y</code></td><td>—</td></tr>
-      <tr><td><code>BlazeBolt.LightGetPosition</code></td><td><code>entity</code></td><td><code>x, y</code></td></tr>
-      <tr><td><code>BlazeBolt.LightSetColor</code></td><td><code>entity, r, g, b, a</code></td><td>—</td></tr>
-      <tr><td><code>BlazeBolt.LightGetColor</code></td><td><code>entity</code></td><td><code>r, g, b, a</code></td></tr>
-      <tr><td><code>BlazeBolt.LightSetIntensity</code></td><td><code>entity, intensity</code></td><td>—</td></tr>
-      <tr><td><code>BlazeBolt.LightGetIntensity</code></td><td><code>entity</code></td><td><code>intensity</code></td></tr>
-      <tr><td><code>BlazeBolt.LightSetRange</code></td><td><code>entity, range</code></td><td>—</td></tr>
-      <tr><td><code>BlazeBolt.LightGetRange</code></td><td><code>entity</code></td><td><code>range</code></td></tr>
-      <tr><td><code>BlazeBolt.LightSetAngle</code></td><td><code>entity, degrees</code></td><td>—</td></tr>
-      <tr><td><code>BlazeBolt.LightGetAngle</code></td><td><code>entity</code></td><td><code>degrees</code></td></tr>
-      <tr><td><code>BlazeBolt.LightSetInnerCone</code></td><td><code>entity, degrees</code></td><td>—</td></tr>
-      <tr><td><code>BlazeBolt.LightGetInnerCone</code></td><td><code>entity</code></td><td><code>degrees</code></td></tr>
-      <tr><td><code>BlazeBolt.LightSetOuterCone</code></td><td><code>entity, degrees</code></td><td>—</td></tr>
-      <tr><td><code>BlazeBolt.LightGetOuterCone</code></td><td><code>entity</code></td><td><code>degrees</code></td></tr>
-      <tr><td><code>BlazeBolt.LightSetPenumbra</code></td><td><code>entity, startAlpha, endAlpha</code></td><td>—</td></tr>
-      <tr><td><code>BlazeBolt.LightGetPenumbra</code></td><td><code>entity</code></td><td><code>startAlpha, endAlpha</code></td></tr>
-      <tr><td><code>BlazeBolt.LightSetSegments</code></td><td><code>entity, segments</code></td><td>—</td></tr>
-      <tr><td><code>BlazeBolt.LightGetSegments</code></td><td><code>entity</code></td><td><code>segments</code></td></tr>
-      <tr><td><code>BlazeBolt.LightSetVisible</code></td><td><code>entity, bool</code></td><td>—</td></tr>
-      <tr><td><code>BlazeBolt.LightIsVisible</code></td><td><code>entity</code></td><td><code>bool</code></td></tr>
-      <tr><td><code>BlazeBolt.LightSetType</code></td><td><code>entity, type</code></td><td>—</td></tr>
-      <tr><td><code>BlazeBolt.LightGetType</code></td><td><code>entity</code></td><td><code>type</code></td></tr>
-      <tr><td><code>BlazeBolt.GetLightCount</code></td><td>—</td><td><code>count</code></td></tr>
-    </table>
-    </div>
-
-    <h3>Спрайты</h3>
-    <div class="table-wrap">
-    <table>
-      <tr><th>Функция</th><th>Параметры</th><th>Возврат</th></tr>
-      <tr><td><code>BlazeBolt.CreateSprite</code></td><td><code>path, x, y</code></td><td><code>entity</code></td></tr>
-      <tr><td><code>BlazeBolt.SpriteSetPosition</code></td><td><code>entity, x, y</code></td><td>—</td></tr>
-      <tr><td><code>BlazeBolt.SpriteGetPosition</code></td><td><code>entity</code></td><td><code>x, y</code></td></tr>
-      <tr><td><code>BlazeBolt.SpriteSetSize</code></td><td><code>entity, w, h</code></td><td>—</td></tr>
-      <tr><td><code>BlazeBolt.SpriteGetSize</code></td><td><code>entity</code></td><td><code>w, h</code></td></tr>
-      <tr><td><code>BlazeBolt.SpriteSetOrigin</code></td><td><code>entity, ox, oy</code></td><td>—</td></tr>
-      <tr><td><code>BlazeBolt.SpriteGetOrigin</code></td><td><code>entity</code></td><td><code>ox, oy</code></td></tr>
-      <tr><td><code>BlazeBolt.SpriteSetRotation</code></td><td><code>entity, degrees</code></td><td>—</td></tr>
-      <tr><td><code>BlazeBolt.SpriteGetRotation</code></td><td><code>entity</code></td><td><code>degrees</code></td></tr>
-      <tr><td><code>BlazeBolt.SpriteSetColor</code></td><td><code>entity, r, g, b, a</code></td><td>—</td></tr>
-      <tr><td><code>BlazeBolt.SpriteGetColor</code></td><td><code>entity</code></td><td><code>r, g, b, a</code></td></tr>
-      <tr><td><code>BlazeBolt.SpriteSetTexture</code></td><td><code>entity, path</code></td><td>—</td></tr>
-      <tr><td><code>BlazeBolt.SpriteSetVisible</code></td><td><code>entity, bool</code></td><td>—</td></tr>
-      <tr><td><code>BlazeBolt.SpriteIsVisible</code></td><td><code>entity</code></td><td><code>bool</code></td></tr>
-    </table>
-    </div>
-
-    <h3>Анимации</h3>
-    <div class="table-wrap">
-    <table>
-      <tr><th>Функция</th><th>Параметры</th><th>Возврат</th></tr>
-      <tr><td><code>BlazeBolt.CreateAnimation</code></td><td><code>path, isGif, x, y</code></td><td><code>entity</code></td></tr>
-      <tr><td><code>BlazeBolt.CreateAnimationFromSheet</code></td><td><code>path, fw, fh, total, perRow, delay, x, y</code></td><td><code>entity</code></td></tr>
-      <tr><td><code>BlazeBolt.AnimationPlay</code></td><td><code>entity</code></td><td>—</td></tr>
-      <tr><td><code>BlazeBolt.AnimationPause</code></td><td><code>entity</code></td><td>—</td></tr>
-      <tr><td><code>BlazeBolt.AnimationStop</code></td><td><code>entity</code></td><td>—</td></tr>
-      <tr><td><code>BlazeBolt.AnimationRestart</code></td><td><code>entity</code></td><td>—</td></tr>
-      <tr><td><code>BlazeBolt.AnimationSetLooping</code></td><td><code>entity, bool</code></td><td>—</td></tr>
-      <tr><td><code>BlazeBolt.AnimationSetSpeed</code></td><td><code>entity, speed</code></td><td>—</td></tr>
-      <tr><td><code>BlazeBolt.AnimationSetFrame</code></td><td><code>entity, frame</code></td><td>—</td></tr>
-      <tr><td><code>BlazeBolt.AnimationGetFrameCount</code></td><td><code>entity</code></td><td><code>count</code></td></tr>
-      <tr><td><code>BlazeBolt.AnimationIsPlaying</code></td><td><code>entity</code></td><td><code>bool</code></td></tr>
-      <tr><td><code>BlazeBolt.AnimationSetPosition</code></td><td><code>entity, x, y</code></td><td>—</td></tr>
-      <tr><td><code>BlazeBolt.AnimationSetSize</code></td><td><code>entity, w, h</code></td><td>—</td></tr>
-    </table>
-    </div>
-
-    <h3>Текст</h3>
-    <div class="table-wrap">
-    <table>
-      <tr><th>Функция</th><th>Параметры</th><th>Возврат</th></tr>
-      <tr><td><code>BlazeBolt.CreateText</code></td><td><code>font, text, x, y</code></td><td><code>entity</code></td></tr>
-      <tr><td><code>BlazeBolt.TextSetString</code></td><td><code>entity, text</code></td><td>—</td></tr>
-      <tr><td><code>BlazeBolt.TextGetString</code></td><td><code>entity</code></td><td><code>text</code></td></tr>
-      <tr><td><code>BlazeBolt.TextSetPosition</code></td><td><code>entity, x, y</code></td><td>—</td></tr>
-      <tr><td><code>BlazeBolt.TextGetPosition</code></td><td><code>entity</code></td><td><code>x, y</code></td></tr>
-      <tr><td><code>BlazeBolt.TextSetColor</code></td><td><code>entity, r, g, b, a</code></td><td>—</td></tr>
-      <tr><td><code>BlazeBolt.TextGetColor</code></td><td><code>entity</code></td><td><code>r, g, b, a</code></td></tr>
-      <tr><td><code>BlazeBolt.TextSetScale</code></td><td><code>entity, sx, sy</code></td><td>—</td></tr>
-      <tr><td><code>BlazeBolt.TextGetScale</code></td><td><code>entity</code></td><td><code>sx, sy</code></td></tr>
-      <tr><td><code>BlazeBolt.TextSetOrigin</code></td><td><code>entity, ox, oy</code></td><td>—</td></tr>
-      <tr><td><code>BlazeBolt.TextGetOrigin</code></td><td><code>entity</code></td><td><code>ox, oy</code></td></tr>
-      <tr><td><code>BlazeBolt.TextSetRotation</code></td><td><code>entity, degrees</code></td><td>—</td></tr>
-      <tr><td><code>BlazeBolt.TextGetRotation</code></td><td><code>entity</code></td><td><code>degrees</code></td></tr>
-      <tr><td><code>BlazeBolt.TextSetAlignment</code></td><td><code>entity, alignment</code></td><td>—</td></tr>
-      <tr><td><code>BlazeBolt.TextGetAlignment</code></td><td><code>entity</code></td><td><code>alignment</code></td></tr>
-      <tr><td><code>BlazeBolt.TextSetVisible</code></td><td><code>entity, bool</code></td><td>—</td></tr>
-      <tr><td><code>BlazeBolt.TextIsVisible</code></td><td><code>entity</code></td><td><code>bool</code></td></tr>
-    </table>
-    </div>
-
-    <h3>Меши</h3>
-    <div class="table-wrap">
-    <table>
-      <tr><th>Функция</th><th>Параметры</th><th>Возврат</th></tr>
-      <tr><td><code>BlazeBolt.CreateMesh</code></td><td>—</td><td><code>entity</code></td></tr>
-      <tr><td><code>BlazeBolt.MeshSetData</code></td><td><code>entity, vertices, indices</code></td><td>—</td></tr>
-      <tr><td><code>BlazeBolt.MeshSetTexture</code></td><td><code>entity, texturePath</code></td><td>—</td></tr>
-      <tr><td><code>BlazeBolt.MeshSetShader</code></td><td><code>entity, shaderId</code></td><td>—</td></tr>
-      <tr><td><code>BlazeBolt.MeshSetColor</code></td><td><code>entity, r, g, b, a</code></td><td>—</td></tr>
-      <tr><td><code>BlazeBolt.MeshDraw</code></td><td><code>entity</code></td><td>—</td></tr>
-    </table>
-    </div>
-
-    <h3>Окно</h3>
-    <div class="table-wrap">
-    <table>
-      <tr><th>Функция</th><th>Параметры</th><th>Возврат</th></tr>
-      <tr><td><code>BlazeBolt.SetMainWindowTitle</code></td><td><code>title</code></td><td>—</td></tr>
-      <tr><td><code>BlazeBolt.GetMainWindowTitle</code></td><td>—</td><td><code>title</code></td></tr>
-      <tr><td><code>BlazeBolt.SetMainWindowSize</code></td><td><code>w, h</code></td><td>—</td></tr>
-      <tr><td><code>BlazeBolt.GetMainWindowWidth</code></td><td>—</td><td><code>width</code></td></tr>
-      <tr><td><code>BlazeBolt.GetMainWindowHeight</code></td><td>—</td><td><code>height</code></td></tr>
-      <tr><td><code>BlazeBolt.SetMainWindowPosition</code></td><td><code>x, y</code></td><td>—</td></tr>
-      <tr><td><code>BlazeBolt.GetMainWindowPosition</code></td><td>—</td><td><code>x, y</code></td></tr>
-      <tr><td><code>BlazeBolt.SetMainWindowIcon</code></td><td><code>path</code></td><td>—</td></tr>
-      <tr><td><code>BlazeBolt.SetMainWindowShouldClose</code></td><td><code>bool</code></td><td>—</td></tr>
-      <tr><td><code>BlazeBolt.IsMainWindowShouldClose</code></td><td>—</td><td><code>bool</code></td></tr>
-      <tr><td><code>BlazeBolt.CreateWindow</code></td><td><code>w, h, title</code></td><td><code>windowPtr</code></td></tr>
-      <tr><td><code>BlazeBolt.SetWindowTitle</code></td><td><code>ptr, title</code></td><td>—</td></tr>
-      <tr><td><code>BlazeBolt.SetWindowSize</code></td><td><code>ptr, w, h</code></td><td>—</td></tr>
-      <tr><td><code>BlazeBolt.SetWindowIcon</code></td><td><code>ptr, path</code></td><td>—</td></tr>
-      <tr><td><code>GetScreenWidth</code></td><td>—</td><td><code>width</code></td></tr>
-      <tr><td><code>GetScreenHeight</code></td><td>—</td><td><code>height</code></td></tr>
-    </table>
-    </div>
-
-    <h3>Ввод</h3>
-    <div class="table-wrap">
-    <table>
-      <tr><th>Функция</th><th>Параметры</th><th>Возврат</th></tr>
-      <tr><td><code>BlazeBolt.IsKeyPressed</code></td><td><code>key</code></td><td><code>bool</code></td></tr>
-      <tr><td><code>BlazeBolt.IsKeyJustPressed</code></td><td><code>key</code></td><td><code>bool</code></td></tr>
-      <tr><td><code>BlazeBolt.IsKeyJustReleased</code></td><td><code>key</code></td><td><code>bool</code></td></tr>
-      <tr><td><code>BlazeBolt.GetMouseX</code></td><td>—</td><td><code>x</code></td></tr>
-      <tr><td><code>BlazeBolt.GetMouseY</code></td><td>—</td><td><code>y</code></td></tr>
-      <tr><td><code>BlazeBolt.GetMouseDeltaX</code></td><td>—</td><td><code>dx</code></td></tr>
-      <tr><td><code>BlazeBolt.GetMouseDeltaY</code></td><td>—</td><td><code>dy</code></td></tr>
-      <tr><td><code>BlazeBolt.IsMouseButtonPressed</code></td><td><code>button</code></td><td><code>bool</code></td></tr>
-      <tr><td><code>BlazeBolt.IsMouseButtonJustPressed</code></td><td><code>button</code></td><td><code>bool</code></td></tr>
-      <tr><td><code>BlazeBolt.IsMouseButtonJustReleased</code></td><td><code>button</code></td><td><code>bool</code></td></tr>
-      <tr><td><code>BlazeBolt.GetScrollX</code></td><td>—</td><td><code>scrollX</code></td></tr>
-      <tr><td><code>BlazeBolt.GetScrollY</code></td><td>—</td><td><code>scrollY</code></td></tr>
-      <tr><td><code>BlazeBolt.IsGamepadConnected</code></td><td><code>id</code></td><td><code>bool</code></td></tr>
-      <tr><td><code>BlazeBolt.IsGamepadButtonPressed</code></td><td><code>id, button</code></td><td><code>bool</code></td></tr>
-      <tr><td><code>BlazeBolt.IsGamepadButtonJustPressed</code></td><td><code>id, button</code></td><td><code>bool</code></td></tr>
-      <tr><td><code>BlazeBolt.IsGamepadButtonJustReleased</code></td><td><code>id, button</code></td><td><code>bool</code></td></tr>
-      <tr><td><code>BlazeBolt.GetGamepadAxis</code></td><td><code>id, axis</code></td><td><code>float</code></td></tr>
-    </table>
-    </div>
-
-    <h3>Звук</h3>
-    <div class="table-wrap">
-    <table>
-      <tr><th>Функция</th><th>Параметры</th><th>Возврат</th></tr>
-      <tr><td><code>BlazeBolt.LoadSound</code></td><td><code>file, name, loop</code></td><td><code>id</code></td></tr>
-      <tr><td><code>BlazeBolt.PlaySound</code></td><td><code>name</code></td><td>—</td></tr>
-      <tr><td><code>BlazeBolt.PlaySoundById</code></td><td><code>id</code></td><td>—</td></tr>
-      <tr><td><code>BlazeBolt.StopSound</code></td><td><code>name</code></td><td>—</td></tr>
-      <tr><td><code>BlazeBolt.StopAllSounds</code></td><td>—</td><td>—</td></tr>
-      <tr><td><code>BlazeBolt.SetSoundVolume</code></td><td><code>name, vol</code></td><td>—</td></tr>
-      <tr><td><code>BlazeBolt.IsSoundPlaying</code></td><td><code>name</code></td><td><code>bool</code></td></tr>
-    </table>
-    </div>
-
-    <h3>Управление объектами</h3>
-    <div class="table-wrap">
-    <table>
-      <tr><th>Функция</th><th>Параметры</th><th>Возврат</th></tr>
-      <tr><td><code>BlazeBolt.Destroy</code></td><td><code>entity</code></td><td>—</td></tr>
-      <tr><td><code>BlazeBolt.DestroyAll</code></td><td>—</td><td>—</td></tr>
-    </table>
-    </div>
-
-    <h3>Физика</h3>
-    <div class="table-wrap">
-    <table>
-      <tr><th>Функция</th><th>Параметры</th><th>Возврат</th></tr>
-      <tr><td><code>BlazeBolt.PhysicsInit</code></td><td><code>gravityX, gravityY</code></td><td>—</td></tr>
-      <tr><td><code>BlazeBolt.PhysicsSetGravity</code></td><td><code>x, y</code></td><td>—</td></tr>
-      <tr><td><code>BlazeBolt.PhysicsGetGravity</code></td><td>—</td><td><code>x, y</code></td></tr>
-      <tr><td><code>BlazeBolt.PhysicsCreateBody</code></td><td><code>bodyType, x, y, mass, friction, restitution</code></td><td><code>entity</code></td></tr>
-      <tr><td><code>BlazeBolt.PhysicsAddCircle</code></td><td><code>bodyEntity, radius, offsetX, offsetY</code></td><td>—</td></tr>
-      <tr><td><code>BlazeBolt.PhysicsAddRectangle</code></td><td><code>bodyEntity, halfWidth, halfHeight</code></td><td>—</td></tr>
-      <tr><td><code>BlazeBolt.PhysicsSetLinearVelocity</code></td><td><code>bodyEntity, vx, vy</code></td><td>—</td></tr>
-      <tr><td><code>BlazeBolt.PhysicsGetLinearVelocity</code></td><td><code>bodyEntity</code></td><td><code>vx, vy</code></td></tr>
-      <tr><td><code>BlazeBolt.PhysicsSetAngularVelocity</code></td><td><code>bodyEntity, av</code></td><td>—</td></tr>
-      <tr><td><code>BlazeBolt.PhysicsGetAngularVelocity</code></td><td><code>bodyEntity</code></td><td><code>av</code></td></tr>
-      <tr><td><code>BlazeBolt.PhysicsApplyForce</code></td><td><code>bodyEntity, fx, fy</code></td><td>—</td></tr>
-      <tr><td><code>BlazeBolt.PhysicsApplyForceAtPoint</code></td><td><code>bodyEntity, fx, fy, px, py</code></td><td>—</td></tr>
-      <tr><td><code>BlazeBolt.PhysicsApplyImpulse</code></td><td><code>bodyEntity, ix, iy</code></td><td>—</td></tr>
-      <tr><td><code>BlazeBolt.PhysicsApplyImpulseAtPoint</code></td><td><code>bodyEntity, ix, iy, px, py</code></td><td>—</td></tr>
-      <tr><td><code>BlazeBolt.PhysicsApplyTorque</code></td><td><code>bodyEntity, torque</code></td><td>—</td></tr>
-      <tr><td><code>BlazeBolt.PhysicsSetPosition</code></td><td><code>bodyEntity, x, y</code></td><td>—</td></tr>
-      <tr><td><code>BlazeBolt.PhysicsGetPosition</code></td><td><code>bodyEntity</code></td><td><code>x, y</code></td></tr>
-      <tr><td><code>BlazeBolt.PhysicsSetAngle</code></td><td><code>bodyEntity, angle</code></td><td>—</td></tr>
-      <tr><td><code>BlazeBolt.PhysicsGetAngle</code></td><td><code>bodyEntity</code></td><td><code>angle</code></td></tr>
-      <tr><td><code>BlazeBolt.PhysicsSetGravityScale</code></td><td><code>bodyEntity, scale</code></td><td>—</td></tr>
-      <tr><td><code>BlazeBolt.PhysicsGetGravityScale</code></td><td><code>bodyEntity</code></td><td><code>scale</code></td></tr>
-      <tr><td><code>BlazeBolt.PhysicsSetActive</code></td><td><code>bodyEntity, active</code></td><td>—</td></tr>
-      <tr><td><code>BlazeBolt.PhysicsIsActive</code></td><td><code>bodyEntity</code></td><td><code>bool</code></td></tr>
-      <tr><td><code>BlazeBolt.PhysicsSetFixedRotation</code></td><td><code>bodyEntity, fixed</code></td><td>—</td></tr>
-      <tr><td><code>BlazeBolt.PhysicsIsFixedRotation</code></td><td><code>bodyEntity</code></td><td><code>bool</code></td></tr>
-      <tr><td><code>BlazeBolt.PhysicsSetBullet</code></td><td><code>bodyEntity, bullet</code></td><td>—</td></tr>
-      <tr><td><code>BlazeBolt.PhysicsIsBullet</code></td><td><code>bodyEntity</code></td><td><code>bool</code></td></tr>
-      <tr><td><code>BlazeBolt.PhysicsDestroyBody</code></td><td><code>bodyEntity</code></td><td>—</td></tr>
-      <tr><td><code>BlazeBolt.PhysicsGetMass</code></td><td><code>bodyEntity</code></td><td><code>mass</code></td></tr>
-      <tr><td><code>BlazeBolt.PhysicsStep</code></td><td>—</td><td>—</td></tr>
-      <tr><td><code>BlazeBolt.PhysicsSyncSprite</code></td><td><code>bodyEntity, spriteEntity</code></td><td>—</td></tr>
-      <tr><td><code>BlazeBolt.PhysicsSyncAnimation</code></td><td><code>bodyEntity, animationEntity</code></td><td>—</td></tr>
-      <tr><td><code>BlazeBolt.PhysicsSyncText</code></td><td><code>bodyEntity, textEntity</code></td><td>—</td></tr>
-    </table>
-    </div>
-
-    <h3>Утилиты</h3>
-    <div class="table-wrap">
-    <table>
-      <tr><th>Функция</th><th>Параметры</th><th>Возврат</th></tr>
-      <tr><td><code>BlazeBolt.Print</code></td><td><code>...</code></td><td>—</td></tr>
-      <tr><td><code>BlazeBolt.GetDeltaTime</code></td><td>—</td><td><code>dt</code></td></tr>
-      <tr><td><code>GetTime</code></td><td>—</td><td><code>time</code></td></tr>
-      <tr><td><code>BlazeBolt.Random</code></td><td><code>min, max</code></td><td><code>float</code></td></tr>
-      <tr><td><code>BlazeBolt.RandomInt</code></td><td><code>min, max</code></td><td><code>int</code></td></tr>
-      <tr><td><code>BlazeBolt.SetRandomSeed</code></td><td><code>seed</code></td><td>—</td></tr>
-      <tr><td><code>BlazeBolt.Quit</code></td><td>—</td><td>—</td></tr>
-      <tr><td><code>BlazeBolt.AddConsoleMessage</code></td><td><code>msg, type</code></td><td>—</td></tr>
-    </table>
-    </div>
-
-    <h3>GUI</h3>
-    <div class="table-wrap">
-    <table>
-      <tr><th>Функция</th><th>Параметры</th><th>Возврат</th></tr>
-      <tr><td><code>BlazeBolt.GuiSetFont</code></td><td><code>path, fontSize</code></td><td>—</td></tr>
-      <tr><td><code>BlazeBolt.GuiPanel</code></td><td><code>id, x, y, w, h</code></td><td><code>entity</code></td></tr>
-      <tr><td><code>BlazeBolt.GuiButton</code></td><td><code>id, x, y, w, h, text</code></td><td><code>entity</code></td></tr>
-      <tr><td><code>BlazeBolt.GuiLabel</code></td><td><code>id, x, y, text</code></td><td><code>entity</code></td></tr>
-      <tr><td><code>BlazeBolt.GuiSlider</code></td><td><code>id, x, y, w, min, max, val</code></td><td><code>entity</code></td></tr>
-      <tr><td><code>BlazeBolt.GuiCheckbox</code></td><td><code>id, x, y, text, checked</code></td><td><code>entity</code></td></tr>
-      <tr><td><code>BlazeBolt.GuiRemove</code></td><td><code>id</code></td><td>—</td></tr>
-      <tr><td><code>BlazeBolt.GuiRemoveByEntity</code></td><td><code>entity</code></td><td>—</td></tr>
-      <tr><td><code>BlazeBolt.GuiClear</code></td><td>—</td><td>—</td></tr>
-      <tr><td><code>BlazeBolt.GuiSetPosition</code></td><td><code>entity, x, y</code></td><td>—</td></tr>
-      <tr><td><code>BlazeBolt.GuiSetSize</code></td><td><code>entity, w, h</code></td><td>—</td></tr>
-      <tr><td><code>BlazeBolt.GuiSetColor</code></td><td><code>entity, r, g, b, a</code></td><td>—</td></tr>
-      <tr><td><code>BlazeBolt.GuiSetText</code></td><td><code>entity, text</code></td><td>—</td></tr>
-      <tr><td><code>BlazeBolt.GuiSetVisible</code></td><td><code>entity, bool</code></td><td>—</td></tr>
-      <tr><td><code>BlazeBolt.GuiSetEnabled</code></td><td><code>entity, bool</code></td><td>—</td></tr>
-      <tr><td><code>BlazeBolt.GuiSetValue</code></td><td><code>entity, value</code></td><td>—</td></tr>
-      <tr><td><code>BlazeBolt.GuiGetValue</code></td><td><code>entity</code></td><td><code>value</code></td></tr>
-      <tr><td><code>BlazeBolt.GuiSetOnClick</code></td><td><code>entity, function</code></td><td>—</td></tr>
-      <tr><td><code>BlazeBolt.GuiSetOnChange</code></td><td><code>entity, function</code></td><td>—</td></tr>
-      <tr><td><code>BlazeBolt.GuiSetZOrder</code></td><td><code>entity, z</code></td><td>—</td></tr>
-      <tr><td><code>BlazeBolt.GuiSetBorder</code></td><td><code>entity, r, g, b, a, w</code></td><td>—</td></tr>
-    </table>
-    </div>
-
-    <h3>Шейдеры</h3>
-    <div class="table-wrap">
-    <table>
-      <tr><th>Функция</th><th>Параметры</th><th>Возврат</th></tr>
-      <tr><td><code>BlazeBolt.CreateShader</code></td><td><code>name, vertexPath, fragmentPath</code></td><td><code>shaderId</code></td></tr>
-      <tr><td><code>BlazeBolt.DestroyShader</code></td><td><code>shaderId</code></td><td>—</td></tr>
-      <tr><td><code>BlazeBolt.SetEntityShader</code></td><td><code>entity, shaderId</code></td><td>—</td></tr>
-      <tr><td><code>BlazeBolt.GetEntityShader</code></td><td><code>entity</code></td><td><code>shaderId</code></td></tr>
-      <tr><td><code>BlazeBolt.UseShader</code></td><td><code>shaderId</code></td><td>—</td></tr>
-      <tr><td><code>BlazeBolt.SetShaderFloat</code></td><td><code>shaderId, name, value</code></td><td>—</td></tr>
-      <tr><td><code>BlazeBolt.SetShaderInt</code></td><td><code>shaderId, name, value</code></td><td>—</td></tr>
-      <tr><td><code>BlazeBolt.SetShaderVec2</code></td><td><code>shaderId, name, x, y</code></td><td>—</td></tr>
-      <tr><td><code>BlazeBolt.SetShaderVec3</code></td><td><code>shaderId, name, x, y, z</code></td><td>—</td></tr>
-      <tr><td><code>BlazeBolt.SetShaderVec4</code></td><td><code>shaderId, name, x, y, z, w</code></td><td>—</td></tr>
-    </table>
-    </div>
-
-    <h3>Скрипты и сцены</h3>
-    <div class="table-wrap">
-    <table>
-      <tr><th>Функция</th><th>Параметры</th><th>Возврат</th></tr>
-      <tr><td><code>BlazeBolt.LoadScript</code></td><td><code>path</code></td><td><code>bool</code></td></tr>
-      <tr><td><code>BlazeBolt.LoadScriptsFromList</code></td><td><code>path</code></td><td><code>bool</code></td></tr>
-      <tr><td><code>BlazeBolt.ReloadScript</code></td><td><code>path</code></td><td><code>bool</code></td></tr>
-      <tr><td><code>BlazeBolt.ReloadAllScripts</code></td><td>—</td><td><code>bool</code></td></tr>
-      <tr><td><code>BlazeBolt.EnableScript</code></td><td><code>name, bool</code></td><td>—</td></tr>
-      <tr><td><code>BlazeBolt.IsScriptLoaded</code></td><td><code>name</code></td><td><code>bool</code></td></tr>
-      <tr><td><code>BlazeBolt.GetLoadedScripts</code></td><td>—</td><td><code>table</code></td></tr>
-      <tr><td><code>BlazeBolt.LoadScene</code></td><td><code>sceneName</code></td><td><code>bool</code></td></tr>
-      <tr><td><code>BlazeBolt.GetCurrentScene</code></td><td>—</td><td><code>name</code></td></tr>
-    </table>
-    </div>
-
+    <p>Полный список всех функций API сгруппирован по категориям в соответствующих разделах выше.</p>
     <hr>
-
-    <!-- ==================== SCENE-СИСТЕМА ==================== -->
     <h2 id="scene-sistema">Scene-система</h2>
-
     <div class="unimplemented">Не реализовано</div>
     <div class="warning">
       <span class="warning-icon">&#9888;</span>
-      <span>Этот раздел документирует API, который <strong>НЕ РЕАЛИЗОВАН</strong> в текущей версии движка. Код C++ для <code>BlazeBolt::Scene</code> существует (<code>core/scene.h</code>, <code>core/scene.cpp</code>), но Lua-биндинги отсутствуют. Функции ниже <strong>недоступны</strong> из Lua.</span>
+      <span>Этот раздел документирует API, который <strong>НЕ РЕАЛИЗОВАН</strong> в текущей версии движка.</span>
     </div>
-
-    <p>Scene-система предоставляет компонентный подход к созданию игровых объектов с иерархией parent-child.</p>
-
-    <h3>Типы объектов</h3>
-    <pre><code>SceneObjectType.GameObject      -- Базовый объект
-SceneObjectType.Transform      -- Трансформация (позиция, вращение, масштаб)
-SceneObjectType.SpriteRenderer -- Спрайт-рендерер
-SceneObjectType.Camera        -- Камера
-SceneObjectType.AudioSource   -- Источник звука
-SceneObjectType.Text         -- Текст
-SceneObjectType.RigidBody    -- Физическое тело
-SceneObjectType.BoxCollider  -- Коллайдер
-SceneObjectType.Light       -- Источник света</code></pre>
-
-    <h3>Работа со сценой</h3>
-    <pre><code>scene = BlazeBolt.SceneLoad(path)       -- Загрузить сцену из файла
-BlazeBolt.SceneSave(scene, path)           -- Сохранить сцену в файл
-BlazeBolt.SceneSetName(scene, name)         -- Установить имя сцены
-name = BlazeBolt.SceneGetName(scene)    -- Получить имя сцены</code></pre>
-
-    <h3>Управление объектами</h3>
-    <pre><code>-- Создание объекта
-objId = BlazeBolt.SceneCreateObject(scene, name, objectType)
-
--- Удаление объекта
-BlazeBolt.SceneDestroyObject(scene, objId)
-
--- Получение объекта
-obj = BlazeBolt.SceneGetObject(scene, objId)
-
--- Получить все объекты
-objects = BlazeBolt.SceneGetAllObjects(scene)
-
--- Получить корневые объекты
-rootObjects = BlazeBolt.SceneGetRootObjects(scene)</code></pre>
-
-    <h3>Свойства объекта</h3>
-    <pre><code>-- Позиция
-BlazeBolt.ObjectSetPosition(objId, x, y, z)
-x, y, z = BlazeBolt.ObjectGetPosition(objId)
-
--- Вращение
-BlazeBolt.ObjectSetRotation(objId, x, y, z)
-x, y, z = BlazeBolt.ObjectGetRotation(objId)
-
--- Масштаб
-BlazeBolt.ObjectSetScale(objId, x, y, z)
-x, y, z = BlazeBolt.ObjectGetScale(objId)
-
--- Имя
-BlazeBolt.ObjectSetName(objId, name)
-name = BlazeBolt.ObjectGetName(objId)
-
--- Активность
-BlazeBolt.ObjectSetActive(objId, active)
-active = BlazeBolt.ObjectIsActive(objId)
-
--- Родитель
-BlazeBolt.ObjectSetParent(objId, parentId)
-parentId = BlazeBolt.ObjectGetParent(objId)</code></pre>
-
-    <h3>Пример работы со сценой</h3>
-    <pre><code>function Start()
-    -- Создание сцены
-    local scene = BlazeBolt.SceneNew()
-    BlazeBolt.SceneSetName(scene, "MainLevel")
-    
-    -- Создание игрока
-    local player = BlazeBolt.SceneCreateObject(scene, "Player", SceneObjectType.GameObject)
-    local transform = BlazeBolt.SceneCreateObject(scene, "PlayerTransform", SceneObjectType.Transform)
-    local sprite = BlazeBolt.SceneCreateObject(scene, "PlayerSprite", SceneObjectType.SpriteRenderer)
-    local rigidBody = BlazeBolt.SceneCreateObject(scene, "PlayerBody", SceneObjectType.RigidBody)
-    
-    -- Настройка иерархии
-    BlazeBolt.ObjectSetParent(transform, player)
-    BlazeBolt.ObjectSetParent(sprite, player)
-    BlazeBolt.ObjectSetParent(rigidBody, player)
-    
-    -- Позиция
-    BlazeBolt.ObjectSetPosition(player, 0, 0, 0)
-end</code></pre>
-
-    <h3>Формат файла сцены</h3>
-    <p>Сцены сохраняются в бинарном формате <code>.blaze</code>:</p>
-    <ul>
-      <li>MAGIC: <code>0x424C415A</code> ("BLAZ")</li>
-      <li>VERSION: <code>1</code></li>
-      <li>Имя сцены (строка)</li>
-      <li>Количество объектов</li>
-      <li>Для каждого объекта: id, тип, имя, parentId, позиция(3), вращение(3), масштаб(3), активность</li>
-    </ul>
-
     <hr>
-
-    <!-- ==================== WORLD/ENTITY ==================== -->
     <h2 id="worldentity">World/Entity</h2>
-
     <div class="unimplemented">Не реализовано</div>
     <div class="warning">
       <span class="warning-icon">&#9888;</span>
-      <span>Этот раздел документирует API, который <strong>НЕ РЕАЛИЗОВАН</strong> в текущей версии движка. Шаблонный C++ класс <code>World&lt;T&gt;</code> существует (<code>core/world.h</code>) и используется внутри движка для хранения спрайтов/анимаций/текстов, но Lua-биндинги <strong>отсутствуют</strong>. Функции ниже <strong>недоступны</strong> из Lua.</span>
+      <span>Этот раздел документирует API, который <strong>НЕ РЕАЛИЗОВАН</strong> в текущей версии движка.</span>
     </div>
-
-    <p>Система World предоставляет пул объектов с автоматическим управлением памятью.</p>
-
-    <h3>Особенности</h3>
-    <ul>
-      <li>Автоматическое выделение/освобождение памяти</li>
-      <li>Переиспользование ID удалённых сущностей</li>
-      <li>Типобезопасность через шаблоны</li>
-    </ul>
-
-    <h3>Использование</h3>
-    <pre><code>-- Создание сущности
-entity = world:spawn(MyComponent)
-
--- Удаление сущности
-world:destroy(entity)
-
--- Получение компонента
-component = world:getEntity(entity)
-
--- Проверка существования
-if world:exists(entity) then ... end</code></pre>
-
-    <h3>Пример</h3>
-    <pre><code>-- Определение компонента
-local Player = {
-    name = "Player",
-    health = 100,
-    speed = 5.0
-}
-
--- Создание мира
-local world = World.new()
-
--- Спавн игрока
-local playerEntity = world:spawn(Player)
-
--- Обновление
-function Update(dt)
-    local player = world:getEntity(playerEntity)
-    if player then
-        player.position.x = player.position.x + player.speed * dt
-    end
-end</code></pre>
-
     <hr>
+  </div>
 
-    <p style="text-align:center;color:var(--text2);font-size:13px;margin-top:48px;">BlazeBolt Game Engine 1.0 &mdash; Mirulit Software</p>
-
+  <div class="footer">
+    <p>BlazeBolt Game Engine 1.0 &mdash; Mirulit Software</p>
   </div>
 </div>
 
 <script>
-  // Highlight current section in sidebar
+(function() {
   const navLinks = document.querySelectorAll('.sidebar nav a');
   const sections = document.querySelectorAll('h2[id]');
-  
   function updateActiveLink() {
     let currentId = '';
     sections.forEach(section => {
@@ -2095,64 +1157,48 @@ end</code></pre>
       }
     });
   }
-  
   window.addEventListener('scroll', updateActiveLink);
   window.addEventListener('load', updateActiveLink);
-</script>
+})();
 
-<script>
-// Lua syntax highlighter
 (function() {
   const LUA_KEYWORDS = new Set([
     'and', 'break', 'do', 'else', 'elseif', 'end', 'false', 'for', 'function',
     'goto', 'if', 'in', 'local', 'nil', 'not', 'or', 'repeat', 'return',
     'then', 'true', 'until', 'while'
   ]);
-
   const LUA_BUILTINS = new Set([
     'print', 'ipairs', 'pairs', 'next', 'type', 'tostring', 'tonumber',
     'rawget', 'rawset', 'rawequal', 'select', 'unpack', 'pcall', 'xpcall',
     'setmetatable', 'getmetatable', 'require', 'dofile', 'loadfile',
-    'error', 'assert', 'collectgarbage', 'newproxy', 'Math', 'string',
-    'table', 'math', 'GetScreenWidth', 'GetScreenHeight', 'GetTime',
-    'TextAlignment'
+    'error', 'assert', 'collectgarbage', 'newproxy', 'math',
+    'GetScreenWidth', 'GetScreenHeight', 'GetTime', 'TextAlignment'
   ]);
 
   function highlightLua(code) {
     let tokens = [];
     let i = 0;
-
     while (i < code.length) {
-      // Multi-line comment --[[ ]]
       if (code.substr(i, 4) === '--[[') {
         let end = code.indexOf(']]', i + 4);
         if (end === -1) end = code.length;
         else end += 2;
         tokens.push({ cls: 'hl-comment', text: code.slice(i, end) });
-        i = end;
-        continue;
+        i = end; continue;
       }
-
-      // Single-line comment --
       if (code.substr(i, 2) === '--') {
         let end = code.indexOf('\n', i + 2);
         if (end === -1) end = code.length;
         tokens.push({ cls: 'hl-comment', text: code.slice(i, end) });
-        i = end;
-        continue;
+        i = end; continue;
       }
-
-      // Multi-line string [[ ]]
       if (code.substr(i, 2) === '[[') {
         let end = code.indexOf(']]', i + 2);
         if (end === -1) end = code.length;
         else end += 2;
         tokens.push({ cls: 'hl-string', text: code.slice(i, end) });
-        i = end;
-        continue;
+        i = end; continue;
       }
-
-      // Strings "..." or '...'
       if (code[i] === '"' || code[i] === "'") {
         let quote = code[i];
         let j = i + 1;
@@ -2162,11 +1208,8 @@ end</code></pre>
         }
         if (j < code.length) j++;
         tokens.push({ cls: 'hl-string', text: code.slice(i, j) });
-        i = j;
-        continue;
+        i = j; continue;
       }
-
-      // Numbers
       if (/[0-9]/.test(code[i]) || (code[i] === '.' && i + 1 < code.length && /[0-9]/.test(code[i + 1]))) {
         let j = i;
         if (code[j] === '0' && (code[j + 1] === 'x' || code[j + 1] === 'X')) {
@@ -2178,45 +1221,26 @@ end</code></pre>
           if (code[j] === 'e' || code[j] === 'E') { j++; if (code[j] === '+' || code[j] === '-') j++; while (/[0-9]/.test(code[j])) j++; }
         }
         tokens.push({ cls: 'hl-number', text: code.slice(i, j) });
-        i = j;
-        continue;
+        i = j; continue;
       }
-
-      // Identifiers / keywords / builtins
       if (/[a-zA-Z_]/.test(code[i])) {
         let j = i;
         while (j < code.length && /[a-zA-Z0-9_.]/.test(code[j])) j++;
         let word = code.slice(i, j);
-
         if (LUA_KEYWORDS.has(word)) {
           tokens.push({ cls: 'hl-keyword', text: word });
         } else if (LUA_BUILTINS.has(word)) {
           tokens.push({ cls: 'hl-builtin', text: word });
         } else if (word.startsWith('BlazeBolt.') || word === 'BlazeBolt') {
           tokens.push({ cls: 'hl-constant', text: word });
-        } else if (word.startsWith('Keys.') || word.startsWith('MouseButtons.') || word.startsWith('SceneObjectType.')) {
-          tokens.push({ cls: 'hl-constant', text: word });
-        } else if (word.endsWith('(')) {
-          tokens.push({ cls: 'hl-function', text: word });
         } else {
           tokens.push({ cls: '', text: word });
         }
-        i = j;
-        continue;
+        i = j; continue;
       }
-
-      // Operators and punctuation
-      if (/[+\-*\/%=<>~^#(){}[\].,:;]/.test(code[i])) {
-        tokens.push({ cls: 'hl-operator', text: code[i] });
-        i++;
-        continue;
-      }
-
-      // Whitespace and other
       tokens.push({ cls: '', text: code[i] });
       i++;
     }
-
     return tokens;
   }
 
@@ -2240,6 +1264,16 @@ end</code></pre>
     });
   });
 })();
+
+// Mobile sidebar toggle
+document.getElementById('mobileToggle').addEventListener('click', function() {
+  document.getElementById('sidebar').classList.toggle('open');
+  document.getElementById('sidebarOverlay').classList.toggle('show');
+});
+document.getElementById('sidebarOverlay').addEventListener('click', function() {
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('sidebarOverlay').classList.remove('show');
+});
 </script>
 
 </body>

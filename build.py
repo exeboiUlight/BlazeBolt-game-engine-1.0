@@ -10,7 +10,7 @@ else:
     DEBUG_FLAGS = " -g"
 
 COMMON_INCLUDES = "-I./include -I./core"
-COMMON_LIBS = "-L./lib -lgdi32 -lopengl32 -lglfw3 -lfreetype"
+COMMON_LIBS = "-L./lib -lopengl32 -lglfw3 -lfreetype -lgdi32"
 COMMON_STATIC = "-static-libgcc -static-libstdc++"
 
 def make_project():
@@ -53,7 +53,7 @@ def compile_game():
     game_files = "src/game.cpp include/glad/glad.c " + " ".join(core_cpp_files)
     cmd = (
         f"g++{DEBUG_FLAGS} {game_files} "
-        f"-O2 "
+        f"-O2 -Oz -s "
         f"{COMMON_INCLUDES} "
         f"{COMMON_LIBS} "
         f"-llua54 -lopenal32 "
@@ -71,7 +71,7 @@ def compile_release():
     game_files = "src/game.cpp include/glad/glad.c " + " ".join(core_cpp_files)
     cmd = (
         f"g++{DEBUG_FLAGS} {game_files} "
-        f"-O2 "
+        f"-O2 -Oz -s "
         f"{COMMON_INCLUDES} "
         f"{COMMON_LIBS} "
         f"-llua54 -lopenal32 "

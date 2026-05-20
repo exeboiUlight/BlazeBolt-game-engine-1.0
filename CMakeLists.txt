@@ -12,6 +12,7 @@ add_subdirectory(libs/openal)
 
 add_executable(${PROJECT_NAME}
     src/game.cpp
+    core/engine/lua_engine.cpp
     core/engine/managers.cpp
     core/graphics/gl.cpp
     core/graphics/quad.cpp

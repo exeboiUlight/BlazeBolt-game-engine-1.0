@@ -537,7 +537,7 @@ private:
     }
 };
 
-const char* Animation2D::vertexShaderSource = R"(
+inline const char* Animation2D::vertexShaderSource = R"(
 #version 330 core
 layout (location = 0) in vec2 aPos;
 layout (location = 1) in vec2 aTexCoord;
@@ -553,7 +553,7 @@ void main() {
 }
 )";
 
-const char* Animation2D::fragmentShaderSource = R"(
+inline const char* Animation2D::fragmentShaderSource = R"(
 #version 330 core
 out vec4 FragColor;
 
