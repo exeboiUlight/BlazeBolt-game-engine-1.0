@@ -829,6 +829,10 @@ mass = BlazeBolt.PhysicsGetMass(bodyEntity)</code></pre>
     <pre><code>BlazeBolt.PhysicsSyncAnimation(bodyEntity, animationEntity)</code></pre>
     <p>Копирует позицию и угол физического тела в анимацию (Animation2D). Вызывайте в <code>Update()</code>.</p>
 
+    <h3>Синхронизация с текстом</h3>
+    <pre><code>BlazeBolt.PhysicsSyncText(bodyEntity, textEntity)</code></pre>
+    <p>Копирует позицию и угол физического тела в текст (Text2D). Вызывайте в <code>Update()</code>.</p>
+
     <h3>Обновление симуляции</h3>
     <pre><code>BlazeBolt.PhysicsStep()</code></pre>
     <p>Выполняет один шаг физической симуляции. Вызывайте в <code>Update(dt)</code>.</p>
@@ -1829,6 +1833,7 @@ player=engine/scripts/player.lua
       <tr><td><code>BlazeBolt.PhysicsStep</code></td><td>—</td><td>—</td></tr>
       <tr><td><code>BlazeBolt.PhysicsSyncSprite</code></td><td><code>bodyEntity, spriteEntity</code></td><td>—</td></tr>
       <tr><td><code>BlazeBolt.PhysicsSyncAnimation</code></td><td><code>bodyEntity, animationEntity</code></td><td>—</td></tr>
+      <tr><td><code>BlazeBolt.PhysicsSyncText</code></td><td><code>bodyEntity, textEntity</code></td><td>—</td></tr>
     </table>
     </div>
 

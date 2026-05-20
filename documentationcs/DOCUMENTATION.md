@@ -747,6 +747,12 @@ BlazeBolt.PhysicsSyncAnimation(bodyEntity, animationEntity)
 ```
 Копирует позицию и угол физического тела в анимацию (Animation2D). Вызывайте в `Update()`.
 
+### Синхронизация с текстом
+```lua
+BlazeBolt.PhysicsSyncText(bodyEntity, textEntity)
+```
+Копирует позицию и угол физического тела в текст (Text2D). Вызывайте в `Update()`.
+
 ### Обновление симуляции
 ```lua
 BlazeBolt.PhysicsStep()
@@ -1872,6 +1878,7 @@ TextAlignment.RIGHT    -- По правому краю
 | `BlazeBolt.PhysicsStep` | — | — |
 | `BlazeBolt.PhysicsSyncSprite` | `bodyEntity, spriteEntity` | — |
 | `BlazeBolt.PhysicsSyncAnimation` | `bodyEntity, animationEntity` | — |
+| `BlazeBolt.PhysicsSyncText` | `bodyEntity, textEntity` | — |
 
 ### Утилиты
 | Функция | Параметры | Возврат |

@@ -352,6 +352,8 @@ namespace LuaEngine {
         float physicsGetMass(Entity bodyEntity);
         void physicsStep();
         void physicsSyncSprite(Entity bodyEntity, Entity spriteEntity);
+        void physicsSyncText(Entity bodyEntity, Entity textEntity);
+        void physicsSyncAnimation(Entity bodyEntity, Entity animEntity);
         
         // General
         float getDeltaTime() const;
@@ -1430,6 +1432,24 @@ namespace LuaEngine {
             return 0;
         }
         
+        static int PhysicsSyncText(lua_State* state) {
+            Entity bodyEntity = luaL_checkinteger(state, 1);
+            Entity textEntity = luaL_checkinteger(state, 2);
+            LuaEngine* engine = getEngine(state);
+            if (!engine) return 0;
+            engine->physicsSyncText(bodyEntity, textEntity);
+            return 0;
+        }
+        
+        static int PhysicsSyncAnimation(lua_State* state) {
+            Entity bodyEntity = luaL_checkinteger(state, 1);
+            Entity animEntity = luaL_checkinteger(state, 2);
+            LuaEngine* engine = getEngine(state);
+            if (!engine) return 0;
+            engine->physicsSyncAnimation(bodyEntity, animEntity);
+            return 0;
+        }
+        
         // Audio functions
         static int LoadSound(lua_State* state) {
             const char* filename = luaL_checkstring(state, 1);
@@ -1958,6 +1978,8 @@ namespace LuaEngine {
         {"PhysicsGetMass", _functions::PhysicsGetMass},
         {"PhysicsStep", _functions::PhysicsStep},
         {"PhysicsSyncSprite", _functions::PhysicsSyncSprite},
+        {"PhysicsSyncText", _functions::PhysicsSyncText},
+        {"PhysicsSyncAnimation", _functions::PhysicsSyncAnimation},
         
         // Audio functions
         {"LoadSound", _functions::LoadSound},
@@ -3076,6 +3098,34 @@ namespace LuaEngine {
         
         sprite->setPosition(position);
         sprite->setRotation(angle * (180.0f / 3.14159265358979323846f));
+    }
+    
+    void LuaEngine::physicsSyncText(Entity bodyEntity, Entity textEntity) {
+        auto it = physicsBodyMap.find(bodyEntity);
+        if (it == physicsBodyMap.end()) { return; }
+        BlazeBolt::Text2D *text = textWorld.getEntity(textEntity);
+        if (text == nullptr) { return; }
+        
+        PhysicsBody *body = it->second;
+        Vector2 position = body->getPosition();
+        float angle = body->getAngle();
+        
+        text->setPosition(position);
+        text->setRotation(angle * (180.0f / 3.14159265358979323846f));
+    }
+    
+    void LuaEngine::physicsSyncAnimation(Entity bodyEntity, Entity animEntity) {
+        auto it = physicsBodyMap.find(bodyEntity);
+        if (it == physicsBodyMap.end()) { return; }
+        Animation2D *anim = animationWorld.getEntity(animEntity);
+        if (anim == nullptr) { return; }
+        
+        PhysicsBody *body = it->second;
+        Vector2 position = body->getPosition();
+        float angle = body->getAngle();
+        
+        anim->setPosition(position);
+        anim->setRotation(angle * (180.0f / 3.14159265358979323846f));
     }
     
     // General
