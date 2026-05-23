@@ -1391,7 +1391,7 @@ namespace LuaEngine {
         float angle = body->getAngle();
 
         sprite->setPosition(position);
-        sprite->setRotation(angle * (180.0f / std::n));
+        sprite->setRotation(angle * (180.0f / M_PIf));
     }
 
     // Camera implementations
