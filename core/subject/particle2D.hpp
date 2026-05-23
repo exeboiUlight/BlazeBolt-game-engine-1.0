@@ -2,7 +2,7 @@
 #include <vector>
 #include <graphics/gl.hpp>
 #include <graphics/quad.hpp>
-#include <subject/sprite2D.hpp>
+#include <subject/sprite/staticSprite2D.hpp>
 #include <utils/math/vector.h>
 
 class ParticleSystem2D {
@@ -49,7 +49,7 @@ public:
     void clear();
 
     void update(float dt);
-    void draw(const GL::Texture2D& defaultTexture, const BlazeBolt::SpriteShader2D& shader, const BlazeBolt::SpriteMesh2D& mesh, const Matrix3x3& projectionViewMatrix) const;
+    void draw(const GL::Texture2D& defaultTexture, const BlazeBolt::SpriteShader2D& shader, const BlazeBolt::SpriteMesh& mesh, const Matrix3x3& projectionViewMatrix) const;
 
     int getParticleCount() const;
 

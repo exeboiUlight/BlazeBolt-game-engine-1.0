@@ -4,8 +4,7 @@
 #include <unordered_map>
 #include <vector>
 #include <memory>
-
-#include <engine/lua_types.h>
+#include <engine/luaTypes.hpp>
 
 namespace LuaEngine {
 

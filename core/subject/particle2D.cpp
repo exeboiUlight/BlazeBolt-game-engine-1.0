@@ -175,7 +175,7 @@ void ParticleSystem2D::update(float dt) {
     }
 }
 
-void ParticleSystem2D::draw(const GL::Texture2D& defaultTexture, const BlazeBolt::SpriteShader2D& shader, const BlazeBolt::SpriteMesh2D& mesh, const Matrix3x3& projectionViewMatrix) const {
+void ParticleSystem2D::draw(const GL::Texture2D& defaultTexture, const BlazeBolt::SpriteShader2D& shader, const BlazeBolt::SpriteMesh& mesh, const Matrix3x3& projectionViewMatrix) const {
     if (!visible || particles.empty()) return;
 
     shader.bind();

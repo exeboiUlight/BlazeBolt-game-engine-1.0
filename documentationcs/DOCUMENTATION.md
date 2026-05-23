@@ -179,66 +179,75 @@ end
 
 ## Анимации
 
-### Создание из GIF
+### Обновление API
+
+Старый набор функций `Animation*` заменён на `AnimatedSprite*`.
+
+Быстрая замена имён:
+
+- `CreateAnimation(...)` -> `CreateAnimatedSprite(...)`
+- `AnimationPlay/Pause/Stop/Restart` -> `AnimatedSpritePlay/Pause/Stop/Restart`
+- `AnimationSetLooping` -> `AnimatedSpriteSetLooping`
+- `AnimationSetSpeed` -> `AnimatedSpriteSetPlaybackSpeed`
+- `AnimationSetFrame` -> `AnimatedSpriteSetFrame`
+- `AnimationGetFrameCount` -> `AnimatedSpriteGetNumFrames`
+- `AnimationIsPlaying` -> `AnimatedSpriteIsPlaying`
+- `AnimationSetPosition` -> `AnimatedSpriteSetPosition`
+- `AnimationSetSize` -> `AnimatedSpriteSetSize`
+
+### Создание
 ```lua
-entity = BlazeBolt.CreateAnimation(gifPath, true, x, y)
+entity = BlazeBolt.CreateAnimatedSprite(texturePath, x, y)
 ```
 
 > **Примечание:** GIF-анимация корректно обрабатывает кадры произвольного размера и смещения (partial frames). Каждый кадр композируется на полный холст `(xdim × ydim)` с учётом disposal mode (GIF_BKGD, GIF_PREV). Это исправляет некорректное отображение кадров после 3-го кадра в не-квадратных GIF.
 
-### Создание из спрайт-листа
-```lua
-entity = BlazeBolt.CreateAnimationFromSheet(texturePath, frameWidth, frameHeight, totalFrames, framesPerRow, frameDelayMs, x, y)
-```
-| Параметр | Тип | Описание |
-|---|---|---|
-| texturePath | string | Путь к спрайт-листу |
-| frameWidth | int | Ширина одного кадра (px) |
-| frameHeight | int | Высота одного кадра (px) |
-| totalFrames | int | Общее количество кадров |
-| framesPerRow | int | Количество кадров в строке |
-| frameDelayMs | int | Задержка кадра (мс), по умолчанию 100 |
-| x, y | number | Позиция в NDC |
-
 ### Воспроизведение
 ```lua
-BlazeBolt.AnimationPlay(entity)
-BlazeBolt.AnimationPause(entity)
-BlazeBolt.AnimationStop(entity)        -- остановить, сброс на первый кадр
-BlazeBolt.AnimationRestart(entity)     -- перезапустить с начала
+BlazeBolt.AnimatedSpritePlay(entity)
+BlazeBolt.AnimatedSpritePause(entity)
+BlazeBolt.AnimatedSpriteStop(entity)            -- остановить, сброс на первый кадр
+BlazeBolt.AnimatedSpriteRestart(entity)         -- перезапустить с начала
 ```
 
 ### Настройки
 ```lua
-BlazeBolt.AnimationSetLooping(entity, looping)  -- зацикливание (boolean)
-BlazeBolt.AnimationSetSpeed(entity, speed)       -- множитель скорости (1.0 = норма)
-BlazeBolt.AnimationSetFrame(entity, frameIndex)  -- перейти к конкретному кадру
+BlazeBolt.AnimatedSpriteSetLooping(entity, looping)          -- зацикливание (boolean)
+BlazeBolt.AnimatedSpriteSetPlaybackSpeed(entity, speed)      -- множитель скорости (1.0 = норма)
+BlazeBolt.AnimatedSpriteSetFrame(entity, frameIndex)         -- перейти к конкретному кадру
 ```
 
 ### Информация
 ```lua
-frameCount = BlazeBolt.AnimationGetFrameCount(entity)
-isPlaying  = BlazeBolt.AnimationIsPlaying(entity)
+frameCount   = BlazeBolt.AnimatedSpriteGetNumFrames(entity)
+currentFrame = BlazeBolt.AnimatedSpriteGetCurrentFrame(entity)
+isPlaying    = BlazeBolt.AnimatedSpriteIsPlaying(entity)
+isLooping    = BlazeBolt.AnimatedSpriteIsLooping(entity)
+speed        = BlazeBolt.AnimatedSpriteGetPlaybackSpeed(entity)
 ```
 
 ### Позиция и размер
 ```lua
-BlazeBolt.AnimationSetPosition(entity, x, y)
-BlazeBolt.AnimationSetSize(entity, width, height)
+BlazeBolt.AnimatedSpriteSetPosition(entity, x, y)
+BlazeBolt.AnimatedSpriteSetSize(entity, width, height)
+BlazeBolt.AnimatedSpriteSetOrigin(entity, originX, originY)
+BlazeBolt.AnimatedSpriteSetRotation(entity, degrees)
+BlazeBolt.AnimatedSpriteSetColor(entity, r, g, b, a)
 ```
 
 ### Пример
 ```lua
 function Start()
-    local anim = BlazeBolt.CreateAnimationFromSheet("player_sheet.png", 32, 32, 8, 4, 100, 0, 0)
-    BlazeBolt.AnimationSetSize(anim, 0.4, 0.4)
-    BlazeBolt.AnimationSetLooping(anim, true)
-    BlazeBolt.AnimationSetSpeed(anim, 2.0)
+    local anim = BlazeBolt.CreateAnimatedSprite("player.gif", 0, 0)
+    BlazeBolt.AnimatedSpriteSetSize(anim, 0.4, 0.4)
+    BlazeBolt.AnimatedSpriteSetLooping(anim, true)
+    BlazeBolt.AnimatedSpriteSetPlaybackSpeed(anim, 2.0)
+    BlazeBolt.AnimatedSpritePlay(anim)
 end
 
 function Update(dt)
-    if not BlazeBolt.AnimationIsPlaying(anim) then
-        BlazeBolt.AnimationRestart(anim)
+    if not BlazeBolt.AnimatedSpriteIsPlaying(anim) then
+        BlazeBolt.AnimatedSpriteRestart(anim)
     end
 end
 ```
@@ -782,9 +791,9 @@ BlazeBolt.PhysicsSyncSprite(bodyEntity, spriteEntity)
 
 ### Синхронизация с анимацией
 ```lua
-BlazeBolt.PhysicsSyncAnimation(bodyEntity, animationEntity)
+BlazeBolt.PhysicsSyncAnimatedSprite(bodyEntity, animationEntity)
 ```
-Копирует позицию и угол физического тела в анимацию (Animation2D). Вызывайте в `Update()`.
+Копирует позицию и угол физического тела в анимированный спрайт (`AnimatedSprite2D`). Вызывайте в `Update()`.
 
 ### Синхронизация с текстом
 ```lua
@@ -824,7 +833,7 @@ end
 function Update(dt)
     BlazeBolt.PhysicsStep()
     BlazeBolt.PhysicsSyncSprite(playerBody, playerSprite)
-    BlazeBolt.PhysicsSyncAnimation(playerBody, playerAnim)  -- для Animation2D
+    BlazeBolt.PhysicsSyncAnimatedSprite(playerBody, playerAnim)  -- для AnimatedSprite2D
     
     if BlazeBolt.IsKeyJustPressed(Keys.SPACE) then
         local _, vy = BlazeBolt.PhysicsGetLinearVelocity(body)
@@ -1832,19 +1841,29 @@ player=engine/scripts/player.lua
 ### Анимации
 | Функция | Параметры | Возврат |
 |---|---|---|
-| `BlazeBolt.CreateAnimation` | `path, isGif, x, y` | `entity` |
-| `BlazeBolt.CreateAnimationFromSheet` | `path, fw, fh, total, perRow, delay, x, y` | `entity` |
-| `BlazeBolt.AnimationPlay` | `entity` | — |
-| `BlazeBolt.AnimationPause` | `entity` | — |
-| `BlazeBolt.AnimationStop` | `entity` | — |
-| `BlazeBolt.AnimationRestart` | `entity` | — |
-| `BlazeBolt.AnimationSetLooping` | `entity, bool` | — |
-| `BlazeBolt.AnimationSetSpeed` | `entity, speed` | — |
-| `BlazeBolt.AnimationSetFrame` | `entity, frame` | — |
-| `BlazeBolt.AnimationGetFrameCount` | `entity` | `count` |
-| `BlazeBolt.AnimationIsPlaying` | `entity` | `bool` |
-| `BlazeBolt.AnimationSetPosition` | `entity, x, y` | — |
-| `BlazeBolt.AnimationSetSize` | `entity, w, h` | — |
+| `BlazeBolt.CreateAnimatedSprite` | `path, x, y` | `entity` |
+| `BlazeBolt.AnimatedSpritePlay` | `entity` | — |
+| `BlazeBolt.AnimatedSpritePause` | `entity` | — |
+| `BlazeBolt.AnimatedSpriteStop` | `entity` | — |
+| `BlazeBolt.AnimatedSpriteRestart` | `entity` | — |
+| `BlazeBolt.AnimatedSpriteSetLooping` | `entity, bool` | — |
+| `BlazeBolt.AnimatedSpriteIsLooping` | `entity` | `bool` |
+| `BlazeBolt.AnimatedSpriteSetPlaybackSpeed` | `entity, speed` | — |
+| `BlazeBolt.AnimatedSpriteGetPlaybackSpeed` | `entity` | `speed` |
+| `BlazeBolt.AnimatedSpriteSetFrame` | `entity, frame` | — |
+| `BlazeBolt.AnimatedSpriteGetCurrentFrame` | `entity` | `frame` |
+| `BlazeBolt.AnimatedSpriteGetNumFrames` | `entity` | `count` |
+| `BlazeBolt.AnimatedSpriteIsPlaying` | `entity` | `bool` |
+| `BlazeBolt.AnimatedSpriteSetPosition` | `entity, x, y` | — |
+| `BlazeBolt.AnimatedSpriteGetPosition` | `entity` | `x, y` |
+| `BlazeBolt.AnimatedSpriteSetSize` | `entity, w, h` | — |
+| `BlazeBolt.AnimatedSpriteGetSize` | `entity` | `w, h` |
+| `BlazeBolt.AnimatedSpriteSetOrigin` | `entity, ox, oy` | — |
+| `BlazeBolt.AnimatedSpriteGetOrigin` | `entity` | `ox, oy` |
+| `BlazeBolt.AnimatedSpriteSetRotation` | `entity, degrees` | — |
+| `BlazeBolt.AnimatedSpriteGetRotation` | `entity` | `degrees` |
+| `BlazeBolt.AnimatedSpriteSetColor` | `entity, r, g, b, a` | — |
+| `BlazeBolt.AnimatedSpriteGetColor` | `entity` | `r, g, b, a` |
 
 ### Константы типов света
 ```lua
@@ -2024,7 +2043,7 @@ TextAlignment.RIGHT    -- По правому краю
 | `BlazeBolt.PhysicsGetMass` | `bodyEntity` | `mass` |
 | `BlazeBolt.PhysicsStep` | — | — |
 | `BlazeBolt.PhysicsSyncSprite` | `bodyEntity, spriteEntity` | — |
-| `BlazeBolt.PhysicsSyncAnimation` | `bodyEntity, animationEntity` | — |
+| `BlazeBolt.PhysicsSyncAnimatedSprite` | `bodyEntity, animationEntity` | — |
 | `BlazeBolt.PhysicsSyncText` | `bodyEntity, textEntity` | — |
 
 ### Утилиты

@@ -12,14 +12,17 @@ add_subdirectory(libs/openal)
 
 add_executable(${PROJECT_NAME}
     src/game.cpp
-    core/engine/lua_engine.cpp
+    core/engine/luaEngine.cpp
     core/engine/managers.cpp
+    core/graphics/animatedTexture2D.cpp
     core/graphics/gl.cpp
     core/graphics/quad.cpp
-    core/subject/sprite2D.cpp
-    core/subject/text2D.cpp
+    core/subject/sprite/animatedSprite2D.cpp
+    core/subject/sprite/generalSprite.cpp
+    core/subject/sprite/staticSprite2D.cpp
     core/subject/camera2D.cpp
     core/subject/particle2D.cpp
+    core/subject/text2D.cpp
     core/utils/input.cpp
 )
 target_include_directories(${PROJECT_NAME} PRIVATE

@@ -3,43 +3,16 @@
 #include <graphics/gl.hpp>
 #include <graphics/shader.h>
 #include <graphics/quad.hpp>
-#include <utils/math/vector.h>
+#include <subject/sprite/generalSprite.hpp>
 
 namespace BlazeBolt {
-    struct SpriteMesh2D {
-    private:
-        GL::VertexArrayObject vertexArrayObject;
-    public:
-        SpriteMesh2D();
-        explicit SpriteMesh2D(const QuadVertexBufferObject2D &vertexBufferObject);
-        ~SpriteMesh2D() = default;
-
-        void setVertexBuffer(const QuadVertexBufferObject2D &vertexBufferObject);
-        void draw() const;
-    };
-    struct SpriteShader2D {
-    private:
-        GL::ShaderProgram shaderProgram;
-    public:
-        SpriteShader2D();
-        ~SpriteShader2D() = default;
-        void bind() const;
-        void setAspectRatio(float aspectRatio) const;
-        void setMVPMatrix(const Matrix3x3 &matrix) const;
-        void setColor(const Vector4 &color) const;
-        void setTextureRect(const Vector4 &rect) const;
-    };
-
     // TODO: Either implement ECS or a Node (OOP) system, so parts of the objects like visibility, transform and rendering could be part of a base, e.g. "Node2D/Object2D" class, and just add a custom objects, or just have an object with Transform2D component, Text2D/Sprite2D component, etc.
     class Sprite2D {
     private:
         const GL::Texture2D *texture;
         Matrix3x3 modelMatrix;
-        Vector4 color;
-        Vector2 position;
-        Vector2 scale;
-        Vector2 origin;
-        Vector4 textureRect;
+        Vector4 color, textureRect;
+        Vector2 position, scale, origin;
         float rotation;
         bool visible;
 
@@ -73,7 +46,7 @@ namespace BlazeBolt {
         void setVisible(bool visible);
         bool isVisible() const;
 
-        void draw(const GL::Texture2D &defaultTexture, const SpriteShader2D &shader, const SpriteMesh2D &mesh, const Matrix3x3 &projectionViewMatrix) const;
+        void draw(const GL::Texture2D &defaultTexture, const SpriteShader2D &shader, const SpriteMesh &mesh, const Matrix3x3 &projectionViewMatrix) const;
     };
     
     /*

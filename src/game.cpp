@@ -3,7 +3,7 @@
 #include <chrono>
 #include <graphics/window.h>
 #include <utils/input.hpp>
-#include <engine/lua.h>
+#include <engine/lua.hpp>
 
 int main() {
     Window window = Window(1200, 600, "Untitled project | BlazeBolt");
@@ -34,19 +34,9 @@ int main() {
     printf("Game Engine initialized successfully\n");
     printf("Screen size: %dx%d\n", window.getWidth(), window.getHeight());
 
-    int previousWindowWidth = window.getWidth();
-    int previousWindowHeight = window.getHeight();
     while (!window.shouldClose()) {
         window.pollEvents();
         Input::getInstance().preUpdate(); // IMPORTANT! Must be called after pollEvents() and before anything else
-
-        int newWindowWidth = window.getWidth();
-        int newWindowHeight = window.getHeight();
-        if (newWindowWidth != previousWindowWidth || newWindowHeight != previousWindowHeight) {
-            luaEngine.setSpriteScreenSize(newWindowWidth, newWindowHeight);
-            previousWindowWidth = newWindowWidth;
-            previousWindowHeight = newWindowHeight;
-        }
 
         std::chrono::steady_clock::time_point currentTime = std::chrono::steady_clock::now();
         float deltaTime = std::chrono::duration<float>(currentTime - lastTime).count();

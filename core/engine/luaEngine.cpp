@@ -1,4 +1,4 @@
-#include <engine/lua_functions.h>
+#include <engine/luaFunctions.hpp>
 
 namespace LuaEngine {
 
@@ -110,19 +110,29 @@ namespace LuaEngine {
         {"SpriteIsVisible", _functions::SpriteIsVisible},
 
         // Animation functions
-        {"CreateAnimation", _functions::CreateAnimation},
-        {"CreateAnimationFromSheet", _functions::CreateAnimationFromSheet},
-        {"AnimationPlay", _functions::AnimationPlay},
-        {"AnimationPause", _functions::AnimationPause},
-        {"AnimationStop", _functions::AnimationStop},
-        {"AnimationRestart", _functions::AnimationRestart},
-        {"AnimationSetLooping", _functions::AnimationSetLooping},
-        {"AnimationSetSpeed", _functions::AnimationSetSpeed},
-        {"AnimationSetFrame", _functions::AnimationSetFrame},
-        {"AnimationGetFrameCount", _functions::AnimationGetFrameCount},
-        {"AnimationIsPlaying", _functions::AnimationIsPlaying},
-        {"AnimationSetPosition", _functions::AnimationSetPosition},
-        {"AnimationSetSize", _functions::AnimationSetSize},
+        {"CreateAnimatedSprite", _functions::CreateAnimatedSprite},
+        {"AnimatedSpritePlay", _functions::AnimatedSpritePlay},
+        {"AnimatedSpriteIsPlaying", _functions::AnimatedSpriteIsPlaying},
+        {"AnimatedSpritePause", _functions::AnimatedSpritePause},
+        {"AnimatedSpriteStop", _functions::AnimatedSpriteStop},
+        {"AnimatedSpriteRestart", _functions::AnimatedSpriteRestart},
+        {"AnimatedSpriteSetLooping", _functions::AnimatedSpriteSetLooping},
+        {"AnimatedSpriteIsLooping", _functions::AnimatedSpriteIsLooping},
+        {"AnimatedSpriteSetPlaybackSpeed", _functions::AnimatedSpriteSetPlaybackSpeed},
+        {"AnimatedSpriteGetPlaybackSpeed", _functions::AnimatedSpriteGetPlaybackSpeed},
+        {"AnimatedSpriteSetFrame", _functions::AnimatedSpriteSetFrame},
+        {"AnimatedSpriteGetCurrentFrame", _functions::AnimatedSpriteGetCurrentFrame},
+        {"AnimatedSpriteGetNumFrames", _functions::AnimatedSpriteGetNumFrames},
+        {"AnimatedSpriteSetPosition", _functions::AnimatedSpriteSetPosition},
+        {"AnimatedSpriteGetPosition", _functions::AnimatedSpriteGetPosition},
+        {"AnimatedSpriteSetSize", _functions::AnimatedSpriteSetSize},
+        {"AnimatedSpriteGetSize", _functions::AnimatedSpriteGetSize},
+        {"AnimatedSpriteSetOrigin", _functions::AnimatedSpriteSetOrigin},
+        {"AnimatedSpriteGetOrigin", _functions::AnimatedSpriteGetOrigin},
+        {"AnimatedSpriteSetRotation", _functions::AnimatedSpriteSetRotation},
+        {"AnimatedSpriteGetRotation", _functions::AnimatedSpriteGetRotation},
+        {"AnimatedSpriteSetColor", _functions::AnimatedSpriteSetColor},
+        {"AnimatedSpriteGetColor", _functions::AnimatedSpriteGetColor},
 
         // Text functions
         {"CreateText", _functions::CreateText},
@@ -215,7 +225,7 @@ namespace LuaEngine {
         {"PhysicsStep", _functions::PhysicsStep},
         {"PhysicsSyncSprite", _functions::PhysicsSyncSprite},
         {"PhysicsSyncText", _functions::PhysicsSyncText},
-        {"PhysicsSyncAnimation", _functions::PhysicsSyncAnimation},
+        {"PhysicsSyncAnimatedSprite", _functions::PhysicsSyncAnimatedSprite},
 
         // Audio functions
         {"LoadSound", _functions::LoadSound},
@@ -285,7 +295,7 @@ namespace LuaEngine {
     // ==================== IMPLEMENTATION ====================
     LuaEngine::LuaEngine(Window &window) :
         state(nullptr),
-        spriteWorld(), animationWorld(), textWorld(), meshWorld(), cameraWorld(), particleWorld(),
+        spriteWorld(), animatedSpriteWorld(), textWorld(), meshWorld(), cameraWorld(), particleWorld(),
         audioEngine(), physicsWorld(),
         deltaTime(0.0f),
         initialized(false), audioInitialized(false),
@@ -294,11 +304,11 @@ namespace LuaEngine {
         sceneManager(),
         additionalWindows(), mainWindow(&window),
         projectionViewMatrix2D(), quadVertexBufferObject(),
-        spriteShader2D(), fontShader2D(), spriteMesh2D(),
+        spriteShader2D(), fontShader2D(), spriteMesh(),
         textureManager(), fontManager(),
         shaders(), entityShaderMap(), nextShaderId(1)
     {
-        this->spriteMesh2D.setVertexBuffer(this->quadVertexBufferObject);
+        this->spriteMesh.setVertexBuffer(this->quadVertexBufferObject);
         this->sceneManager = std::make_unique<SceneManager>(this);
 
         this->state = luaL_newstate();
@@ -668,110 +678,120 @@ namespace LuaEngine {
                         customShader->use();
                     }
                 }
-                pair.first->draw(this->textureManager.getDefault2D(), this->spriteShader2D, this->spriteMesh2D, this->projectionViewMatrix2D);
+                pair.first->draw(this->textureManager.getDefault2D(), this->spriteShader2D, this->spriteMesh, this->projectionViewMatrix2D);
             }
         }
     }
 
     // Animation implementations
-    Entity LuaEngine::createAnimation(const std::string& path, bool isGif, const Vector2& position) {
-        Animation2D* anim = new Animation2D();
-        anim->setScreenSize(getScreenWidth(), getScreenHeight());
-        bool loaded = false;
-        if (isGif) {
-            loaded = anim->loadFromGIF(path);
-        }
-        if (loaded) {
-            anim->setPosition(position);
-            anim->play();
-        }
-        Entity entity = animationWorld.spawn(anim);
-        if (loaded) {
-            objectMap[entity] = RegisteredObject(RegisteredObject::ANIMATION, anim, entity);
-            return entity;
-        }
-        delete anim;
-        return 0;
-    }
+    Entity LuaEngine::createAnimatedSprite(const std::string &texturePath, const Vector2 &position) {
+        BlazeBolt::AnimatedSprite2D *sprite = new BlazeBolt::AnimatedSprite2D();
+        const BlazeBolt::AnimatedTexture2D *texture = this->textureManager.loadFromFileAnimated2D(texturePath);
+        if (texture != nullptr) { sprite->setTexture(*texture); }
+        sprite->setPosition(position);
 
-    Entity LuaEngine::createAnimationFromSheet(const std::string& texturePath, int frameWidth, int frameHeight,
-                                                  int totalFrames, int framesPerRow, int frameDelayMs,
-                                                  const Vector2& position) {
-        Animation2D* anim = new Animation2D();
-        anim->setScreenSize(getScreenWidth(), getScreenHeight());
-        anim->loadFromSpriteSheet(texturePath, frameWidth, frameHeight, totalFrames, framesPerRow, frameDelayMs);
-        anim->setPosition(position);
-        anim->play();
-        Entity entity = animationWorld.spawn(anim);
-        objectMap[entity] = RegisteredObject(RegisteredObject::ANIMATION, anim, entity);
+        Entity entity = animatedSpriteWorld.spawn(sprite);
+        objectMap[entity] = RegisteredObject(RegisteredObject::ANIMATED_SPRITE, sprite, entity);
         return entity;
     }
-
-    void LuaEngine::animationPlay(Entity entity) {
-        Animation2D* anim = animationWorld.getEntity(entity);
-        if (anim) anim->play();
+    void LuaEngine::animatedSpritePlay(Entity entity) {
+        BlazeBolt::AnimatedSprite2D *sprite = animatedSpriteWorld.getEntity(entity);
+        if (sprite != nullptr) { sprite->play(); }
+    }
+    bool LuaEngine::animatedSpriteIsPlaying(Entity entity) {
+        BlazeBolt::AnimatedSprite2D *sprite = animatedSpriteWorld.getEntity(entity);
+        return sprite != nullptr && sprite->isPlaying();
+    }
+    void LuaEngine::animatedSpritePause(Entity entity) {
+        BlazeBolt::AnimatedSprite2D *sprite = animatedSpriteWorld.getEntity(entity);
+        if (sprite != nullptr) { sprite->pause(); }
+    }
+    void LuaEngine::animatedSpriteStop(Entity entity) {
+        BlazeBolt::AnimatedSprite2D *sprite = animatedSpriteWorld.getEntity(entity);
+        if (sprite != nullptr) { sprite->stop(); }
+    }
+    void LuaEngine::animatedSpriteRestart(Entity entity) {
+        BlazeBolt::AnimatedSprite2D *sprite = animatedSpriteWorld.getEntity(entity);
+        if (sprite != nullptr) { sprite->restart(); }
+    }
+    void LuaEngine::animatedSpriteSetLooping(Entity entity, bool looping) {
+        BlazeBolt::AnimatedSprite2D *sprite = animatedSpriteWorld.getEntity(entity);
+        if (sprite != nullptr) { sprite->setLooping(looping); }
+    }
+    bool LuaEngine::animatedSpriteIsLooping(Entity entity) {
+        BlazeBolt::AnimatedSprite2D *sprite = animatedSpriteWorld.getEntity(entity);
+        return sprite != nullptr && sprite->isLooping();
+    }
+    void LuaEngine::animatedSpriteSetPlaybackSpeed(Entity entity, float playbackSpeed) {
+        BlazeBolt::AnimatedSprite2D *sprite = animatedSpriteWorld.getEntity(entity);
+        if (sprite != nullptr) { sprite->setPlaybackSpeed(playbackSpeed); }
+    }
+    float LuaEngine::animatedSpriteGetPlaybackSpeed(Entity entity) {
+        BlazeBolt::AnimatedSprite2D *sprite = animatedSpriteWorld.getEntity(entity);
+        return sprite != nullptr ? sprite->getPlaybackSpeed() : 0.0f;
+    }
+    void LuaEngine::animatedSpriteSetFrame(Entity entity, int frame) {
+        BlazeBolt::AnimatedSprite2D *sprite = animatedSpriteWorld.getEntity(entity);
+        if (sprite != nullptr) { sprite->setFrame(frame); }
+    }
+    uint32_t LuaEngine::animatedSpriteGetCurrentFrame(Entity entity) {
+        BlazeBolt::AnimatedSprite2D *sprite = animatedSpriteWorld.getEntity(entity);
+        return sprite ? sprite->getCurrentFrame() : 0;
+    }
+    uint32_t LuaEngine::animatedSpriteGetNumFrames(Entity entity) {
+        BlazeBolt::AnimatedSprite2D *sprite = animatedSpriteWorld.getEntity(entity);
+        return sprite ? sprite->getNumFrames() : 0;
+    }
+    void LuaEngine::animatedSpriteSetPosition(Entity entity, const Vector2 &position) {
+        BlazeBolt::AnimatedSprite2D *sprite = animatedSpriteWorld.getEntity(entity);
+        if (sprite != nullptr) { sprite->setPosition(position); }
+    }
+    Vector2 LuaEngine::animatedSpriteGetPosition(Entity entity) {
+        BlazeBolt::AnimatedSprite2D *sprite = animatedSpriteWorld.getEntity(entity);
+        return sprite ? sprite->getPosition() : Vector2(0.0f, 0.0f);
+    }
+    void LuaEngine::animatedSpriteSetSize(Entity entity, const Vector2 &size) {
+        BlazeBolt::AnimatedSprite2D *sprite = animatedSpriteWorld.getEntity(entity);
+        if (sprite != nullptr) { sprite->setScale(size); }
+    }
+    Vector2 LuaEngine::animatedSpriteGetSize(Entity entity) {
+        BlazeBolt::AnimatedSprite2D *sprite = animatedSpriteWorld.getEntity(entity);
+        return sprite ? sprite->getScale() : Vector2(1.0f, 1.0f);
+    }
+    void LuaEngine::animatedSpriteSetOrigin(Entity entity, const Vector2 &origin) {
+        BlazeBolt::AnimatedSprite2D *sprite = animatedSpriteWorld.getEntity(entity);
+        if (sprite != nullptr) { sprite->setOrigin(origin); }
+    }
+    Vector2 LuaEngine::animatedSpriteGetOrigin(Entity entity) {
+        BlazeBolt::AnimatedSprite2D *sprite = animatedSpriteWorld.getEntity(entity);
+        return sprite ? sprite->getOrigin() : Vector2(0.0f, 0.0f);
+    }
+    void LuaEngine::animatedSpriteSetRotation(Entity entity, float rotation) {
+        BlazeBolt::AnimatedSprite2D *sprite = animatedSpriteWorld.getEntity(entity);
+        if (sprite != nullptr) { sprite->setRotation(rotation); }
+    }
+    float LuaEngine::animatedSpriteGetRotation(Entity entity) {
+        BlazeBolt::AnimatedSprite2D *sprite = animatedSpriteWorld.getEntity(entity);
+        return sprite ? sprite->getRotation() : 0.0f;
+    }
+    void LuaEngine::animatedSpriteSetColor(Entity entity, const Vector4 &color) {
+        BlazeBolt::AnimatedSprite2D *sprite = animatedSpriteWorld.getEntity(entity);
+        if (sprite != nullptr) { sprite->setColor(color); }
+    }
+    Vector4 LuaEngine::animatedSpriteGetColor(Entity entity) {
+        BlazeBolt::AnimatedSprite2D *sprite = animatedSpriteWorld.getEntity(entity);
+        return sprite ? sprite->getColor() : Vector4(0.0f, 0.0f, 0.0f, 0.0f);
     }
 
-    void LuaEngine::animationPause(Entity entity) {
-        Animation2D* anim = animationWorld.getEntity(entity);
-        if (anim) anim->pause();
-    }
-
-    void LuaEngine::animationStop(Entity entity) {
-        Animation2D* anim = animationWorld.getEntity(entity);
-        if (anim) anim->stop();
-    }
-
-    void LuaEngine::animationRestart(Entity entity) {
-        Animation2D* anim = animationWorld.getEntity(entity);
-        if (anim) anim->restart();
-    }
-
-    void LuaEngine::animationSetLooping(Entity entity, bool loop) {
-        Animation2D* anim = animationWorld.getEntity(entity);
-        if (anim) anim->setLooping(loop);
-    }
-
-    void LuaEngine::animationSetSpeed(Entity entity, float speed) {
-        Animation2D* anim = animationWorld.getEntity(entity);
-        if (anim) anim->setSpeed(speed);
-    }
-
-    void LuaEngine::animationSetFrame(Entity entity, int frame) {
-        Animation2D* anim = animationWorld.getEntity(entity);
-        if (anim) anim->setFrame(frame);
-    }
-
-    int LuaEngine::animationGetFrameCount(Entity entity) {
-        Animation2D* anim = animationWorld.getEntity(entity);
-        return anim ? anim->getFrameCount() : 0;
-    }
-
-    bool LuaEngine::animationIsPlaying(Entity entity) {
-        Animation2D* anim = animationWorld.getEntity(entity);
-        return anim ? anim->isPlaying() : false;
-    }
-
-    void LuaEngine::animationSetPosition(Entity entity, const Vector2& pos) {
-        Animation2D* anim = animationWorld.getEntity(entity);
-        if (anim) anim->setPosition(pos);
-    }
-
-    void LuaEngine::animationSetSize(Entity entity, const Vector2& size) {
-        Animation2D* anim = animationWorld.getEntity(entity);
-        if (anim) anim->setSize(size);
-    }
-
-    void LuaEngine::updateAllAnimations(float dt) {
-        for (const auto& pair : animationWorld.getAllEntities()) {
+    void LuaEngine::updateAllAnimatedSprites(float deltaTime) {
+        for (const std::pair<BlazeBolt::AnimatedSprite2D*, bool> &pair : animatedSpriteWorld.getAllEntities()) {
             if (pair.first && !pair.second) {
-                pair.first->update(dt);
+                pair.first->update(deltaTime);
             }
         }
     }
-
-    void LuaEngine::drawAllAnimations() {
-        for (const auto& pair : animationWorld.getAllEntities()) {
+    void LuaEngine::drawAllAnimatedSprites() {
+        for (const std::pair<BlazeBolt::AnimatedSprite2D*, bool> &pair : animatedSpriteWorld.getAllEntities()) {
             if (pair.first && !pair.second) {
                 auto shaderIt = entityShaderMap.find(pair.second);
                 if (shaderIt != entityShaderMap.end()) {
@@ -780,7 +800,7 @@ namespace LuaEngine {
                         customShader->use();
                     }
                 }
-                pair.first->draw();
+                pair.first->draw(this->spriteShader2D, this->spriteMesh, this->projectionViewMatrix2D);
             }
         }
     }
@@ -897,15 +917,6 @@ namespace LuaEngine {
                     }
                 }
                 pair.first->draw(this->fontShader2D, this->projectionViewMatrix2D);
-            }
-        }
-    }
-
-    // FIXME: Setting screen (window) size for each entity is the worst idea ever, we need to just pass it at the render stage and use it anywhere we want
-    void LuaEngine::setSpriteScreenSize(int width, int height) {
-        for (const auto& pair : animationWorld.getAllEntities()) {
-            if (pair.first && !pair.second) {
-                pair.first->setScreenSize(width, height);
             }
         }
     }
@@ -1089,8 +1100,8 @@ namespace LuaEngine {
                 case RegisteredObject::SPRITE:
                     spriteWorld.destroy(entity);
                     break;
-                case RegisteredObject::ANIMATION:
-                    animationWorld.destroy(entity);
+                case RegisteredObject::ANIMATED_SPRITE:
+                    animatedSpriteWorld.destroy(entity);
                     break;
                 case RegisteredObject::TEXT:
                     textWorld.destroy(entity);
@@ -1114,7 +1125,7 @@ namespace LuaEngine {
 
     void LuaEngine::destroyAllEntities() {
         spriteWorld.clear();
-        animationWorld.clear();
+        animatedSpriteWorld.clear();
         textWorld.clear();
         meshWorld.clear();
         cameraWorld.clear();
@@ -1363,18 +1374,19 @@ namespace LuaEngine {
         text->setRotation(angle * (180.0f / 3.14159265358979323846f));
     }
 
-    void LuaEngine::physicsSyncAnimation(Entity bodyEntity, Entity animEntity) {
-        auto it = physicsBodyMap.find(bodyEntity);
+    void LuaEngine::physicsSyncAnimatedSprite(Entity bodyEntity, Entity spriteEntity) {
+        std::unordered_map<Entity, PhysicsBody*>::iterator it = physicsBodyMap.find(bodyEntity);
         if (it == physicsBodyMap.end()) { return; }
-        Animation2D *anim = animationWorld.getEntity(animEntity);
-        if (anim == nullptr) { return; }
+
+        BlazeBolt::AnimatedSprite2D *sprite = animatedSpriteWorld.getEntity(spriteEntity);
+        if (sprite == nullptr) { return; }
 
         PhysicsBody *body = it->second;
         Vector2 position = body->getPosition();
         float angle = body->getAngle();
 
-        anim->setPosition(position);
-        anim->setRotation(angle * (180.0f / 3.14159265358979323846f));
+        sprite->setPosition(position);
+        sprite->setRotation(angle * (180.0f / M_PIf));
     }
 
     // Camera implementations
@@ -1539,7 +1551,7 @@ namespace LuaEngine {
 
         for (const auto& pair : particleWorld.getAllEntities()) {
             if (pair.first && !pair.second) {
-                pair.first->draw(this->textureManager.getDefault2D(), this->spriteShader2D, this->spriteMesh2D, vp);
+                pair.first->draw(this->textureManager.getDefault2D(), this->spriteShader2D, this->spriteMesh, vp);
             }
         }
     }
@@ -1677,7 +1689,7 @@ namespace LuaEngine {
             this->projectionViewMatrix2D = Matrix3x3::identity();
         }
         this->drawAllSprites();
-        this->drawAllAnimations();
+        this->drawAllAnimatedSprites();
         this->drawAllTexts();
         this->drawAllMeshes();
         this->drawAllParticleSystems();
@@ -1685,7 +1697,7 @@ namespace LuaEngine {
 
     void LuaEngine::updateAll(float deltaTime) {
         this->deltaTime = deltaTime;
-        this->updateAllAnimations(deltaTime);
+        this->updateAllAnimatedSprites(deltaTime);
         this->updateAllParticleSystems(deltaTime);
         this->updateAudio();
         if (sceneManager != nullptr) { sceneManager->update(deltaTime); }

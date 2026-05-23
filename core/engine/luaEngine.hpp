@@ -6,8 +6,8 @@
 #include <world.h>
 #include <physics/physics.h>
 #include <graphics/window.h>
-#include <subject/sprite2D.hpp>
-#include <subject/animatad2D.h>
+#include <subject/sprite/staticSprite2D.hpp>
+#include <subject/sprite/animatedSprite2D.hpp>
 #include <subject/text2D.hpp>
 #include <subject/audio.h>
 #include <subject/camera2D.hpp>
@@ -27,8 +27,8 @@
 #include <memory>
 #include <algorithm>
 
-#include <engine/lua_types.h>
-#include <engine/lua_scene_manager.h>
+#include <engine/luaTypes.hpp>
+#include <engine/luaSceneManager.hpp>
 
 namespace LuaEngine {
 
@@ -36,7 +36,7 @@ namespace LuaEngine {
     private:
         lua_State* state;
         World<BlazeBolt::Sprite2D> spriteWorld;
-        World<Animation2D> animationWorld;
+        World<BlazeBolt::AnimatedSprite2D> animatedSpriteWorld;
         World<BlazeBolt::Text2D> textWorld;
         World<Mesh2D> meshWorld;
         World<Camera2D> cameraWorld;
@@ -73,7 +73,7 @@ namespace LuaEngine {
         BlazeBolt::QuadVertexBufferObject2D quadVertexBufferObject;
         BlazeBolt::SpriteShader2D spriteShader2D;
         BlazeBolt::FontShader2D fontShader2D;
-        BlazeBolt::SpriteMesh2D spriteMesh2D;
+        BlazeBolt::SpriteMesh spriteMesh;
         BlazeBolt::TextureManager textureManager;
         BlazeBolt::FontManager fontManager;
 
@@ -132,23 +132,31 @@ namespace LuaEngine {
         void drawAllSprites() const;
 
         // Animation management
-        Entity createAnimation(const std::string& path, bool isGif, const Vector2& position);
-        Entity createAnimationFromSheet(const std::string& texturePath, int frameWidth, int frameHeight,
-                                         int totalFrames, int framesPerRow, int frameDelayMs,
-                                         const Vector2& position);
-        void animationPlay(Entity entity);
-        void animationPause(Entity entity);
-        void animationStop(Entity entity);
-        void animationRestart(Entity entity);
-        void animationSetLooping(Entity entity, bool loop);
-        void animationSetSpeed(Entity entity, float speed);
-        void animationSetFrame(Entity entity, int frame);
-        int animationGetFrameCount(Entity entity);
-        bool animationIsPlaying(Entity entity);
-        void animationSetPosition(Entity entity, const Vector2& pos);
-        void animationSetSize(Entity entity, const Vector2& size);
-        void updateAllAnimations(float dt);
-        void drawAllAnimations();
+        Entity createAnimatedSprite(const std::string &texturePath, const Vector2 &position);
+        void animatedSpritePlay(Entity entity);
+        bool animatedSpriteIsPlaying(Entity entity);
+        void animatedSpritePause(Entity entity);
+        void animatedSpriteStop(Entity entity);
+        void animatedSpriteRestart(Entity entity);
+        void animatedSpriteSetLooping(Entity entity, bool looping);
+        bool animatedSpriteIsLooping(Entity entity);
+        void animatedSpriteSetPlaybackSpeed(Entity entity, float playbackSpeed);
+        float animatedSpriteGetPlaybackSpeed(Entity entity);
+        void animatedSpriteSetFrame(Entity entity, int frame);
+        uint32_t animatedSpriteGetCurrentFrame(Entity entity);
+        uint32_t animatedSpriteGetNumFrames(Entity entity);
+        void animatedSpriteSetPosition(Entity entity, const Vector2 &position);
+        Vector2 animatedSpriteGetPosition(Entity entity);
+        void animatedSpriteSetSize(Entity entity, const Vector2 &size);
+        Vector2 animatedSpriteGetSize(Entity entity);
+        void animatedSpriteSetOrigin(Entity entity, const Vector2 &origin);
+        Vector2 animatedSpriteGetOrigin(Entity entity);
+        void animatedSpriteSetRotation(Entity entity, float rotation);
+        float animatedSpriteGetRotation(Entity entity);
+        void animatedSpriteSetColor(Entity entity, const Vector4 &color);
+        Vector4 animatedSpriteGetColor(Entity entity);
+        void updateAllAnimatedSprites(float dt);
+        void drawAllAnimatedSprites();
 
         // Text management
         Entity createText(const std::string &fontPath, const std::string &text, const Vector2 &position);
@@ -169,7 +177,6 @@ namespace LuaEngine {
         void textSetVisible(Entity entity, bool visible);
         bool textIsVisible(Entity entity);
         void drawAllTexts();
-        void setSpriteScreenSize(int width, int height);
 
         // Mesh management
         Entity createMesh();
@@ -241,7 +248,7 @@ namespace LuaEngine {
         void physicsStep();
         void physicsSyncSprite(Entity bodyEntity, Entity spriteEntity);
         void physicsSyncText(Entity bodyEntity, Entity textEntity);
-        void physicsSyncAnimation(Entity bodyEntity, Entity animEntity);
+        void physicsSyncAnimatedSprite(Entity bodyEntity, Entity animEntity);
 
         // Camera management
         Entity createCamera();

@@ -1,6 +1,5 @@
 #pragma once
-
-#include <engine/lua_engine.h>
+#include <engine/luaEngine.hpp>
 
 namespace LuaEngine {
 
@@ -526,129 +525,234 @@ namespace LuaEngine {
         }
 
         // Animation functions
-        static int CreateAnimation(lua_State* state) {
-            LuaEngine* engine = getEngine(state);
-            if (!engine) { lua_pushnil(state); return 1; }
-            const char* path = luaL_checkstring(state, 1);
-            bool isGif = lua_toboolean(state, 2);
-            float x = luaL_optnumber(state, 3, 0);
-            float y = luaL_optnumber(state, 4, 0);
-            Entity entity = engine->createAnimation(path, isGif, Vector2(x, y));
+        static int CreateAnimatedSprite(lua_State *state) {
+            LuaEngine *engine = getEngine(state);
+            if (engine == nullptr) {
+                lua_pushnil(state);
+                return 1;
+            }
+
+            const char *path = luaL_checkstring(state, 1);
+            float x = luaL_optnumber(state, 2, 0);
+            float y = luaL_optnumber(state, 3, 0);
+            Entity entity = engine->createAnimatedSprite(path, Vector2(x, y));
             lua_pushinteger(state, entity);
             return 1;
         }
-
-        static int CreateAnimationFromSheet(lua_State* state) {
+        static int AnimatedSpritePlay(lua_State *state) {
             LuaEngine* engine = getEngine(state);
-            if (!engine) { lua_pushnil(state); return 1; }
-            const char* texturePath = luaL_checkstring(state, 1);
-            int frameWidth = luaL_checkinteger(state, 2);
-            int frameHeight = luaL_checkinteger(state, 3);
-            int totalFrames = luaL_checkinteger(state, 4);
-            int framesPerRow = luaL_checkinteger(state, 5);
-            int frameDelayMs = luaL_optinteger(state, 6, 100);
-            float x = luaL_optnumber(state, 7, 0);
-            float y = luaL_optnumber(state, 8, 0);
-            Entity entity = engine->createAnimationFromSheet(texturePath, frameWidth, frameHeight,
-                                                              totalFrames, framesPerRow, frameDelayMs,
-                                                              Vector2(x, y));
-            lua_pushinteger(state, entity);
+            if (engine == nullptr) { return 0; }
+            Entity entity = luaL_checkinteger(state, 1);
+            engine->animatedSpritePlay(entity);
+            return 0;
+        }
+        static int AnimatedSpriteIsPlaying(lua_State *state) {
+            LuaEngine* engine = getEngine(state);
+            if (engine == nullptr) {
+                lua_pushnil(state);
+                return 1;
+            }
+            Entity entity = luaL_checkinteger(state, 1);
+            lua_pushboolean(state, engine->animatedSpriteIsPlaying(entity));
             return 1;
         }
-
-        static int AnimationPlay(lua_State* state) {
-            Entity entity = luaL_checkinteger(state, 1);
+        static int AnimatedSpritePause(lua_State *state) {
             LuaEngine* engine = getEngine(state);
-            if (!engine) return 0;
-            engine->animationPlay(entity);
+            if (engine == nullptr) { return 0; }
+            Entity entity = luaL_checkinteger(state, 1);
+            engine->animatedSpritePause(entity);
             return 0;
         }
-
-        static int AnimationPause(lua_State* state) {
-            Entity entity = luaL_checkinteger(state, 1);
+        static int AnimatedSpriteStop(lua_State *state) {
             LuaEngine* engine = getEngine(state);
-            if (!engine) return 0;
-            engine->animationPause(entity);
+            if (engine == nullptr) { return 0; }
+            Entity entity = luaL_checkinteger(state, 1);
+            engine->animatedSpriteStop(entity);
             return 0;
         }
-
-        static int AnimationStop(lua_State* state) {
+        static int AnimatedSpriteRestart(lua_State *state) {
+            LuaEngine *engine = getEngine(state);
+            if (engine == nullptr) { return 0; }
             Entity entity = luaL_checkinteger(state, 1);
-            LuaEngine* engine = getEngine(state);
-            if (!engine) return 0;
-            engine->animationStop(entity);
+            engine->animatedSpriteRestart(entity);
             return 0;
         }
-
-        static int AnimationRestart(lua_State* state) {
+        static int AnimatedSpriteSetLooping(lua_State *state) {
+            LuaEngine *engine = getEngine(state);
+            if (engine == nullptr) { return 0; }
             Entity entity = luaL_checkinteger(state, 1);
-            LuaEngine* engine = getEngine(state);
-            if (!engine) return 0;
-            engine->animationRestart(entity);
+            bool looping = lua_toboolean(state, 2);
+            engine->animatedSpriteSetLooping(entity, looping);
             return 0;
         }
-
-        static int AnimationSetLooping(lua_State* state) {
-            Entity entity = luaL_checkinteger(state, 1);
-            bool loop = lua_toboolean(state, 2);
+        static int AnimatedSpriteIsLooping(lua_State *state) {
             LuaEngine* engine = getEngine(state);
-            if (!engine) return 0;
-            engine->animationSetLooping(entity, loop);
-            return 0;
+            if (engine == nullptr) {
+                lua_pushnil(state);
+                return 1;
+            }
+            Entity entity = luaL_checkinteger(state, 1);
+            lua_pushboolean(state, engine->animatedSpriteIsLooping(entity));
+            return 1;
         }
-
-        static int AnimationSetSpeed(lua_State* state) {
+        static int AnimatedSpriteSetPlaybackSpeed(lua_State *state) {
+            LuaEngine* engine = getEngine(state);
+            if (engine == nullptr) { return 0; }
             Entity entity = luaL_checkinteger(state, 1);
             float speed = luaL_checknumber(state, 2);
-            LuaEngine* engine = getEngine(state);
-            if (!engine) return 0;
-            engine->animationSetSpeed(entity, speed);
+            engine->animatedSpriteSetPlaybackSpeed(entity, speed);
             return 0;
         }
-
-        static int AnimationSetFrame(lua_State* state) {
+        static int AnimatedSpriteGetPlaybackSpeed(lua_State *state) {
+            LuaEngine* engine = getEngine(state);
+            if (engine == nullptr) {
+                lua_pushnil(state);
+                return 1;
+            }
+            Entity entity = luaL_checkinteger(state, 1);
+            lua_pushnumber(state, engine->animatedSpriteGetPlaybackSpeed(entity));
+            return 1;
+        }
+        static int AnimatedSpriteSetFrame(lua_State *state) {
+            LuaEngine* engine = getEngine(state);
+            if (engine == nullptr) { return 0; }
             Entity entity = luaL_checkinteger(state, 1);
             int frame = luaL_checkinteger(state, 2);
-            LuaEngine* engine = getEngine(state);
-            if (!engine) return 0;
-            engine->animationSetFrame(entity, frame);
+            engine->animatedSpriteSetFrame(entity, frame);
             return 0;
         }
-
-        static int AnimationGetFrameCount(lua_State* state) {
-            Entity entity = luaL_checkinteger(state, 1);
+        static int AnimatedSpriteGetCurrentFrame(lua_State *state) {
             LuaEngine* engine = getEngine(state);
-            if (!engine) { lua_pushinteger(state, 0); return 1; }
-            lua_pushinteger(state, engine->animationGetFrameCount(entity));
+            if (engine == nullptr) {
+                lua_pushnil(state);
+                return 1;
+            }
+            Entity entity = luaL_checkinteger(state, 1);
+            lua_pushinteger(state, engine->animatedSpriteGetCurrentFrame(entity));
             return 1;
         }
-
-        static int AnimationIsPlaying(lua_State* state) {
-            Entity entity = luaL_checkinteger(state, 1);
+        static int AnimatedSpriteGetNumFrames(lua_State *state) {
             LuaEngine* engine = getEngine(state);
-            if (!engine) { lua_pushboolean(state, false); return 1; }
-            lua_pushboolean(state, engine->animationIsPlaying(entity));
+            if (engine == nullptr) {
+                lua_pushnil(state);
+                return 1;
+            }
+            Entity entity = luaL_checkinteger(state, 1);
+            lua_pushinteger(state, engine->animatedSpriteGetNumFrames(entity));
             return 1;
         }
-
-        static int AnimationSetPosition(lua_State* state) {
+        static int AnimatedSpriteSetPosition(lua_State *state) {
+            LuaEngine* engine = getEngine(state);
+            if (engine == nullptr) { return 0; }
             Entity entity = luaL_checkinteger(state, 1);
             float x = luaL_checknumber(state, 2);
             float y = luaL_checknumber(state, 3);
-            LuaEngine* engine = getEngine(state);
-            if (!engine) return 0;
-            engine->animationSetPosition(entity, Vector2(x, y));
+            engine->animatedSpriteSetPosition(entity, Vector2(x, y));
             return 0;
         }
-
-        static int AnimationSetSize(lua_State* state) {
-            Entity entity = luaL_checkinteger(state, 1);
-            float w = luaL_checknumber(state, 2);
-            float h = luaL_checknumber(state, 3);
+        static int AnimatedSpriteGetPosition(lua_State *state) {
             LuaEngine* engine = getEngine(state);
-            if (!engine) return 0;
-            engine->animationSetSize(entity, Vector2(w, h));
+            if (engine == nullptr) {
+                lua_pushnil(state);
+                lua_pushnil(state);
+                return 2;
+            }
+            Entity entity = luaL_checkinteger(state, 1);
+            Vector2 position = engine->animatedSpriteGetPosition(entity);
+            lua_pushnumber(state, position.x);
+            lua_pushnumber(state, position.y);
+            return 2;
+        }
+        static int AnimatedSpriteSetSize(lua_State *state) {
+            LuaEngine* engine = getEngine(state);
+            if (engine == nullptr) { return 0; }
+            Entity entity = luaL_checkinteger(state, 1);
+            float width = luaL_checknumber(state, 2);
+            float height = luaL_checknumber(state, 3);
+            engine->animatedSpriteSetSize(entity, Vector2(width, height));
             return 0;
+        }
+        static int AnimatedSpriteGetSize(lua_State *state) {
+            LuaEngine* engine = getEngine(state);
+            if (engine == nullptr) {
+                lua_pushnil(state);
+                lua_pushnil(state);
+                return 2;
+            }
+            Entity entity = luaL_checkinteger(state, 1);
+            Vector2 size = engine->animatedSpriteGetSize(entity);
+            lua_pushnumber(state, size.x);
+            lua_pushnumber(state, size.y);
+            return 2;
+        }
+        static int AnimatedSpriteSetOrigin(lua_State *state) {
+            LuaEngine* engine = getEngine(state);
+            if (engine == nullptr) { return 0; }
+            Entity entity = luaL_checkinteger(state, 1);
+            float x = luaL_checknumber(state, 2);
+            float y = luaL_checknumber(state, 3);
+            engine->animatedSpriteSetOrigin(entity, Vector2(x, y));
+            return 0;
+        }
+        static int AnimatedSpriteGetOrigin(lua_State *state) {
+            LuaEngine* engine = getEngine(state);
+            if (engine == nullptr) {
+                lua_pushnil(state);
+                lua_pushnil(state);
+                return 2;
+            }
+            Entity entity = luaL_checkinteger(state, 1);
+            Vector2 origin = engine->animatedSpriteGetOrigin(entity);
+            lua_pushnumber(state, origin.x);
+            lua_pushnumber(state, origin.y);
+            return 2;
+        }
+        static int AnimatedSpriteSetRotation(lua_State *state) {
+            LuaEngine* engine = getEngine(state);
+            if (engine == nullptr) { return 0; }
+            Entity entity = luaL_checkinteger(state, 1);
+            float rotation = luaL_checknumber(state, 2);
+            engine->animatedSpriteSetRotation(entity, rotation);
+            return 0;
+        }
+        static int AnimatedSpriteGetRotation(lua_State *state) {
+            LuaEngine* engine = getEngine(state);
+            if (engine == nullptr) {
+                lua_pushnil(state);
+                return 1;
+            }
+            Entity entity = luaL_checkinteger(state, 1);
+            float rotation = engine->animatedSpriteGetRotation(entity);
+            lua_pushnumber(state, rotation);
+            return 1;
+        }
+        static int AnimatedSpriteSetColor(lua_State *state) {
+            LuaEngine* engine = getEngine(state);
+            if (engine == nullptr) { return 0; }
+            Entity entity = luaL_checkinteger(state, 1);
+            float r = luaL_checknumber(state, 2);
+            float g = luaL_checknumber(state, 3);
+            float b = luaL_checknumber(state, 4);
+            float a = luaL_optnumber(state, 5, 1.0f);
+            engine->animatedSpriteSetColor(entity, Vector4(r, g, b, a));
+            return 0;
+        }
+        static int AnimatedSpriteGetColor(lua_State *state) {
+            LuaEngine* engine = getEngine(state);
+            if (engine == nullptr) {
+                lua_pushnil(state);
+                lua_pushnil(state);
+                lua_pushnil(state);
+                lua_pushnil(state);
+                return 4;
+            }
+            Entity entity = luaL_checkinteger(state, 1);
+            Vector4 color = engine->animatedSpriteGetColor(entity);
+            lua_pushnumber(state, color.x);
+            lua_pushnumber(state, color.y);
+            lua_pushnumber(state, color.z);
+            lua_pushnumber(state, color.w);
+            return 4;
         }
 
         // Mesh functions
@@ -1259,12 +1363,12 @@ namespace LuaEngine {
             return 0;
         }
 
-        static int PhysicsSyncAnimation(lua_State* state) {
+        static int PhysicsSyncAnimatedSprite(lua_State* state) {
             Entity bodyEntity = luaL_checkinteger(state, 1);
             Entity animEntity = luaL_checkinteger(state, 2);
             LuaEngine* engine = getEngine(state);
             if (!engine) return 0;
-            engine->physicsSyncAnimation(bodyEntity, animEntity);
+            engine->physicsSyncAnimatedSprite(bodyEntity, animEntity);
             return 0;
         }
 
