@@ -27,6 +27,7 @@ namespace BlazeBolt {
         void setAspectRatio(float aspectRatio) const;
         void setMVPMatrix(const Matrix3x3 &matrix) const;
         void setColor(const Vector4 &color) const;
+        void setTextureRect(const Vector4 &rect) const;
     };
 
     // TODO: Either implement ECS or a Node (OOP) system, so parts of the objects like visibility, transform and rendering could be part of a base, e.g. "Node2D/Object2D" class, and just add a custom objects, or just have an object with Transform2D component, Text2D/Sprite2D component, etc.
@@ -38,6 +39,7 @@ namespace BlazeBolt {
         Vector2 position;
         Vector2 scale;
         Vector2 origin;
+        Vector4 textureRect;
         float rotation;
         bool visible;
 
@@ -60,6 +62,10 @@ namespace BlazeBolt {
         const Vector2 &getOrigin() const;
         void setRotation(float degrees);
         float getRotation() const;
+
+        void setTextureRect(float u, float v, float w, float h);
+        void setTextureRect(const Vector4 &rect);
+        Vector4 getTextureRect() const;
 
         void setColor(float r, float g, float b, float a);
         void setColor(const Vector4 &color);

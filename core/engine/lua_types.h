@@ -13,7 +13,7 @@ namespace LuaEngine {
 
     // Helper structure to track registered objects
     struct RegisteredObject {
-        enum Type { SPRITE, ANIMATION, TEXT, MESH, WINDOW, UNKNOWN } type;
+        enum Type { SPRITE, ANIMATION, TEXT, MESH, WINDOW, CAMERA, PARTICLE, UNKNOWN } type;
         void* ptr;
         Entity entity;
         std::shared_ptr<Window> windowPtr;

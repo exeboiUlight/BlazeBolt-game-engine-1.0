@@ -97,6 +97,7 @@ namespace LuaEngine {
         {"SpriteSetTexture", _functions::SpriteSetTexture},
         {"SpriteSetPosition", _functions::SpriteSetPosition},
         {"SpriteGetPosition", _functions::SpriteGetPosition},
+        {"SpriteSetTextureRect", _functions::SpriteSetTextureRect},
         {"SpriteSetSize", _functions::SpriteSetSize},
         {"SpriteGetSize", _functions::SpriteGetSize},
         {"SpriteSetOrigin", _functions::SpriteSetOrigin},
@@ -146,6 +147,36 @@ namespace LuaEngine {
         {"CreateMesh", _functions::CreateMesh},
         {"MeshSetData", _functions::MeshSetData},
         {"MeshDraw", _functions::MeshDraw},
+
+        // Camera functions
+        {"CreateCamera", _functions::CreateCamera},
+        {"CameraSetPosition", _functions::CameraSetPosition},
+        {"CameraGetPosition", _functions::CameraGetPosition},
+        {"CameraSetZoom", _functions::CameraSetZoom},
+        {"CameraGetZoom", _functions::CameraGetZoom},
+        {"CameraSetRotation", _functions::CameraSetRotation},
+        {"CameraGetRotation", _functions::CameraGetRotation},
+
+        // Particle system functions
+        {"CreateParticleSystem", _functions::CreateParticleSystem},
+        {"ParticleSystemSetPosition", _functions::ParticleSystemSetPosition},
+        {"ParticleSystemSetTexture", _functions::ParticleSystemSetTexture},
+        {"ParticleSystemSetEmissionRate", _functions::ParticleSystemSetEmissionRate},
+        {"ParticleSystemGetEmissionRate", _functions::ParticleSystemGetEmissionRate},
+        {"ParticleSystemSetLifetime", _functions::ParticleSystemSetLifetime},
+        {"ParticleSystemSetSpeed", _functions::ParticleSystemSetSpeed},
+        {"ParticleSystemSetSize", _functions::ParticleSystemSetSize},
+        {"ParticleSystemSetEndSize", _functions::ParticleSystemSetEndSize},
+        {"ParticleSystemSetColor", _functions::ParticleSystemSetColor},
+        {"ParticleSystemSetDirection", _functions::ParticleSystemSetDirection},
+        {"ParticleSystemSetRotationSpeed", _functions::ParticleSystemSetRotationSpeed},
+        {"ParticleSystemSetActive", _functions::ParticleSystemSetActive},
+        {"ParticleSystemIsActive", _functions::ParticleSystemIsActive},
+        {"ParticleSystemSetVisible", _functions::ParticleSystemSetVisible},
+        {"ParticleSystemIsVisible", _functions::ParticleSystemIsVisible},
+        {"ParticleSystemEmit", _functions::ParticleSystemEmit},
+        {"ParticleSystemClear", _functions::ParticleSystemClear},
+        {"ParticleSystemGetCount", _functions::ParticleSystemGetCount},
 
         // Object deletion
         {"Destroy", _functions::Destroy},
@@ -254,7 +285,7 @@ namespace LuaEngine {
     // ==================== IMPLEMENTATION ====================
     LuaEngine::LuaEngine(Window &window) :
         state(nullptr),
-        spriteWorld(), animationWorld(), textWorld(), meshWorld(),
+        spriteWorld(), animationWorld(), textWorld(), meshWorld(), cameraWorld(), particleWorld(),
         audioEngine(), physicsWorld(),
         deltaTime(0.0f),
         initialized(false), audioInitialized(false),
@@ -605,6 +636,13 @@ namespace LuaEngine {
     Vector4 LuaEngine::spriteGetColor(Entity entity) {
         BlazeBolt::Sprite2D *sprite = spriteWorld.getEntity(entity);
         return sprite == nullptr ? Vector4(0.0f, 0.0f, 0.0f, 0.0f) : sprite->getColor();
+    }
+    void LuaEngine::spriteSetTextureRect(Entity entity, const Vector4& rect) {
+        BlazeBolt::Sprite2D *sprite = spriteWorld.getEntity(entity);
+        if (sprite == nullptr) {
+            return;
+        }
+        sprite->setTextureRect(rect);
     }
     void LuaEngine::spriteSetVisible(Entity entity, bool visible) {
         BlazeBolt::Sprite2D *sprite = spriteWorld.getEntity(entity);
@@ -1060,6 +1098,12 @@ namespace LuaEngine {
                 case RegisteredObject::MESH:
                     meshWorld.destroy(entity);
                     break;
+                case RegisteredObject::CAMERA:
+                    cameraWorld.destroy(entity);
+                    break;
+                case RegisteredObject::PARTICLE:
+                    particleWorld.destroy(entity);
+                    break;
                 default: break;
             }
             objectMap.erase(it);
@@ -1073,6 +1117,8 @@ namespace LuaEngine {
         animationWorld.clear();
         textWorld.clear();
         meshWorld.clear();
+        cameraWorld.clear();
+        particleWorld.clear();
         physicsWorld.clear();
         physicsBodyMap.clear();
         objectMap.clear();
@@ -1331,6 +1377,173 @@ namespace LuaEngine {
         anim->setRotation(angle * (180.0f / 3.14159265358979323846f));
     }
 
+    // Camera implementations
+    Entity LuaEngine::createCamera() {
+        Camera2D* camera = new Camera2D();
+        Entity entity = cameraWorld.spawn(camera);
+        objectMap[entity] = RegisteredObject(RegisteredObject::CAMERA, camera, entity);
+        return entity;
+    }
+
+    void LuaEngine::cameraSetPosition(Entity entity, const Vector2 &position) {
+        Camera2D* camera = cameraWorld.getEntity(entity);
+        if (camera) camera->setPosition(position);
+    }
+
+    Vector2 LuaEngine::cameraGetPosition(Entity entity) {
+        Camera2D* camera = cameraWorld.getEntity(entity);
+        return camera ? camera->getPosition() : Vector2(0.0f, 0.0f);
+    }
+
+    void LuaEngine::cameraSetZoom(Entity entity, float zoom) {
+        Camera2D* camera = cameraWorld.getEntity(entity);
+        if (camera) camera->setZoom(zoom);
+    }
+
+    float LuaEngine::cameraGetZoom(Entity entity) {
+        Camera2D* camera = cameraWorld.getEntity(entity);
+        return camera ? camera->getZoom() : 1.0f;
+    }
+
+    void LuaEngine::cameraSetRotation(Entity entity, float rotation) {
+        Camera2D* camera = cameraWorld.getEntity(entity);
+        if (camera) camera->setRotation(rotation);
+    }
+
+    float LuaEngine::cameraGetRotation(Entity entity) {
+        Camera2D* camera = cameraWorld.getEntity(entity);
+        return camera ? camera->getRotation() : 0.0f;
+    }
+
+    Camera2D* LuaEngine::getActiveCamera() {
+        for (const auto& pair : cameraWorld.getAllEntities()) {
+            if (pair.first && !pair.second) {
+                return pair.first;
+            }
+        }
+        return nullptr;
+    }
+
+    // Particle system implementations
+    Entity LuaEngine::createParticleSystem() {
+        ParticleSystem2D* ps = new ParticleSystem2D();
+        Entity entity = particleWorld.spawn(ps);
+        objectMap[entity] = RegisteredObject(RegisteredObject::PARTICLE, ps, entity);
+        return entity;
+    }
+
+    void LuaEngine::particleSystemSetPosition(Entity entity, const Vector2 &position) {
+        ParticleSystem2D* ps = particleWorld.getEntity(entity);
+        if (ps) ps->setPosition(position);
+    }
+
+    void LuaEngine::particleSystemSetTexture(Entity entity, const std::string &texturePath) {
+        ParticleSystem2D* ps = particleWorld.getEntity(entity);
+        if (!ps) return;
+        const GL::Texture2D* texture = this->textureManager.loadFromFile2D(texturePath);
+        if (texture) ps->setTexture(*texture);
+    }
+
+    void LuaEngine::particleSystemSetEmissionRate(Entity entity, float rate) {
+        ParticleSystem2D* ps = particleWorld.getEntity(entity);
+        if (ps) ps->setEmissionRate(rate);
+    }
+
+    float LuaEngine::particleSystemGetEmissionRate(Entity entity) {
+        ParticleSystem2D* ps = particleWorld.getEntity(entity);
+        return ps ? ps->getEmissionRate() : 0.0f;
+    }
+
+    void LuaEngine::particleSystemSetLifetime(Entity entity, float min, float max) {
+        ParticleSystem2D* ps = particleWorld.getEntity(entity);
+        if (ps) ps->setLifetime(min, max);
+    }
+
+    void LuaEngine::particleSystemSetSpeed(Entity entity, float min, float max) {
+        ParticleSystem2D* ps = particleWorld.getEntity(entity);
+        if (ps) ps->setSpeed(min, max);
+    }
+
+    void LuaEngine::particleSystemSetSize(Entity entity, float min, float max) {
+        ParticleSystem2D* ps = particleWorld.getEntity(entity);
+        if (ps) ps->setSize(min, max);
+    }
+
+    void LuaEngine::particleSystemSetEndSize(Entity entity, float min, float max) {
+        ParticleSystem2D* ps = particleWorld.getEntity(entity);
+        if (ps) ps->setEndSize(min, max);
+    }
+
+    void LuaEngine::particleSystemSetColor(Entity entity, const Vector4 &start, const Vector4 &end) {
+        ParticleSystem2D* ps = particleWorld.getEntity(entity);
+        if (ps) ps->setColor(start, end);
+    }
+
+    void LuaEngine::particleSystemSetDirection(Entity entity, float minAngle, float maxAngle) {
+        ParticleSystem2D* ps = particleWorld.getEntity(entity);
+        if (ps) ps->setDirection(minAngle, maxAngle);
+    }
+
+    void LuaEngine::particleSystemSetRotationSpeed(Entity entity, float speed) {
+        ParticleSystem2D* ps = particleWorld.getEntity(entity);
+        if (ps) ps->setRotationSpeed(speed);
+    }
+
+    void LuaEngine::particleSystemSetActive(Entity entity, bool active) {
+        ParticleSystem2D* ps = particleWorld.getEntity(entity);
+        if (ps) ps->setActive(active);
+    }
+
+    bool LuaEngine::particleSystemIsActive(Entity entity) {
+        ParticleSystem2D* ps = particleWorld.getEntity(entity);
+        return ps ? ps->isActive() : false;
+    }
+
+    void LuaEngine::particleSystemSetVisible(Entity entity, bool visible) {
+        ParticleSystem2D* ps = particleWorld.getEntity(entity);
+        if (ps) ps->setVisible(visible);
+    }
+
+    bool LuaEngine::particleSystemIsVisible(Entity entity) {
+        ParticleSystem2D* ps = particleWorld.getEntity(entity);
+        return ps ? ps->isVisible() : false;
+    }
+
+    void LuaEngine::particleSystemEmit(Entity entity, int count) {
+        ParticleSystem2D* ps = particleWorld.getEntity(entity);
+        if (ps) ps->emit(count);
+    }
+
+    void LuaEngine::particleSystemClear(Entity entity) {
+        ParticleSystem2D* ps = particleWorld.getEntity(entity);
+        if (ps) ps->clear();
+    }
+
+    int LuaEngine::particleSystemGetCount(Entity entity) {
+        ParticleSystem2D* ps = particleWorld.getEntity(entity);
+        return ps ? ps->getParticleCount() : 0;
+    }
+
+    void LuaEngine::updateAllParticleSystems(float dt) {
+        for (const auto& pair : particleWorld.getAllEntities()) {
+            if (pair.first && !pair.second) {
+                pair.first->update(dt);
+            }
+        }
+    }
+
+    void LuaEngine::drawAllParticleSystems() {
+        float aspect = static_cast<float>(getScreenWidth()) / static_cast<float>(getScreenHeight());
+        Camera2D* camera = getActiveCamera();
+        Matrix3x3 vp = camera ? camera->getViewProjectionMatrix(aspect) : Matrix3x3::identity();
+
+        for (const auto& pair : particleWorld.getAllEntities()) {
+            if (pair.first && !pair.second) {
+                pair.first->draw(this->textureManager.getDefault2D(), this->spriteShader2D, this->spriteMesh2D, vp);
+            }
+        }
+    }
+
     // General
     float LuaEngine::getDeltaTime() const { return deltaTime; }
     void LuaEngine::setDeltaTime(float dt) { deltaTime = dt; }
@@ -1456,16 +1669,24 @@ namespace LuaEngine {
     }
 
     void LuaEngine::drawAll() {
-        this->projectionViewMatrix2D = Matrix3x3::projection(this->getScreenWidth(), this->getScreenHeight());
+        Camera2D* camera = getActiveCamera();
+        float aspect = static_cast<float>(getScreenWidth()) / static_cast<float>(getScreenHeight());
+        if (camera) {
+            this->projectionViewMatrix2D = camera->getViewProjectionMatrix(aspect);
+        } else {
+            this->projectionViewMatrix2D = Matrix3x3::identity();
+        }
         this->drawAllSprites();
         this->drawAllAnimations();
         this->drawAllTexts();
         this->drawAllMeshes();
+        this->drawAllParticleSystems();
     }
 
     void LuaEngine::updateAll(float deltaTime) {
         this->deltaTime = deltaTime;
         this->updateAllAnimations(deltaTime);
+        this->updateAllParticleSystems(deltaTime);
         this->updateAudio();
         if (sceneManager != nullptr) { sceneManager->update(deltaTime); }
     }

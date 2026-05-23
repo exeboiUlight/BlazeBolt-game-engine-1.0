@@ -6,9 +6,11 @@
 - [Система координат](#система-координат)
 - [Жизненный цикл](#жизненный-цикл)
 - [Спрайты](#спрайты)
+  - [Область текстуры (Texture Rect)](#область-текстуры-texture-rect)
 - [Анимации](#анимации)
 - [Текст](#текст)
 - [Меши](#меши)
+- [Камера](#камера-camera2d)
 - [Окно](#окно)
 - [Ввод](#ввод)
 - [Звук](#звук)
@@ -18,7 +20,7 @@
 - [GUI](#gui)
 - [Шейдеры](#шейдеры)
 - [Освещение](#освещение)
-- [Частицы (Particles)](#частицы-particles)
+- [Частицы (ParticleSystem2D)](#частицы-particlesystem2d)
 - [Скрипты и сцены](#скрипты-и-сцены)
 - [Scene-система](#scene-система)
 - [World/Entity](#worldentity)
@@ -120,12 +122,47 @@ BlazeBolt.SpriteSetTexture(entity, texturePath)
 ```
 Смена текстуры во время выполнения.
 
+### Область текстуры (Texture Rect)
+```lua
+BlazeBolt.SpriteSetTextureRect(entity, u, v, w, h)
+```
+Позволяет отобразить только часть текстуры. Параметры в UV-координатах (0–1):
+| Параметр | Описание |
+|---|---|
+| `u` | Смещение по X в UV-пространстве |
+| `v` | Смещение по Y в UV-пространстве |
+| `w` | Ширина области в UV-пространстве |
+| `h` | Высота области в UV-пространстве |
+
+По умолчанию `(0, 0, 1, 1)` — вся текстура. Например, `(0, 0, 0.5, 1)` покажет левую половину текстуры.
+
+Используется для работы с текстурными атласами (спрайт-листами) без создания отдельных файлов.
+
 ### Видимость
 ```lua
 BlazeBolt.SpriteSetVisible(entity, visible)
 visible = BlazeBolt.SpriteIsVisible(entity)
 ```
 `visible` — `true` или `false`.
+
+### Пример с текстурным атласом
+```lua
+function Start()
+    -- Один файл текстурного атласа
+    local player = BlazeBolt.CreateSprite("player_sheet.png", 0, 0)
+    BlazeBolt.SpriteSetSize(player, 0.2, 0.2)
+    BlazeBolt.SpriteSetOrigin(player, 0.5, 0.5)
+    
+    -- Показать только первый кадр (32x32 в атласе 128x64)
+    local frameW, frameH = 32, 32
+    local atlasW, atlasH = 128, 64
+    local u = 0 / atlasW              -- 0
+    local v = 0 / atlasH              -- 0
+    local w = frameW / atlasW         -- 0.25
+    local h = frameH / atlasH         -- 0.5
+    BlazeBolt.SpriteSetTextureRect(player, u, v, w, h)
+end
+```
 
 ### Полный пример
 ```lua
@@ -146,6 +183,8 @@ end
 ```lua
 entity = BlazeBolt.CreateAnimation(gifPath, true, x, y)
 ```
+
+> **Примечание:** GIF-анимация корректно обрабатывает кадры произвольного размера и смещения (partial frames). Каждый кадр композируется на полный холст `(xdim × ydim)` с учётом disposal mode (GIF_BKGD, GIF_PREV). Это исправляет некорректное отображение кадров после 3-го кадра в не-квадратных GIF.
 
 ### Создание из спрайт-листа
 ```lua
@@ -1270,82 +1309,168 @@ end
 
 ---
 
-## Частицы (Particles)
+## Камера (Camera2D)
 
-Система частиц для создания визуальных эффектов: взрывы, искры, дым, огонь и др.
+Система камер позволяет изменять точку обзора: перемещать, масштабировать и вращать сцену.
 
-### Установка текстуры
+Камера — объект-сущность (`entity`). Если камера не создана, рендеринг работает как обычно (identity-матрица).
+
+### Создание
 ```lua
-BlazeBolt.ParticleSetTexture(texturePath)
+camera = BlazeBolt.CreateCamera()
 ```
-| Параметр | Тип | Описание |
-|---|---|---|
-| texturePath | string | Путь к текстуре частицы (PNG) |
+**Возвращает:** `entity` (integer) — идентификатор камеры
 
-### Испускание частицы
+### Позиция
 ```lua
-BlazeBolt.ParticleEmit(x, y, vx, vy, sizeX, sizeY, r, g, b, a, life, rotation, angularVelocity, startAlpha, endAlpha)
-```
-| Параметр | Тип | Описание |
-|---|---|---|
-| x, y | number | Позиция в NDC |
-| vx, vy | number | Скорость по X и Y |
-| sizeX, sizeY | number | Размер частицы (NDC) |
-| r, g, b, a | number | Цвет (0–1) |
-| life | number | Время жизни (секунды) |
-| rotation | number | Начальный угол (градусы, по умолч. 0) |
-| angularVelocity | number | Угловая скорость (градусы/сек, по умолч. 0) |
-| startAlpha | number | Прозрачность в начале (по умолч. 1.0) |
-| endAlpha | number | Прозрачность в конце (по умолч. 0.0) |
-
-### Взрыв (burst)
-```lua
-BlazeBolt.ParticleBurst(x, y, count, speed, spread, sizeX, sizeY, r, g, b, a, life)
-```
-| Параметр | Тип | Описание |
-|---|---|---|
-| x, y | number | Центр взрыва в NDC |
-| count | int | Количество частиц |
-| speed | number | Базовая скорость (по умолч. 1.0) |
-| spread | number | Угол разброса в градусах (по умолч. 360) |
-| sizeX, sizeY | number | Размер частиц |
-| r, g, b, a | number | Цвет |
-| life | number | Время жизни |
-
-### Обновление
-```lua
-BlazeBolt.ParticleUpdate(dt)
-```
-Обновляет позиции и время жизни частиц. Вызывайте в `Update(dt)`.
-
-### Отрисовка
-```lua
-BlazeBolt.ParticleDraw()
-```
-Отрисовывает все активные частицы. Вызывайте в `Draw()`.
-
-### Управление
-```lua
-BlazeBolt.ParticleClear()             -- удалить все частицы
-BlazeBolt.ParticleGetCount()           -- количество активных частиц
-BlazeBolt.ParticleSetMaxCount(count)   -- максимальное количество (по умолч. 10000)
+BlazeBolt.CameraSetPosition(camera, x, y)
+x, y = BlazeBolt.CameraGetPosition(camera)
 ```
 
-### Пример: взрыв при клике
+### Масштаб (Zoom)
 ```lua
-local particles = {}
+BlazeBolt.CameraSetZoom(camera, zoom)
+zoom = BlazeBolt.CameraGetZoom(camera)
+```
+`zoom = 1.0` — обычный масштаб. `zoom = 2.0` — приближение (мир крупнее).
 
+### Вращение
+```lua
+BlazeBolt.CameraSetRotation(camera, degrees)
+degrees = BlazeBolt.CameraGetRotation(camera)
+```
+
+### Пример: камера, следящая за игроком
+```lua
 function Start()
-    BlazeBolt.ParticleSetTexture("particle.png")
-    BlazeBolt.ParticleSetMaxCount(10000)
+    player = BlazeBolt.CreateSprite("player.png", 0, 0)
+    BlazeBolt.SpriteSetSize(player, 0.1, 0.1)
+
+    cam = BlazeBolt.CreateCamera()
+    BlazeBolt.CameraSetZoom(cam, 1.5)
 end
 
 function Update(dt)
-    BlazeBolt.ParticleUpdate(dt)
+    local px, py = BlazeBolt.SpriteGetPosition(player)
+    BlazeBolt.CameraSetPosition(cam, px, py)
 end
+```
 
-function Draw()
-    BlazeBolt.ParticleDraw()
+---
+
+## Частицы (ParticleSystem2D)
+
+Система частиц для создания визуальных эффектов: взрывы, искры, дым, огонь и др.
+
+Каждая система частиц — объект-сущность (`entity`). Она автоматически обновляется и отрисовывается каждый кадр.
+
+### Создание
+```lua
+ps = BlazeBolt.CreateParticleSystem()
+```
+**Возвращает:** `entity` (integer) — идентификатор системы частиц
+
+### Позиция
+```lua
+BlazeBolt.ParticleSystemSetPosition(ps, x, y)
+```
+
+### Текстура
+```lua
+BlazeBolt.ParticleSystemSetTexture(ps, texturePath)
+```
+Если текстура не задана, используется стандартная текстура (белый квадрат).
+
+### Параметры эмиссии
+```lua
+BlazeBolt.ParticleSystemSetEmissionRate(ps, rate)
+rate = BlazeBolt.ParticleSystemGetEmissionRate(ps)
+```
+`rate` — количество частиц, испускаемых в секунду. `0` — эмиссия отключена.
+
+### Время жизни частиц
+```lua
+BlazeBolt.ParticleSystemSetLifetime(ps, minSeconds, maxSeconds)
+```
+Каждая частица получает случайное время жизни в диапазоне от `minSeconds` до `maxSeconds`.
+
+### Скорость частиц
+```lua
+BlazeBolt.ParticleSystemSetSpeed(ps, minSpeed, maxSpeed)
+```
+Каждая частица получает случайную скорость в указанном диапазоне.
+
+### Размер частиц
+```lua
+BlazeBolt.ParticleSystemSetSize(ps, minSize, maxSize)
+BlazeBolt.ParticleSystemSetEndSize(ps, minEndSize, maxEndSize)
+```
+Начальный размер и конечный размер (частица плавно меняет размер за время жизни).
+
+### Цвет частиц
+```lua
+BlazeBolt.ParticleSystemSetColor(ps, r1, g1, b1, a1, r2, g2, b2, a2)
+```
+`r1, g1, b1, a1` — начальный цвет (0–1).
+`r2, g2, b2, a2` — конечный цвет (0–1, по умолчанию прозрачный).
+
+### Направление разлёта
+```lua
+BlazeBolt.ParticleSystemSetDirection(ps, minAngle, maxAngle)
+```
+Углы в градусах. `0` — вправо, `90` — вверх, `180` — влево, `270` — вниз.
+По умолчанию `0–360` (во все стороны).
+
+### Скорость вращения
+```lua
+BlazeBolt.ParticleSystemSetRotationSpeed(ps, degreesPerSecond)
+```
+
+### Активность
+```lua
+BlazeBolt.ParticleSystemSetActive(ps, active)
+active = BlazeBolt.ParticleSystemIsActive(ps)
+```
+Если `false` — эмиссия и обновление частиц отключены.
+
+### Видимость
+```lua
+BlazeBolt.ParticleSystemSetVisible(ps, visible)
+visible = BlazeBolt.ParticleSystemIsVisible(ps)
+```
+
+### Ручной выброс (burst)
+```lua
+BlazeBolt.ParticleSystemEmit(ps, count)
+```
+Мгновенно испустить `count` частиц (помимо автоматической эмиссии).
+
+### Очистка
+```lua
+BlazeBolt.ParticleSystemClear(ps)
+```
+Удаляет все частицы в системе.
+
+### Количество частиц
+```lua
+count = BlazeBolt.ParticleSystemGetCount(ps)
+```
+Текущее количество активных частиц в системе.
+
+### Пример: взрыв при клике
+```lua
+local ps
+
+function Start()
+    ps = BlazeBolt.CreateParticleSystem()
+    BlazeBolt.ParticleSystemSetTexture(ps, "particle.png")
+    BlazeBolt.ParticleSystemSetLifetime(ps, 0.3, 1.5)
+    BlazeBolt.ParticleSystemSetSpeed(ps, 1.0, 3.0)
+    BlazeBolt.ParticleSystemSetSize(ps, 0.02, 0.04)
+    BlazeBolt.ParticleSystemSetEndSize(ps, 0.01, 0.01)
+    BlazeBolt.ParticleSystemSetColor(ps, 1, 0.5, 0, 1, 1, 0, 0, 0)
+    BlazeBolt.ParticleSystemSetDirection(ps, 0, 360)
+    BlazeBolt.ParticleSystemSetEmissionRate(ps, 0)  -- только ручной burst
 end
 
 function OnClick()
@@ -1353,31 +1478,28 @@ function OnClick()
     local my = BlazeBolt.GetMouseY()
     local ndcX = mx / GetScreenWidth() * 2 - 1
     local ndcY = 1 - my / GetScreenHeight() * 2
-    BlazeBolt.ParticleBurst(ndcX, ndcY, 50, 2.0, 360, 0.02, 0.02, 1, 0.5, 0, 1, 0.5)
+    BlazeBolt.ParticleSystemSetPosition(ps, ndcX, ndcY)
+    BlazeBolt.ParticleSystemEmit(ps, 50)
 end
 ```
 
 ### Пример: постоянный дым
 ```lua
-function Update(dt)
-    BlazeBolt.ParticleEmit(
-        0, 0.8,
-        0, 0.3,
-        0.05, 0.05,
-        0.8, 0.8, 0.8, 0.8,
-        1.5,
-        0, 30,
-        0.8, 0.0
-    )
-    BlazeBolt.ParticleUpdate(dt)
-end
+local ps
 
-function Draw()
-    BlazeBolt.ParticleDraw()
+function Start()
+    ps = BlazeBolt.CreateParticleSystem()
+    BlazeBolt.ParticleSystemSetTexture(ps, "particle.png")
+    BlazeBolt.ParticleSystemSetPosition(ps, 0, 0.8)
+    BlazeBolt.ParticleSystemSetEmissionRate(ps, 30)
+    BlazeBolt.ParticleSystemSetLifetime(ps, 1.0, 2.0)
+    BlazeBolt.ParticleSystemSetSpeed(ps, 0.2, 0.5)
+    BlazeBolt.ParticleSystemSetSize(ps, 0.03, 0.05)
+    BlazeBolt.ParticleSystemSetEndSize(ps, 0.06, 0.08)
+    BlazeBolt.ParticleSystemSetColor(ps, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0)
+    BlazeBolt.ParticleSystemSetDirection(ps, 80, 100)
 end
 ```
-
----
 
 ## Скрипты и сцены
 
@@ -1654,17 +1776,39 @@ player=engine/scripts/player.lua
 
 ## Справочник всех функций
 
+### Камера
+| Функция | Параметры | Возврат |
+|---|---|---|
+| `BlazeBolt.CreateCamera` | — | `entity` |
+| `BlazeBolt.CameraSetPosition` | `entity, x, y` | — |
+| `BlazeBolt.CameraGetPosition` | `entity` | `x, y` |
+| `BlazeBolt.CameraSetZoom` | `entity, zoom` | — |
+| `BlazeBolt.CameraGetZoom` | `entity` | `zoom` |
+| `BlazeBolt.CameraSetRotation` | `entity, degrees` | — |
+| `BlazeBolt.CameraGetRotation` | `entity` | `degrees` |
+
 ### Частицы
 | Функция | Параметры | Возврат |
 |---|---|---|
-| `BlazeBolt.ParticleSetTexture` | `path` | — |
-| `BlazeBolt.ParticleEmit` | `x, y, vx, vy, sx, sy, r, g, b, a, life, rot, av, sa, ea` | — |
-| `BlazeBolt.ParticleBurst` | `x, y, count, speed, spread, sx, sy, r, g, b, a, life` | — |
-| `BlazeBolt.ParticleUpdate` | `dt` | — |
-| `BlazeBolt.ParticleDraw` | — | — |
-| `BlazeBolt.ParticleClear` | — | — |
-| `BlazeBolt.ParticleGetCount` | — | `count` |
-| `BlazeBolt.ParticleSetMaxCount` | `maxCount` | — |
+| `BlazeBolt.CreateParticleSystem` | — | `entity` |
+| `BlazeBolt.ParticleSystemSetPosition` | `entity, x, y` | — |
+| `BlazeBolt.ParticleSystemSetTexture` | `entity, path` | — |
+| `BlazeBolt.ParticleSystemSetEmissionRate` | `entity, rate` | — |
+| `BlazeBolt.ParticleSystemGetEmissionRate` | `entity` | `rate` |
+| `BlazeBolt.ParticleSystemSetLifetime` | `entity, min, max` | — |
+| `BlazeBolt.ParticleSystemSetSpeed` | `entity, min, max` | — |
+| `BlazeBolt.ParticleSystemSetSize` | `entity, min, max` | — |
+| `BlazeBolt.ParticleSystemSetEndSize` | `entity, min, max` | — |
+| `BlazeBolt.ParticleSystemSetColor` | `entity, r1, g1, b1, a1, r2, g2, b2, a2` | — |
+| `BlazeBolt.ParticleSystemSetDirection` | `entity, minAngle, maxAngle` | — |
+| `BlazeBolt.ParticleSystemSetRotationSpeed` | `entity, degPerSec` | — |
+| `BlazeBolt.ParticleSystemSetActive` | `entity, bool` | — |
+| `BlazeBolt.ParticleSystemIsActive` | `entity` | `bool` |
+| `BlazeBolt.ParticleSystemSetVisible` | `entity, bool` | — |
+| `BlazeBolt.ParticleSystemIsVisible` | `entity` | `bool` |
+| `BlazeBolt.ParticleSystemEmit` | `entity, count` | — |
+| `BlazeBolt.ParticleSystemClear` | `entity` | — |
+| `BlazeBolt.ParticleSystemGetCount` | `entity` | `count` |
 
 ### Спрайты
 | Функция | Параметры | Возврат |
@@ -1681,6 +1825,7 @@ player=engine/scripts/player.lua
 | `BlazeBolt.SpriteSetColor` | `entity, r, g, b, a` | — |
 | `BlazeBolt.SpriteGetColor` | `entity` | `r, g, b, a` |
 | `BlazeBolt.SpriteSetTexture` | `entity, path` | — |
+| `BlazeBolt.SpriteSetTextureRect` | `entity, u, v, w, h` | — |
 | `BlazeBolt.SpriteSetVisible` | `entity, bool` | — |
 | `BlazeBolt.SpriteIsVisible` | `entity` | `bool` |
 
@@ -1823,6 +1968,8 @@ TextAlignment.RIGHT    -- По правому краю
 | `BlazeBolt.GetAnimationCount` | — | `int` |
 | `BlazeBolt.GetTextCount` | — | `int` |
 | `BlazeBolt.GetMeshCount` | — | `int` |
+| `BlazeBolt.GetCameraCount` | — | `int` |
+| `BlazeBolt.GetParticleCount` | — | `int` |
 | `BlazeBolt.IsEntityValid` | `entity` | `bool` |
 | `BlazeBolt.GetEntityType` | `entity` | `string` |
 

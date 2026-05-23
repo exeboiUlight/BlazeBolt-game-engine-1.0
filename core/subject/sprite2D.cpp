@@ -25,12 +25,13 @@ namespace BlazeBolt {
 
             uniform float u_AspectRatio;
             uniform mat3 u_MVPMatrix;
+            uniform vec4 u_TexRect;
 
             void main() {
                 vec3 transformed = u_MVPMatrix * vec3(a_Position, 1.0);
                 gl_Position = vec4(transformed.xy, 0.0, 1.0);
                 gl_Position.x /= u_AspectRatio;
-                v_TexCoord = a_Position;
+                v_TexCoord = a_Position * u_TexRect.zw + u_TexRect.xy;
             }
         )";
         constexpr GLchar fragmentShaderSource[] = R"(
@@ -76,11 +77,14 @@ namespace BlazeBolt {
     void SpriteShader2D::setColor(const Vector4 &color) const {
         glUniform4f(glGetUniformLocation(this->shaderProgram.get(), "u_Color"), color.x, color.y, color.z, color.w);
     }
+    void SpriteShader2D::setTextureRect(const Vector4 &rect) const {
+        glUniform4f(glGetUniformLocation(this->shaderProgram.get(), "u_TexRect"), rect.x, rect.y, rect.z, rect.w);
+    }
 
     Sprite2D::Sprite2D() :
         texture(nullptr), modelMatrix(), color(1.0f, 1.0f, 1.0f, 1.0f),
-        position(), scale(1.0f, 1.0f), origin(0.5f, 0.5f), rotation(0.0f),
-        visible(true)
+        position(), scale(1.0f, 1.0f), origin(0.5f, 0.5f), textureRect(0.0f, 0.0f, 1.0f, 1.0f),
+        rotation(0.0f), visible(true)
     {
         this->updateModelMatrix();
     }
@@ -142,6 +146,19 @@ namespace BlazeBolt {
         return this->rotation;
     }
 
+    void Sprite2D::setTextureRect(float u, float v, float w, float h) {
+        this->textureRect.x = u;
+        this->textureRect.y = v;
+        this->textureRect.z = w;
+        this->textureRect.w = h;
+    }
+    void Sprite2D::setTextureRect(const Vector4 &rect) {
+        this->textureRect = rect;
+    }
+    Vector4 Sprite2D::getTextureRect() const {
+        return this->textureRect;
+    }
+
     void Sprite2D::setColor(float r, float g, float b, float a) {
         this->color.x = r;
         this->color.y = g;
@@ -166,6 +183,7 @@ namespace BlazeBolt {
         shader.bind();
         shader.setMVPMatrix(projectionViewMatrix * this->modelMatrix);
         shader.setColor(this->color);
+        shader.setTextureRect(this->textureRect);
         
         GL::setActiveTextureUnit(0);
         if (this->texture != nullptr) {

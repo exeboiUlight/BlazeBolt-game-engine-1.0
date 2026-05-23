@@ -10,6 +10,8 @@
 #include <subject/animatad2D.h>
 #include <subject/text2D.hpp>
 #include <subject/audio.h>
+#include <subject/camera2D.hpp>
+#include <subject/particle2D.hpp>
 #include <engine/managers.hpp>
 #include <graphics/mesh.h>
 #include <utils/input.hpp>
@@ -37,6 +39,8 @@ namespace LuaEngine {
         World<Animation2D> animationWorld;
         World<BlazeBolt::Text2D> textWorld;
         World<Mesh2D> meshWorld;
+        World<Camera2D> cameraWorld;
+        World<ParticleSystem2D> particleWorld;
 
         Audio audioEngine;
 
@@ -122,6 +126,7 @@ namespace LuaEngine {
         float spriteGetRotation(Entity entity);
         void spriteSetColor(Entity entity, const Vector4 &color);
         Vector4 spriteGetColor(Entity entity);
+        void spriteSetTextureRect(Entity entity, const Vector4 &rect);
         void spriteSetVisible(Entity entity, bool visible);
         bool spriteIsVisible(Entity entity);
         void drawAllSprites() const;
@@ -237,6 +242,39 @@ namespace LuaEngine {
         void physicsSyncSprite(Entity bodyEntity, Entity spriteEntity);
         void physicsSyncText(Entity bodyEntity, Entity textEntity);
         void physicsSyncAnimation(Entity bodyEntity, Entity animEntity);
+
+        // Camera management
+        Entity createCamera();
+        void cameraSetPosition(Entity entity, const Vector2 &position);
+        Vector2 cameraGetPosition(Entity entity);
+        void cameraSetZoom(Entity entity, float zoom);
+        float cameraGetZoom(Entity entity);
+        void cameraSetRotation(Entity entity, float rotation);
+        float cameraGetRotation(Entity entity);
+        Camera2D* getActiveCamera();
+
+        // Particle system management
+        Entity createParticleSystem();
+        void particleSystemSetPosition(Entity entity, const Vector2 &position);
+        void particleSystemSetTexture(Entity entity, const std::string &texturePath);
+        void particleSystemSetEmissionRate(Entity entity, float rate);
+        float particleSystemGetEmissionRate(Entity entity);
+        void particleSystemSetLifetime(Entity entity, float min, float max);
+        void particleSystemSetSpeed(Entity entity, float min, float max);
+        void particleSystemSetSize(Entity entity, float min, float max);
+        void particleSystemSetEndSize(Entity entity, float min, float max);
+        void particleSystemSetColor(Entity entity, const Vector4 &start, const Vector4 &end);
+        void particleSystemSetDirection(Entity entity, float minAngle, float maxAngle);
+        void particleSystemSetRotationSpeed(Entity entity, float speed);
+        void particleSystemSetActive(Entity entity, bool active);
+        bool particleSystemIsActive(Entity entity);
+        void particleSystemSetVisible(Entity entity, bool visible);
+        bool particleSystemIsVisible(Entity entity);
+        void particleSystemEmit(Entity entity, int count);
+        void particleSystemClear(Entity entity);
+        int particleSystemGetCount(Entity entity);
+        void updateAllParticleSystems(float dt);
+        void drawAllParticleSystems();
 
         // General
         float getDeltaTime() const;

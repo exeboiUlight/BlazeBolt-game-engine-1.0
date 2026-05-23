@@ -8,6 +8,7 @@
 
 #include <vector>
 #include <string>
+#include <algorithm>
 #include <chrono>
 #include <iostream>
 #include <cstring>
@@ -35,6 +36,8 @@ public:
         , m_speedMultiplier(1.0f)
         , m_screenWidth(1920)
         , m_screenHeight(1080)
+        , m_canvasWidth(0)
+        , m_canvasHeight(0)
     {
         initDefaultShader();
         updateProjection();
@@ -61,6 +64,8 @@ public:
         , m_speedMultiplier(1.0f)
         , m_screenWidth(1920)
         , m_screenHeight(1080)
+        , m_canvasWidth(0)
+        , m_canvasHeight(0)
     {
         updateProjection();
         generateQuadMesh();
@@ -359,6 +364,10 @@ private:
     float m_speedMultiplier;
     int m_screenWidth;
     int m_screenHeight;
+    int m_canvasWidth;
+    int m_canvasHeight;
+    std::vector<uint8_t> m_canvas;
+    std::vector<uint8_t> m_savedCanvas;
     Matrix3x3 m_projection;
     
     static const char* vertexShaderSource;
@@ -380,11 +389,9 @@ private:
             glGenTextures(1, &m_texture);
         }
         
-        GLenum format = frame.hasTransparency ? GL_RGBA : GL_RGB;
-        
         glBindTexture(GL_TEXTURE_2D, m_texture);
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, frame.width, frame.height, 0, 
-                     format, GL_UNSIGNED_BYTE, frame.pixelData.data());
+                     GL_RGBA, GL_UNSIGNED_BYTE, frame.pixelData.data());
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
@@ -468,6 +475,10 @@ private:
         m_gifLoaded = false;
         m_currentFrame = 0;
         m_elapsedTime = 0;
+        m_canvasWidth = 0;
+        m_canvasHeight = 0;
+        m_canvas.clear();
+        m_savedCanvas.clear();
     }
 
     static void frameWriterCallback(void* anim, struct GIF_WHDR* whdr) {
@@ -476,61 +487,92 @@ private:
         
         if (whdr->frxd <= 0 || whdr->fryd <= 0) return;
         
+        // Initialize full canvas on first frame
+        if (self->m_canvasWidth == 0 || self->m_canvasHeight == 0) {
+            self->m_canvasWidth = (whdr->xdim > 0) ? static_cast<int>(whdr->xdim) : whdr->frxd;
+            self->m_canvasHeight = (whdr->ydim > 0) ? static_cast<int>(whdr->ydim) : whdr->fryd;
+            self->m_canvas.assign(self->m_canvasWidth * self->m_canvasHeight * 4, 0);
+        }
+        
+        // Save canvas state for GIF_PREV disposal (restore previous)
+        if (whdr->mode == 3) {
+            self->m_savedCanvas = self->m_canvas;
+        }
+        
+        // Decode indexed pixels to RGBA (always 4 bytes per pixel)
+        int framePixelCount = whdr->frxd * whdr->fryd;
+        if (framePixelCount <= 0) return;
+        
+        std::vector<uint8_t> frameRGBA(framePixelCount * 4, 0);
+        bool hasTransparency = (whdr->tran >= 0);
+        uint8_t transparentIdx = static_cast<uint8_t>(whdr->tran);
+        
+        if (whdr->bptr && whdr->cpal) {
+            for (int i = 0; i < framePixelCount; ++i) {
+                uint8_t idx = whdr->bptr[i];
+                if (hasTransparency && idx == transparentIdx) {
+                    frameRGBA[i * 4 + 3] = 0;
+                } else if (idx < 256) {
+                    frameRGBA[i * 4 + 0] = whdr->cpal[idx].R;
+                    frameRGBA[i * 4 + 1] = whdr->cpal[idx].G;
+                    frameRGBA[i * 4 + 2] = whdr->cpal[idx].B;
+                    frameRGBA[i * 4 + 3] = 255;
+                }
+            }
+        }
+        
+        // Composite frame onto the full canvas at (frxo, fryo)
+        int frameX = whdr->frxo;
+        int frameY = whdr->fryo;
+        for (int fy = 0; fy < whdr->fryd; ++fy) {
+            int canvasY = frameY + fy;
+            if (canvasY < 0 || canvasY >= self->m_canvasHeight) continue;
+            for (int fx = 0; fx < whdr->frxd; ++fx) {
+                int canvasX = frameX + fx;
+                if (canvasX < 0 || canvasX >= self->m_canvasWidth) continue;
+                int srcIdx = (fy * whdr->frxd + fx) * 4;
+                if (frameRGBA[srcIdx + 3] == 0) continue;
+                int dstIdx = (canvasY * self->m_canvasWidth + canvasX) * 4;
+                self->m_canvas[dstIdx + 0] = frameRGBA[srcIdx + 0];
+                self->m_canvas[dstIdx + 1] = frameRGBA[srcIdx + 1];
+                self->m_canvas[dstIdx + 2] = frameRGBA[srcIdx + 2];
+                self->m_canvas[dstIdx + 3] = 255;
+            }
+        }
+        
+        // Build frame from the full composited canvas
         Frame frame;
-        frame.width = whdr->frxd;
-        frame.height = whdr->fryd;
+        frame.width = self->m_canvasWidth;
+        frame.height = self->m_canvasHeight;
         frame.delayMs = whdr->time * 10;
         frame.xOffset = whdr->frxo;
         frame.yOffset = whdr->fryo;
-        frame.hasTransparency = (whdr->tran >= 0);
-        frame.transparentIndex = static_cast<uint8_t>(whdr->tran);
+        frame.hasTransparency = true;
+        frame.transparentIndex = 0;
         
         if (frame.delayMs < 10) {
             frame.delayMs = 100;
         }
         
-        int pixelCount = frame.width * frame.height;
-        if (pixelCount <= 0) return;
+        frame.pixelData = self->m_canvas;
         
-        int bytesPerPixel = frame.hasTransparency ? 4 : 3;
-        
-        frame.pixelData.resize(pixelCount * bytesPerPixel);
-        
-        if (whdr->bptr && whdr->cpal) {
-            if (frame.hasTransparency) {
-                for (int i = 0; i < pixelCount; ++i) {
-                    uint8_t idx = whdr->bptr[i];
-                    if (idx == frame.transparentIndex) {
-                        frame.pixelData[i * 4 + 0] = 0;
-                        frame.pixelData[i * 4 + 1] = 0;
-                        frame.pixelData[i * 4 + 2] = 0;
-                        frame.pixelData[i * 4 + 3] = 0;
-                    } else if (idx < 256) {
-                        frame.pixelData[i * 4 + 0] = whdr->cpal[idx].R;
-                        frame.pixelData[i * 4 + 1] = whdr->cpal[idx].G;
-                        frame.pixelData[i * 4 + 2] = whdr->cpal[idx].B;
-                        frame.pixelData[i * 4 + 3] = 255;
-                    } else {
-                        frame.pixelData[i * 4 + 0] = 0;
-                        frame.pixelData[i * 4 + 1] = 0;
-                        frame.pixelData[i * 4 + 2] = 0;
-                        frame.pixelData[i * 4 + 3] = 255;
-                    }
-                }
-            } else {
-                for (int i = 0; i < pixelCount; ++i) {
-                    uint8_t idx = whdr->bptr[i];
-                    if (idx < 256) {
-                        frame.pixelData[i * 3 + 0] = whdr->cpal[idx].R;
-                        frame.pixelData[i * 3 + 1] = whdr->cpal[idx].G;
-                        frame.pixelData[i * 3 + 2] = whdr->cpal[idx].B;
-                    } else {
-                        frame.pixelData[i * 3 + 0] = 0;
-                        frame.pixelData[i * 3 + 1] = 0;
-                        frame.pixelData[i * 3 + 2] = 0;
-                    }
+        // Apply disposal for the NEXT frame
+        if (whdr->mode == 2) {
+            int clearX = (std::max)(0, frameX);
+            int clearY = (std::max)(0, frameY);
+            int clearW = (std::min)(static_cast<int>(whdr->frxd), self->m_canvasWidth - clearX);
+            int clearH = (std::min)(static_cast<int>(whdr->fryd), self->m_canvasHeight - clearY);
+            for (int y = clearY; y < clearY + clearH; ++y) {
+                for (int x = clearX; x < clearX + clearW; ++x) {
+                    int idx = (y * self->m_canvasWidth + x) * 4;
+                    self->m_canvas[idx + 0] = 0;
+                    self->m_canvas[idx + 1] = 0;
+                    self->m_canvas[idx + 2] = 0;
+                    self->m_canvas[idx + 3] = 0;
                 }
             }
+        } else if (whdr->mode == 3) {
+            self->m_canvas = self->m_savedCanvas;
         }
         
         self->m_frames.push_back(frame);

@@ -172,6 +172,18 @@ namespace LuaEngine {
             lua_pushnumber(state, position.y);
             return 2;
         }
+        static int SpriteSetTextureRect(lua_State *state) {
+            LuaEngine* engine = _functions::getEngine(state);
+            if (engine == nullptr) { return 0; }
+            Entity entity = luaL_checkinteger(state, 1);
+            float u = luaL_checknumber(state, 2);
+            float v = luaL_checknumber(state, 3);
+            float w = luaL_checknumber(state, 4);
+            float h = luaL_checknumber(state, 5);
+            engine->spriteSetTextureRect(entity, Vector4(u, v, w, h));
+            return 0;
+        }
+
         static int SpriteSetSize(lua_State *state) {
             LuaEngine* engine = _functions::getEngine(state);
             if (engine == nullptr) {
@@ -685,6 +697,248 @@ namespace LuaEngine {
             if (!engine) return 0;
             engine->meshDraw(entity);
             return 0;
+        }
+
+        // Camera functions
+        static int CreateCamera(lua_State* state) {
+            LuaEngine* engine = getEngine(state);
+            if (!engine) { lua_pushnil(state); return 1; }
+            Entity entity = engine->createCamera();
+            lua_pushinteger(state, entity);
+            return 1;
+        }
+
+        static int CameraSetPosition(lua_State* state) {
+            LuaEngine* engine = getEngine(state);
+            if (!engine) return 0;
+            Entity entity = luaL_checkinteger(state, 1);
+            float x = luaL_checknumber(state, 2);
+            float y = luaL_checknumber(state, 3);
+            engine->cameraSetPosition(entity, Vector2(x, y));
+            return 0;
+        }
+
+        static int CameraGetPosition(lua_State* state) {
+            LuaEngine* engine = getEngine(state);
+            if (!engine) { lua_pushnumber(state, 0); lua_pushnumber(state, 0); return 2; }
+            Entity entity = luaL_checkinteger(state, 1);
+            Vector2 pos = engine->cameraGetPosition(entity);
+            lua_pushnumber(state, pos.x);
+            lua_pushnumber(state, pos.y);
+            return 2;
+        }
+
+        static int CameraSetZoom(lua_State* state) {
+            LuaEngine* engine = getEngine(state);
+            if (!engine) return 0;
+            Entity entity = luaL_checkinteger(state, 1);
+            float zoom = luaL_checknumber(state, 2);
+            engine->cameraSetZoom(entity, zoom);
+            return 0;
+        }
+
+        static int CameraGetZoom(lua_State* state) {
+            LuaEngine* engine = getEngine(state);
+            if (!engine) { lua_pushnumber(state, 1); return 1; }
+            Entity entity = luaL_checkinteger(state, 1);
+            lua_pushnumber(state, engine->cameraGetZoom(entity));
+            return 1;
+        }
+
+        static int CameraSetRotation(lua_State* state) {
+            LuaEngine* engine = getEngine(state);
+            if (!engine) return 0;
+            Entity entity = luaL_checkinteger(state, 1);
+            float rotation = luaL_checknumber(state, 2);
+            engine->cameraSetRotation(entity, rotation);
+            return 0;
+        }
+
+        static int CameraGetRotation(lua_State* state) {
+            LuaEngine* engine = getEngine(state);
+            if (!engine) { lua_pushnumber(state, 0); return 1; }
+            Entity entity = luaL_checkinteger(state, 1);
+            lua_pushnumber(state, engine->cameraGetRotation(entity));
+            return 1;
+        }
+
+        // Particle system functions
+        static int CreateParticleSystem(lua_State* state) {
+            LuaEngine* engine = getEngine(state);
+            if (!engine) { lua_pushnil(state); return 1; }
+            Entity entity = engine->createParticleSystem();
+            lua_pushinteger(state, entity);
+            return 1;
+        }
+
+        static int ParticleSystemSetPosition(lua_State* state) {
+            LuaEngine* engine = getEngine(state);
+            if (!engine) return 0;
+            Entity entity = luaL_checkinteger(state, 1);
+            float x = luaL_checknumber(state, 2);
+            float y = luaL_checknumber(state, 3);
+            engine->particleSystemSetPosition(entity, Vector2(x, y));
+            return 0;
+        }
+
+        static int ParticleSystemSetTexture(lua_State* state) {
+            LuaEngine* engine = getEngine(state);
+            if (!engine) return 0;
+            Entity entity = luaL_checkinteger(state, 1);
+            const char* path = luaL_checkstring(state, 2);
+            engine->particleSystemSetTexture(entity, path);
+            return 0;
+        }
+
+        static int ParticleSystemSetEmissionRate(lua_State* state) {
+            LuaEngine* engine = getEngine(state);
+            if (!engine) return 0;
+            Entity entity = luaL_checkinteger(state, 1);
+            float rate = luaL_checknumber(state, 2);
+            engine->particleSystemSetEmissionRate(entity, rate);
+            return 0;
+        }
+
+        static int ParticleSystemGetEmissionRate(lua_State* state) {
+            LuaEngine* engine = getEngine(state);
+            if (!engine) { lua_pushnumber(state, 0); return 1; }
+            Entity entity = luaL_checkinteger(state, 1);
+            lua_pushnumber(state, engine->particleSystemGetEmissionRate(entity));
+            return 1;
+        }
+
+        static int ParticleSystemSetLifetime(lua_State* state) {
+            LuaEngine* engine = getEngine(state);
+            if (!engine) return 0;
+            Entity entity = luaL_checkinteger(state, 1);
+            float min = luaL_checknumber(state, 2);
+            float max = luaL_checknumber(state, 3);
+            engine->particleSystemSetLifetime(entity, min, max);
+            return 0;
+        }
+
+        static int ParticleSystemSetSpeed(lua_State* state) {
+            LuaEngine* engine = getEngine(state);
+            if (!engine) return 0;
+            Entity entity = luaL_checkinteger(state, 1);
+            float min = luaL_checknumber(state, 2);
+            float max = luaL_checknumber(state, 3);
+            engine->particleSystemSetSpeed(entity, min, max);
+            return 0;
+        }
+
+        static int ParticleSystemSetSize(lua_State* state) {
+            LuaEngine* engine = getEngine(state);
+            if (!engine) return 0;
+            Entity entity = luaL_checkinteger(state, 1);
+            float min = luaL_checknumber(state, 2);
+            float max = luaL_checknumber(state, 3);
+            engine->particleSystemSetSize(entity, min, max);
+            return 0;
+        }
+
+        static int ParticleSystemSetEndSize(lua_State* state) {
+            LuaEngine* engine = getEngine(state);
+            if (!engine) return 0;
+            Entity entity = luaL_checkinteger(state, 1);
+            float min = luaL_checknumber(state, 2);
+            float max = luaL_checknumber(state, 3);
+            engine->particleSystemSetEndSize(entity, min, max);
+            return 0;
+        }
+
+        static int ParticleSystemSetColor(lua_State* state) {
+            LuaEngine* engine = getEngine(state);
+            if (!engine) return 0;
+            Entity entity = luaL_checkinteger(state, 1);
+            float r1 = luaL_checknumber(state, 2);
+            float g1 = luaL_checknumber(state, 3);
+            float b1 = luaL_checknumber(state, 4);
+            float a1 = luaL_optnumber(state, 5, 1.0f);
+            float r2 = luaL_checknumber(state, 6);
+            float g2 = luaL_checknumber(state, 7);
+            float b2 = luaL_checknumber(state, 8);
+            float a2 = luaL_optnumber(state, 9, 0.0f);
+            engine->particleSystemSetColor(entity, Vector4(r1, g1, b1, a1), Vector4(r2, g2, b2, a2));
+            return 0;
+        }
+
+        static int ParticleSystemSetDirection(lua_State* state) {
+            LuaEngine* engine = getEngine(state);
+            if (!engine) return 0;
+            Entity entity = luaL_checkinteger(state, 1);
+            float minAngle = luaL_checknumber(state, 2);
+            float maxAngle = luaL_checknumber(state, 3);
+            engine->particleSystemSetDirection(entity, minAngle, maxAngle);
+            return 0;
+        }
+
+        static int ParticleSystemSetRotationSpeed(lua_State* state) {
+            LuaEngine* engine = getEngine(state);
+            if (!engine) return 0;
+            Entity entity = luaL_checkinteger(state, 1);
+            float speed = luaL_checknumber(state, 2);
+            engine->particleSystemSetRotationSpeed(entity, speed);
+            return 0;
+        }
+
+        static int ParticleSystemSetActive(lua_State* state) {
+            LuaEngine* engine = getEngine(state);
+            if (!engine) return 0;
+            Entity entity = luaL_checkinteger(state, 1);
+            bool active = lua_toboolean(state, 2);
+            engine->particleSystemSetActive(entity, active);
+            return 0;
+        }
+
+        static int ParticleSystemIsActive(lua_State* state) {
+            LuaEngine* engine = getEngine(state);
+            if (!engine) { lua_pushboolean(state, false); return 1; }
+            Entity entity = luaL_checkinteger(state, 1);
+            lua_pushboolean(state, engine->particleSystemIsActive(entity));
+            return 1;
+        }
+
+        static int ParticleSystemSetVisible(lua_State* state) {
+            LuaEngine* engine = getEngine(state);
+            if (!engine) return 0;
+            Entity entity = luaL_checkinteger(state, 1);
+            bool visible = lua_toboolean(state, 2);
+            engine->particleSystemSetVisible(entity, visible);
+            return 0;
+        }
+
+        static int ParticleSystemIsVisible(lua_State* state) {
+            LuaEngine* engine = getEngine(state);
+            if (!engine) { lua_pushboolean(state, false); return 1; }
+            Entity entity = luaL_checkinteger(state, 1);
+            lua_pushboolean(state, engine->particleSystemIsVisible(entity));
+            return 1;
+        }
+
+        static int ParticleSystemEmit(lua_State* state) {
+            LuaEngine* engine = getEngine(state);
+            if (!engine) return 0;
+            Entity entity = luaL_checkinteger(state, 1);
+            int count = luaL_checkinteger(state, 2);
+            engine->particleSystemEmit(entity, count);
+            return 0;
+        }
+
+        static int ParticleSystemClear(lua_State* state) {
+            LuaEngine* engine = getEngine(state);
+            if (!engine) return 0;
+            Entity entity = luaL_checkinteger(state, 1);
+            engine->particleSystemClear(entity);
+            return 0;
+        }
+
+        static int ParticleSystemGetCount(lua_State* state) {
+            LuaEngine* engine = getEngine(state);
+            if (!engine) { lua_pushinteger(state, 0); return 1; }
+            Entity entity = luaL_checkinteger(state, 1);
+            lua_pushinteger(state, engine->particleSystemGetCount(entity));
+            return 1;
         }
 
         // Object deletion

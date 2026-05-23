@@ -18,6 +18,8 @@ add_executable(${PROJECT_NAME}
     core/graphics/quad.cpp
     core/subject/sprite2D.cpp
     core/subject/text2D.cpp
+    core/subject/camera2D.cpp
+    core/subject/particle2D.cpp
     core/utils/input.cpp
 )
 target_include_directories(${PROJECT_NAME} PRIVATE
