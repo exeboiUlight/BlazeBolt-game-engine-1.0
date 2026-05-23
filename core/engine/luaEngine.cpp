@@ -1,4 +1,9 @@
 #include <engine/luaFunctions.hpp>
+#include <cmath>
+
+#ifndef M_PIf
+    #define M_PIf 3.14159265358979323846f
+#endif
 
 namespace LuaEngine {
 
@@ -1386,7 +1391,7 @@ namespace LuaEngine {
         float angle = body->getAngle();
 
         sprite->setPosition(position);
-        sprite->setRotation(angle * (180.0f / M_PIf));
+        sprite->setRotation(angle * (180.0f / std::n));
     }
 
     // Camera implementations
