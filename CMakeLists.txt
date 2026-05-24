@@ -31,7 +31,6 @@ target_include_directories(${PROJECT_NAME} PRIVATE
     libs/glfw/include
     libs/glad/include
     libs/freetype/include
-    libs/lua/include
     libs/openal/include
 )
 target_link_libraries(${PROJECT_NAME} PRIVATE

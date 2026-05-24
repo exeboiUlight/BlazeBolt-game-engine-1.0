@@ -1,0 +1,12 @@
+[submodule "libs/openal"]
+	path = libs/openal
+	url = https://github.com/kcat/openal-soft.git
+[submodule "libs/glfw"]
+	path = libs/glfw
+	url = https://github.com/glfw/glfw.git
+[submodule "libs/freetype"]
+	path = libs/freetype
+	url = https://gitlab.freedesktop.org/freetype/freetype.git
+[submodule "libs/lua"]
+	path = libs/lua
+	url = https://github.com/walterschell/Lua.git

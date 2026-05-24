@@ -9,7 +9,7 @@ if not debug:
 else:
     DEBUG_FLAGS = " -g"
 
-COMMON_INCLUDES = "-I./include -I./core"
+COMMON_INCLUDES = "-I./libs/freetype/include -I./libs/glad/include -I./libs/glfw/include -I./libs/headeronly/include -I./libs/lua/lua-5.4.7/include -I./libs/openal/include -I./core"
 COMMON_LIBS = "-L./lib -lopengl32 -lglfw3 -lfreetype -lgdi32"
 COMMON_STATIC = "-static-libgcc -static-libstdc++"
 
@@ -50,7 +50,7 @@ def find_cpp_files(directory):
 
 def compile_game():
     core_cpp_files = find_cpp_files('./core')
-    game_files = "src/game.cpp include/glad/glad.c " + " ".join(core_cpp_files)
+    game_files = "src/game.cpp libs/glad/src/glad.c " + " ".join(core_cpp_files)
     cmd = (
         f"g++{DEBUG_FLAGS} {game_files} "
         f"-O2 -Oz -s "
@@ -68,7 +68,7 @@ def compile_game():
 
 def compile_release():
     core_cpp_files = find_cpp_files('./core')
-    game_files = "src/game.cpp include/glad/glad.c " + " ".join(core_cpp_files)
+    game_files = "src/game.cpp libs/glad/src/glad.c " + " ".join(core_cpp_files)
     cmd = (
         f"g++{DEBUG_FLAGS} {game_files} "
         f"-O2 -Oz -s "

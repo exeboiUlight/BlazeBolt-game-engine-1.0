@@ -100,21 +100,15 @@ namespace BlazeBolt {
     }
     GL::Texture2D &TextureManager::create2D(const std::string &path) {
         const auto [it, inserted] = this->cache.try_emplace(path);
-        if (!inserted) {
-            printf("Texture already exists: %s\n", path.c_str());
-            return it->second;
-        }
+        if (!inserted) { return it->second; }
         return it->second;
     }
     const GL::Texture2D &TextureManager::getDefault2D() const {
         return this->default2D;
     }
     GL::Texture2D *TextureManager::loadFromFile2D(const std::string &path) {
-        const auto it = this->cache.find(path);
-        if (it != this->cache.end()) {
-            printf("Texture already exists: %s\n", path.c_str());
-            return &it->second;
-        }
+        const std::unordered_map<std::string, GL::Texture2D>::iterator it = this->cache.find(path);
+        if (it != this->cache.end()) { return &it->second; }
 
         stbi_set_flip_vertically_on_load(false);
 
@@ -162,11 +156,8 @@ namespace BlazeBolt {
     }
 
     AnimatedTexture2D *TextureManager::loadFromFileAnimated2D(const std::string &path) {
-        const auto it = this->animatedCache.find(path);
-        if (it != this->animatedCache.end()) {
-            printf("Animated texture already exists: %s\n", path.c_str());
-            return &it->second;
-        }
+        const std::unordered_map<std::string, BlazeBolt::AnimatedTexture2D>::iterator it = this->animatedCache.find(path);
+        if (it != this->animatedCache.end()) { return &it->second; }
 
         std::ifstream file = std::ifstream(path, std::ios::binary | std::ios::ate);
         if (!file.is_open()) {
@@ -241,10 +232,7 @@ namespace BlazeBolt {
     }
     BlazeBolt::Font &FontManager::loadFromFile(const std::string &path) {
         const auto [it, inserted] = this->cache.try_emplace(path, this->freeType, path);
-        if (!inserted) {
-            printf("Font already exists: %s\n", path.c_str());
-            return it->second;
-        }
+        if (!inserted) { return it->second; }
         return it->second;
     }
     BlazeBolt::Font *FontManager::findFont(const std::string &path) {
