@@ -237,6 +237,10 @@ namespace LuaEngine {
         float physicsGetAngle(Entity bodyEntity);
         void physicsSetGravityScale(Entity bodyEntity, float scale);
         float physicsGetGravityScale(Entity bodyEntity);
+        void physicsSetFriction(Entity bodyEntity, float friction);
+        float physicsGetFriction(Entity bodyEntity);
+        void physicsSetRestitution(Entity bodyEntity, float restitution);
+        float physicsGetRestitution(Entity bodyEntity);
         void physicsSetActive(Entity bodyEntity, bool active);
         bool physicsIsActive(Entity bodyEntity);
         void physicsSetFixedRotation(Entity bodyEntity, bool fixed);

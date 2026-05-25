@@ -1338,6 +1338,40 @@ namespace LuaEngine {
             return 1;
         }
 
+        static int PhysicsSetFriction(lua_State* state) {
+            Entity entity = luaL_checkinteger(state, 1);
+            float friction = luaL_checknumber(state, 2);
+            LuaEngine* engine = getEngine(state);
+            if (!engine) return 0;
+            engine->physicsSetFriction(entity, friction);
+            return 0;
+        }
+
+        static int PhysicsGetFriction(lua_State* state) {
+            Entity entity = luaL_checkinteger(state, 1);
+            LuaEngine* engine = getEngine(state);
+            if (!engine) { lua_pushnumber(state, 0); return 1; }
+            lua_pushnumber(state, engine->physicsGetFriction(entity));
+            return 1;
+        }
+
+        static int PhysicsSetRestitution(lua_State* state) {
+            Entity entity = luaL_checkinteger(state, 1);
+            float restitution = luaL_checknumber(state, 2);
+            LuaEngine* engine = getEngine(state);
+            if (!engine) return 0;
+            engine->physicsSetRestitution(entity, restitution);
+            return 0;
+        }
+
+        static int PhysicsGetRestitution(lua_State* state) {
+            Entity entity = luaL_checkinteger(state, 1);
+            LuaEngine* engine = getEngine(state);
+            if (!engine) { lua_pushnumber(state, 0); return 1; }
+            lua_pushnumber(state, engine->physicsGetRestitution(entity));
+            return 1;
+        }
+
         static int PhysicsStep(lua_State* state) {
             LuaEngine* engine = getEngine(state);
             if (!engine) return 0;

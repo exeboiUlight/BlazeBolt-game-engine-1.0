@@ -17,6 +17,9 @@ add_executable(${PROJECT_NAME}
     core/graphics/animatedTexture2D.cpp
     core/graphics/gl.cpp
     core/graphics/quad.cpp
+    core/physics/body.cpp
+    core/physics/collision.cpp
+    core/physics/world.cpp
     core/subject/sprite/animatedSprite2D.cpp
     core/subject/sprite/generalSprite.cpp
     core/subject/sprite/staticSprite2D.cpp

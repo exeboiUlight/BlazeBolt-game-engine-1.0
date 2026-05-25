@@ -227,6 +227,10 @@ namespace LuaEngine {
         {"PhysicsIsBullet", _functions::PhysicsIsBullet},
         {"PhysicsDestroyBody", _functions::PhysicsDestroyBody},
         {"PhysicsGetMass", _functions::PhysicsGetMass},
+        {"PhysicsSetFriction", _functions::PhysicsSetFriction},
+        {"PhysicsGetFriction", _functions::PhysicsGetFriction},
+        {"PhysicsSetRestitution", _functions::PhysicsSetRestitution},
+        {"PhysicsGetRestitution", _functions::PhysicsGetRestitution},
         {"PhysicsStep", _functions::PhysicsStep},
         {"PhysicsSyncSprite", _functions::PhysicsSyncSprite},
         {"PhysicsSyncText", _functions::PhysicsSyncText},
@@ -1296,6 +1300,30 @@ namespace LuaEngine {
     float LuaEngine::physicsGetGravityScale(Entity bodyEntity) {
         auto it = physicsBodyMap.find(bodyEntity);
         return it != physicsBodyMap.end() ? it->second->getGravityScale() : 1;
+    }
+
+    void LuaEngine::physicsSetFriction(Entity bodyEntity, float friction) {
+        auto it = physicsBodyMap.find(bodyEntity);
+        if (it != physicsBodyMap.end()) {
+            it->second->setFriction(friction);
+        }
+    }
+
+    float LuaEngine::physicsGetFriction(Entity bodyEntity) {
+        auto it = physicsBodyMap.find(bodyEntity);
+        return it != physicsBodyMap.end() ? it->second->getFriction() : 0;
+    }
+
+    void LuaEngine::physicsSetRestitution(Entity bodyEntity, float restitution) {
+        auto it = physicsBodyMap.find(bodyEntity);
+        if (it != physicsBodyMap.end()) {
+            it->second->setRestitution(restitution);
+        }
+    }
+
+    float LuaEngine::physicsGetRestitution(Entity bodyEntity) {
+        auto it = physicsBodyMap.find(bodyEntity);
+        return it != physicsBodyMap.end() ? it->second->getRestitution() : 0;
     }
 
     void LuaEngine::physicsSetActive(Entity bodyEntity, bool active) {
