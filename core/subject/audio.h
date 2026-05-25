@@ -8,6 +8,8 @@
 #include <iostream>
 #include <fstream>
 #include <mutex>
+#include <algorithm>
+#include <utils/dr_mp3.h>
 
 class Audio {
 public:
@@ -115,7 +117,17 @@ public:
             return -1;
         }
 
-        if (!loadWavFile(filename, buffer)) {
+        bool loaded = false;
+        std::string ext = filename.substr(filename.find_last_of('.') + 1);
+        std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
+
+        if (ext == "mp3") {
+            loaded = loadMp3File(filename, buffer);
+        } else {
+            loaded = loadWavFile(filename, buffer);
+        }
+
+        if (!loaded) {
             std::cerr << "Failed to load sound: " << filename << std::endl;
             alDeleteBuffers(1, &buffer);
             return -1;
@@ -340,6 +352,43 @@ private:
 
         if (alGetError() != AL_NO_ERROR) {
             std::cerr << "Failed to load buffer data" << std::endl;
+            return false;
+        }
+
+        return true;
+    }
+
+    bool loadMp3File(const std::string& filename, ALuint buffer) {
+        drmp3_config config;
+        drmp3_uint64 totalFrames;
+        drmp3_int16* pcmData = drmp3_open_file_and_read_pcm_frames_s16(
+            filename.c_str(), &config, &totalFrames, nullptr
+        );
+
+        if (!pcmData) {
+            std::cerr << "Failed to decode MP3: " << filename << std::endl;
+            return false;
+        }
+
+        ALenum formatAL;
+        if (config.channels == 1) {
+            formatAL = AL_FORMAT_MONO16;
+        } else if (config.channels == 2) {
+            formatAL = AL_FORMAT_STEREO16;
+        } else {
+            std::cerr << "Unsupported MP3 channels: " << config.channels << std::endl;
+            drmp3_free(pcmData, nullptr);
+            return false;
+        }
+
+        ALsizei dataSize = static_cast<ALsizei>(totalFrames * config.channels * sizeof(drmp3_int16));
+        alBufferData(buffer, formatAL, pcmData, dataSize,
+                     static_cast<ALsizei>(config.sampleRate));
+
+        drmp3_free(pcmData, nullptr);
+
+        if (alGetError() != AL_NO_ERROR) {
+            std::cerr << "Failed to load MP3 buffer data" << std::endl;
             return false;
         }
 
