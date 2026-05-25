@@ -3,7 +3,6 @@ import glob
 import shutil
 import sys
 
-debug = True
 target = None
 
 # Parse command line arguments
@@ -23,17 +22,15 @@ if target is None:
 
 # Platform-specific settings
 if target == "linux":
-    DEBUG_FLAGS = " -g"
+    DEBUG_FLAGS1 = DEBUG_FLAGS2 = " -g"
     COMMON_INCLUDES = "-I./include -I./core"
     COMMON_LIBS = "-L./lib -lGL -lglfw -lfreetype -llua5.4 -lopenal"
     COMMON_STATIC = "-static-libgcc -static-libstdc++"
     EXT = ""
     SIZE_OPT = "-Os"
 else:
-    if debug:
-        DEBUG_FLAGS = " -g"
-    else:
-        DEBUG_FLAGS = " -Wl,-subsystem,windows"
+    DEBUG_FLAGS1 = " -g"
+    DEBUG_FLAGS2 = " -Wl,-subsystem,windows"
     COMMON_INCLUDES = "-I./include -I./core"
     COMMON_LIBS = "-L./lib -lopengl32 -lglfw3 -lfreetype -lgdi32 -llua54 -lopenal32"
     COMMON_STATIC = "-static-libgcc -static-libstdc++"
@@ -79,7 +76,7 @@ def compile_game():
     core_cpp_files = find_cpp_files('./core')
     game_files = "src/game.cpp include/glad/glad.c " + " ".join(core_cpp_files)
     cmd = (
-        f"g++{DEBUG_FLAGS} {game_files} "
+        f"g++{DEBUG_FLAGS1} {game_files} "
         f"-O2 {SIZE_OPT} -s "
         f"{COMMON_INCLUDES} "
         f"{COMMON_LIBS} "
@@ -96,7 +93,7 @@ def compile_release():
     core_cpp_files = find_cpp_files('./core')
     game_files = "src/game.cpp include/glad/glad.c " + " ".join(core_cpp_files)
     cmd = (
-        f"g++{DEBUG_FLAGS} {game_files} "
+        f"g++{DEBUG_FLAGS2} {game_files} "
         f"-O2 {SIZE_OPT} -s "
         f"{COMMON_INCLUDES} "
         f"{COMMON_LIBS} "
