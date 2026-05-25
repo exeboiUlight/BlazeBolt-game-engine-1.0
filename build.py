@@ -106,7 +106,43 @@ def compile_release():
         print(f"  {f}")
     os.system(cmd)
 
+def compile_cs_lib():
+    if target == "windows":
+        core_cpp_files = find_cpp_files('./core')
+        game_files = "include/glad/glad.c " + " ".join(core_cpp_files)
+        cmd = (
+            f"g++{DEBUG_FLAGS2} {game_files} -shared "
+            f"-O2 {SIZE_OPT} -s "
+            f"{COMMON_INCLUDES} "
+            f"{COMMON_LIBS} "
+            f"-o bin/BlazeBolt.dll "
+            f"{COMMON_STATIC}"
+        )
+        print("\nCompiling dll file...")
+        print(f"Found cpp files: {len(core_cpp_files)}")
+        for f in core_cpp_files:
+            print(f"  {f}")
+        os.system(cmd)
+    
+    if target == "linux":
+        core_cpp_files = find_cpp_files('./core')
+        game_files = "include/glad/glad.c " + " ".join(core_cpp_files)
+        cmd = (
+            f"g++ -fPIC{DEBUG_FLAGS2} {game_files} -shared "
+            f"-O2 {SIZE_OPT} -s "
+            f"{COMMON_INCLUDES} "
+            f"{COMMON_LIBS} "
+            f"-o bin/BlazeBolt.so "
+            f"{COMMON_STATIC}"
+        )
+        print("\nCompiling dll file...")
+        print(f"Found cpp files: {len(core_cpp_files)}")
+        for f in core_cpp_files:
+            print(f"  {f}")
+        os.system(cmd)
+
 if __name__ == '__main__':
     make_project()
     compile_game()
     compile_release()
+    compile_cs_lib()

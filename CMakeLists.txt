@@ -12,6 +12,7 @@ add_subdirectory(libs/openal)
 
 add_executable(${PROJECT_NAME}
     src/game.cpp
+    core/stb_image_impl.cpp
     core/engine/luaEngine.cpp
     core/engine/managers.cpp
     core/graphics/animatedTexture2D.cpp
