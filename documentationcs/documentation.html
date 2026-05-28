@@ -49,29 +49,27 @@ tr:nth-child(even){background:rgba(255,255,255,.02)}
 <div class="tab active" data-tab="coords">Координаты</div>
 <div class="tab" data-tab="lifecycle">Цикл</div>
 <div class="tab" data-tab="sprite">Спрайты</div>
-<div class="tab" data-tab="animation">Анимации</div>
+<div class="tab" data-tab="animatedsprite">Анимации</div>
 <div class="tab" data-tab="text">Текст</div>
 <div class="tab" data-tab="mesh">Меши</div>
+<div class="tab" data-tab="camera">Камера</div>
+<div class="tab" data-tab="particle">Частицы</div>
 <div class="tab" data-tab="window">Окно</div>
 <div class="tab" data-tab="input">Ввод</div>
 <div class="tab" data-tab="sound">Звук</div>
 <div class="tab" data-tab="object">Объекты</div>
 <div class="tab" data-tab="physics">Физика</div>
-<div class="tab" data-tab="utils">Утилиты</div>
-<div class="tab" data-tab="gui">GUI</div>
 <div class="tab" data-tab="shader">Шейдеры</div>
-<div class="tab" data-tab="lighting">Свет</div>
-<div class="tab" data-tab="particle">Частицы</div>
+<div class="tab" data-tab="utils">Утилиты</div>
 <div class="tab" data-tab="script">Скрипты</div>
-<div class="tab" data-tab="scene">Scene</div>
-<div class="tab" data-tab="world">World</div>
 <div class="tab" data-tab="minigame">Игра</div>
 <div class="tab" data-tab="practices">Практики</div>
 </div>
+
 <!-- COORDS -->
 <div class="tab-content active" id="tab-coords">
 <h2>Система координат</h2>
-<p>OpenGL NDC: центр (0,0), правый верх (1,1), левый низ (-1,-1).</p>
+<p>OpenGL NDC: центр (0,0), правый верхний угол (1,1), левый нижний угол (-1,-1).</p>
 <h3>pixelsToNDC</h3>
 <div class="fn-sig">function pixelsToNDC(px, py)</div>
 <table><tr><th>Параметр</th><th>Тип</th><th>Описание</th></tr><tr><td class="pname">px</td><td class="ptype">number</td><td>Пиксель X</td></tr><tr><td class="pname">py</td><td class="ptype">number</td><td>Пиксель Y</td></tr></table>
@@ -86,10 +84,10 @@ end</code></pre>
 <!-- LIFECYCLE -->
 <div class="tab-content" id="tab-lifecycle">
 <h2>Жизненный цикл</h2>
-<h3>Start</h3><div class="fn-sig">function Start()</div><p>Один раз при запуске.</p>
+<h3>Start</h3><div class="fn-sig">function Start()</div><p>Вызывается один раз при запуске.</p>
 <h3>Update</h3><div class="fn-sig">function Update(dt)</div><table><tr><th>Параметр</th><th>Тип</th><th>Описание</th></tr><tr><td class="pname">dt</td><td class="ptype">number</td><td>Время между кадрами (сек)</td></tr></table>
-<h3>Draw</h3><div class="fn-sig">function Draw()</div><p>Отрисовка каждый кадр.</p>
-<h3>End</h3><div class="fn-sig">function End()</div><p>При завершении.</p>
+<h3>Draw</h3><div class="fn-sig">function Draw()</div><p>Вызывается каждый кадр для отрисовки.</p>
+<h3>End</h3><div class="fn-sig">function End()</div><p>Вызывается при завершении.</p>
 <h3>Сценовые Callbacks</h3>
 <div class="fn-sig">function On&lt;Scene&gt;Load()</div><p>При загрузке сцены.</p>
 <div class="fn-sig">function On&lt;Scene&gt;Unload()</div><p>При выгрузке сцены.</p>
@@ -102,44 +100,43 @@ end</code></pre>
 <div class="fn-sig">entity = BlazeBolt.CreateSprite(texturePath, x, y)</div>
 <table><tr><th>Параметр</th><th>Тип</th><th>Описание</th></tr><tr><td class="pname">texturePath</td><td class="ptype">string</td><td>Путь к PNG</td></tr><tr><td class="pname">x</td><td class="ptype">number</td><td>Позиция X в NDC</td></tr><tr><td class="pname">y</td><td class="ptype">number</td><td>Позиция Y в NDC</td></tr></table>
 <div class="ret"><strong>Возвращает:</strong> entity (integer)</div>
+<h3>SpriteSetTexture</h3>
+<div class="fn-sig">BlazeBolt.SpriteSetTexture(entity, texturePath)</div>
+<table><tr><th>Параметр</th><th>Тип</th><th>Описание</th></tr><tr><td class="pname">entity</td><td class="ptype">integer</td><td>ID спрайта</td></tr><tr><td class="pname">texturePath</td><td class="ptype">string</td><td>Путь к PNG</td></tr></table>
 <h3>SpriteSetPosition</h3>
 <div class="fn-sig">BlazeBolt.SpriteSetPosition(entity, x, y)</div>
-<table><tr><th>Параметр</th><th>Тип</th><th>Описание</th></tr><tr><td class="pname">entity</td><td class="ptype">integer</td><td>ID спрайта</td></tr><tr><td class="pname">x</td><td class="ptype">number</td><td>Позиция X в NDC</td></tr><tr><td class="pname">y</td><td class="ptype">number</td><td>Позиция Y в NDC</td></tr></table>
 <h3>SpriteGetPosition</h3>
 <div class="fn-sig">x, y = BlazeBolt.SpriteGetPosition(entity)</div>
-<table><tr><th>Параметр</th><th>Тип</th><th>Описание</th></tr><tr><td class="pname">entity</td><td class="ptype">integer</td><td>ID спрайта</td></tr></table>
 <div class="ret"><strong>Возвращает:</strong> x, y (number, number)</div>
+<h3>SpriteSetTextureRect</h3>
+<div class="fn-sig">BlazeBolt.SpriteSetTextureRect(entity, left, top, width, height)</div>
+<table><tr><th>Параметр</th><th>Тип</th><th>Описание</th></tr><tr><td class="pname">left, top</td><td class="ptype">number</td><td>Смещение в текстуре (px)</td></tr><tr><td class="pname">width, height</td><td class="ptype">number</td><td>Размер области (px)</td></tr></table>
 <h3>SpriteSetSize</h3>
 <div class="fn-sig">BlazeBolt.SpriteSetSize(entity, width, height)</div>
-<table><tr><th>Параметр</th><th>Тип</th><th>Описание</th></tr><tr><td class="pname">entity</td><td class="ptype">integer</td><td>ID спрайта</td></tr><tr><td class="pname">width</td><td class="ptype">number</td><td>Ширина в NDC</td></tr><tr><td class="pname">height</td><td class="ptype">number</td><td>Высота в NDC</td></tr></table>
 <h3>SpriteGetSize</h3>
 <div class="fn-sig">width, height = BlazeBolt.SpriteGetSize(entity)</div>
-<table><tr><th>Параметр</th><th>Тип</th><th>Описание</th></tr><tr><td class="pname">entity</td><td class="ptype">integer</td><td>ID спрайта</td></tr></table>
 <div class="ret"><strong>Возвращает:</strong> width, height (number, number)</div>
 <h3>SpriteSetOrigin</h3>
 <div class="fn-sig">BlazeBolt.SpriteSetOrigin(entity, originX, originY)</div>
-<table><tr><th>Параметр</th><th>Тип</th><th>Описание</th></tr><tr><td class="pname">entity</td><td class="ptype">integer</td><td>ID спрайта</td></tr><tr><td class="pname">originX</td><td class="ptype">number</td><td>Точка привязки X (0-1)</td></tr><tr><td class="pname">originY</td><td class="ptype">number</td><td>Точка привязки Y (0-1)</td></tr></table>
+<table><tr><th>Параметр</th><th>Тип</th><th>Описание</th></tr><tr><td class="pname">originX, originY</td><td class="ptype">number</td><td>Точка привязки (0-1)</td></tr></table>
 <h3>SpriteGetOrigin</h3>
 <div class="fn-sig">originX, originY = BlazeBolt.SpriteGetOrigin(entity)</div>
 <div class="ret"><strong>Возвращает:</strong> originX, originY (number, number)</div>
 <h3>SpriteSetRotation</h3>
 <div class="fn-sig">BlazeBolt.SpriteSetRotation(entity, degrees)</div>
-<table><tr><th>Параметр</th><th>Тип</th><th>Описание</th></tr><tr><td class="pname">entity</td><td class="ptype">integer</td><td>ID спрайта</td></tr><tr><td class="pname">degrees</td><td class="ptype">number</td><td>Угол в градусах</td></tr></table>
+<table><tr><th>Параметр</th><th>Тип</th><th>Описание</th></tr><tr><td class="pname">degrees</td><td class="ptype">number</td><td>Угол в градусах</td></tr></table>
 <h3>SpriteGetRotation</h3>
 <div class="fn-sig">degrees = BlazeBolt.SpriteGetRotation(entity)</div>
 <div class="ret"><strong>Возвращает:</strong> degrees (number)</div>
 <h3>SpriteSetColor</h3>
 <div class="fn-sig">BlazeBolt.SpriteSetColor(entity, r, g, b, a)</div>
-<table><tr><th>Параметр</th><th>Тип</th><th>Описание</th></tr><tr><td class="pname">entity</td><td class="ptype">integer</td><td>ID спрайта</td></tr><tr><td class="pname">r, g, b, a</td><td class="ptype">number</td><td>Цвет и прозрачность (0-1)</td></tr></table>
+<table><tr><th>Параметр</th><th>Тип</th><th>Описание</th></tr><tr><td class="pname">r, g, b, a</td><td class="ptype">number</td><td>Цвет и прозрачность (0-1)</td></tr></table>
 <h3>SpriteGetColor</h3>
 <div class="fn-sig">r, g, b, a = BlazeBolt.SpriteGetColor(entity)</div>
 <div class="ret"><strong>Возвращает:</strong> r, g, b, a (number, number, number, number)</div>
-<h3>SpriteSetTexture</h3>
-<div class="fn-sig">BlazeBolt.SpriteSetTexture(entity, texturePath)</div>
-<table><tr><th>Параметр</th><th>Тип</th><th>Описание</th></tr><tr><td class="pname">entity</td><td class="ptype">integer</td><td>ID спрайта</td></tr><tr><td class="pname">texturePath</td><td class="ptype">string</td><td>Путь к PNG</td></tr></table>
 <h3>SpriteSetVisible</h3>
 <div class="fn-sig">BlazeBolt.SpriteSetVisible(entity, visible)</div>
-<table><tr><th>Параметр</th><th>Тип</th><th>Описание</th></tr><tr><td class="pname">entity</td><td class="ptype">integer</td><td>ID спрайта</td></tr><tr><td class="pname">visible</td><td class="ptype">boolean</td><td>Видимость</td></tr></table>
+<table><tr><th>Параметр</th><th>Тип</th><th>Описание</th></tr><tr><td class="pname">visible</td><td class="ptype">boolean</td><td>Видимость</td></tr></table>
 <h3>SpriteIsVisible</h3>
 <div class="fn-sig">visible = BlazeBolt.SpriteIsVisible(entity)</div>
 <div class="ret"><strong>Возвращает:</strong> visible (boolean)</div>
@@ -152,47 +149,73 @@ end</code></pre>
     BlazeBolt.SpriteSetRotation(s, 45)
 end</code></pre></div>
 
-<!-- ANIMATION -->
-<div class="tab-content" id="tab-animation">
-<h2>Анимации</h2>
-<h3>CreateAnimation</h3>
-<div class="fn-sig">entity = BlazeBolt.CreateAnimation(gifPath, autoPlay, x, y)</div>
-<table><tr><th>Параметр</th><th>Тип</th><th>Описание</th></tr><tr><td class="pname">gifPath</td><td class="ptype">string</td><td>Путь к GIF</td></tr><tr><td class="pname">autoPlay</td><td class="ptype">boolean</td><td>Запустить сразу</td></tr><tr><td class="pname">x, y</td><td class="ptype">number</td><td>Позиция в NDC</td></tr></table>
+<!-- ANIMATED SPRITE -->
+<div class="tab-content" id="tab-animatedsprite">
+<h2>Анимированные спрайты</h2>
+<h3>CreateAnimatedSprite</h3>
+<div class="fn-sig">entity = BlazeBolt.CreateAnimatedSprite(texturePath, frameWidth, frameHeight, numFrames, framesPerRow, x, y)</div>
+<table><tr><th>Параметр</th><th>Тип</th><th>Описание</th></tr><tr><td class="pname">texturePath</td><td class="ptype">string</td><td>Путь к спрайт-листу</td></tr><tr><td class="pname">frameWidth</td><td class="ptype">int</td><td>Ширина кадра в px</td></tr><tr><td class="pname">frameHeight</td><td class="ptype">int</td><td>Высота кадра в px</td></tr><tr><td class="pname">numFrames</td><td class="ptype">int</td><td>Всего кадров</td></tr><tr><td class="pname">framesPerRow</td><td class="ptype">int</td><td>Кадров в строке</td></tr><tr><td class="pname">x, y</td><td class="ptype">number</td><td>Позиция в NDC</td></tr></table>
 <div class="ret"><strong>Возвращает:</strong> entity (integer)</div>
-<h3>CreateAnimationFromSheet</h3>
-<div class="fn-sig">entity = BlazeBolt.CreateAnimationFromSheet(path, fw, fh, total, perRow, delay, x, y)</div>
-<table><tr><th>Параметр</th><th>Тип</th><th>Описание</th></tr><tr><td class="pname">path</td><td class="ptype">string</td><td>Путь к спрайт-листу</td></tr><tr><td class="pname">fw, fh</td><td class="ptype">int</td><td>Ширина/высота кадра (px)</td></tr><tr><td class="pname">total</td><td class="ptype">int</td><td>Всего кадров</td></tr><tr><td class="pname">perRow</td><td class="ptype">int</td><td>Кадров в строке</td></tr><tr><td class="pname">delay</td><td class="ptype">int</td><td>Задержка (мс), по умолч. 100</td></tr><tr><td class="pname">x, y</td><td class="ptype">number</td><td>Позиция в NDC</td></tr></table>
-<div class="ret"><strong>Возвращает:</strong> entity (integer)</div>
-<h3>AnimationPlay / Pause / Stop / Restart</h3>
-<div class="fn-sig">BlazeBolt.AnimationPlay(entity)</div>
-<div class="fn-sig">BlazeBolt.AnimationPause(entity)</div>
-<div class="fn-sig">BlazeBolt.AnimationStop(entity)</div>
-<div class="fn-sig">BlazeBolt.AnimationRestart(entity)</div>
-<table><tr><th>Параметр</th><th>Тип</th><th>Описание</th></tr><tr><td class="pname">entity</td><td class="ptype">integer</td><td>ID анимации</td></tr></table>
-<h3>AnimationSetLooping</h3>
-<div class="fn-sig">BlazeBolt.AnimationSetLooping(entity, looping)</div>
-<h3>AnimationSetSpeed</h3>
-<div class="fn-sig">BlazeBolt.AnimationSetSpeed(entity, speed)</div>
-<table><tr><th>Параметр</th><th>Тип</th><th>Описание</th></tr><tr><td class="pname">speed</td><td class="ptype">number</td><td>Множитель (1.0 = норма)</td></tr></table>
-<h3>AnimationSetFrame</h3>
-<div class="fn-sig">BlazeBolt.AnimationSetFrame(entity, frameIndex)</div>
-<table><tr><th>Параметр</th><th>Тип</th><th>Описание</th></tr><tr><td class="pname">frameIndex</td><td class="ptype">int</td><td>Номер кадра</td></tr></table>
-<h3>AnimationGetFrameCount</h3>
-<div class="fn-sig">count = BlazeBolt.AnimationGetFrameCount(entity)</div>
-<div class="ret"><strong>Возвращает:</strong> count (integer)</div>
-<h3>AnimationIsPlaying</h3>
-<div class="fn-sig">playing = BlazeBolt.AnimationIsPlaying(entity)</div>
+<h3>AnimatedSpritePlay</h3><div class="fn-sig">BlazeBolt.AnimatedSpritePlay(entity)</div>
+<h3>AnimatedSpritePause</h3><div class="fn-sig">BlazeBolt.AnimatedSpritePause(entity)</div>
+<h3>AnimatedSpriteStop</h3><div class="fn-sig">BlazeBolt.AnimatedSpriteStop(entity)</div>
+<h3>AnimatedSpriteRestart</h3><div class="fn-sig">BlazeBolt.AnimatedSpriteRestart(entity)</div>
+<h3>AnimatedSpriteIsPlaying</h3><div class="fn-sig">playing = BlazeBolt.AnimatedSpriteIsPlaying(entity)</div>
 <div class="ret"><strong>Возвращает:</strong> playing (boolean)</div>
-<h3>AnimationSetPosition</h3>
-<div class="fn-sig">BlazeBolt.AnimationSetPosition(entity, x, y)</div>
-<h3>AnimationSetSize</h3>
-<div class="fn-sig">BlazeBolt.AnimationSetSize(entity, width, height)</div>
+<h3>AnimatedSpriteSetLooping</h3><div class="fn-sig">BlazeBolt.AnimatedSpriteSetLooping(entity, looping)</div>
+<table><tr><th>Параметр</th><th>Тип</th><th>Описание</th></tr><tr><td class="pname">looping</td><td class="ptype">boolean</td><td>Зацикливание</td></tr></table>
+<h3>AnimatedSpriteIsLooping</h3><div class="fn-sig">looping = BlazeBolt.AnimatedSpriteIsLooping(entity)</div>
+<div class="ret"><strong>Возвращает:</strong> looping (boolean)</div>
+<h3>AnimatedSpriteSetPlaybackSpeed</h3>
+<div class="fn-sig">BlazeBolt.AnimatedSpriteSetPlaybackSpeed(entity, speed)</div>
+<table><tr><th>Параметр</th><th>Тип</th><th>Описание</th></tr><tr><td class="pname">speed</td><td class="ptype">number</td><td>Множитель скорости (1.0 = норма)</td></tr></table>
+<h3>AnimatedSpriteGetPlaybackSpeed</h3>
+<div class="fn-sig">speed = BlazeBolt.AnimatedSpriteGetPlaybackSpeed(entity)</div>
+<div class="ret"><strong>Возвращает:</strong> speed (number)</div>
+<h3>AnimatedSpriteSetFrame</h3>
+<div class="fn-sig">BlazeBolt.AnimatedSpriteSetFrame(entity, frameIndex)</div>
+<table><tr><th>Параметр</th><th>Тип</th><th>Описание</th></tr><tr><td class="pname">frameIndex</td><td class="ptype">int</td><td>Номер кадра</td></tr></table>
+<h3>AnimatedSpriteGetCurrentFrame</h3>
+<div class="fn-sig">frame = BlazeBolt.AnimatedSpriteGetCurrentFrame(entity)</div>
+<div class="ret"><strong>Возвращает:</strong> frame (int)</div>
+<h3>AnimatedSpriteGetNumFrames</h3>
+<div class="fn-sig">count = BlazeBolt.AnimatedSpriteGetNumFrames(entity)</div>
+<div class="ret"><strong>Возвращает:</strong> count (int)</div>
+<h3>AnimatedSpriteSetPosition</h3>
+<div class="fn-sig">BlazeBolt.AnimatedSpriteSetPosition(entity, x, y)</div>
+<h3>AnimatedSpriteGetPosition</h3>
+<div class="fn-sig">x, y = BlazeBolt.AnimatedSpriteGetPosition(entity)</div>
+<div class="ret"><strong>Возвращает:</strong> x, y (number, number)</div>
+<h3>AnimatedSpriteSetSize</h3>
+<div class="fn-sig">BlazeBolt.AnimatedSpriteSetSize(entity, width, height)</div>
+<h3>AnimatedSpriteGetSize</h3>
+<div class="fn-sig">width, height = BlazeBolt.AnimatedSpriteGetSize(entity)</div>
+<div class="ret"><strong>Возвращает:</strong> width, height (number, number)</div>
+<h3>AnimatedSpriteSetOrigin</h3>
+<div class="fn-sig">BlazeBolt.AnimatedSpriteSetOrigin(entity, originX, originY)</div>
+<table><tr><th>Параметр</th><th>Тип</th><th>Описание</th></tr><tr><td class="pname">originX, originY</td><td class="ptype">number</td><td>Точка привязки (0-1)</td></tr></table>
+<h3>AnimatedSpriteGetOrigin</h3>
+<div class="fn-sig">originX, originY = BlazeBolt.AnimatedSpriteGetOrigin(entity)</div>
+<div class="ret"><strong>Возвращает:</strong> originX, originY (number, number)</div>
+<h3>AnimatedSpriteSetRotation</h3>
+<div class="fn-sig">BlazeBolt.AnimatedSpriteSetRotation(entity, degrees)</div>
+<table><tr><th>Параметр</th><th>Тип</th><th>Описание</th></tr><tr><td class="pname">degrees</td><td class="ptype">number</td><td>Угол в градусах</td></tr></table>
+<h3>AnimatedSpriteGetRotation</h3>
+<div class="fn-sig">degrees = BlazeBolt.AnimatedSpriteGetRotation(entity)</div>
+<div class="ret"><strong>Возвращает:</strong> degrees (number)</div>
+<h3>AnimatedSpriteSetColor</h3>
+<div class="fn-sig">BlazeBolt.AnimatedSpriteSetColor(entity, r, g, b, a)</div>
+<table><tr><th>Параметр</th><th>Тип</th><th>Описание</th></tr><tr><td class="pname">r, g, b, a</td><td class="ptype">number</td><td>Цвет и прозрачность (0-1)</td></tr></table>
+<h3>AnimatedSpriteGetColor</h3>
+<div class="fn-sig">r, g, b, a = BlazeBolt.AnimatedSpriteGetColor(entity)</div>
+<div class="ret"><strong>Возвращает:</strong> r, g, b, a (number, number, number, number)</div>
 <hr><h3>Пример</h3>
 <pre><code>function Start()
-    local a = BlazeBolt.CreateAnimationFromSheet("sheet.png", 32, 32, 8, 4, 100, 0, 0)
-    BlazeBolt.AnimationSetSize(a, 0.4, 0.4)
-    BlazeBolt.AnimationSetLooping(a, true)
-    BlazeBolt.AnimationSetSpeed(a, 2.0)
+    local a = BlazeBolt.CreateAnimatedSprite("sheet.png", 32, 32, 8, 4, 0, 0)
+    BlazeBolt.AnimatedSpriteSetSize(a, 0.4, 0.4)
+    BlazeBolt.AnimatedSpriteSetLooping(a, true)
+    BlazeBolt.AnimatedSpriteSetPlaybackSpeed(a, 2.0)
+    BlazeBolt.AnimatedSpritePlay(a)
 end</code></pre></div>
 
 <!-- TEXT -->
@@ -237,11 +260,108 @@ end</code></pre></div>
 <h3>MeshSetData</h3>
 <div class="fn-sig">BlazeBolt.MeshSetData(entity, vertices, indices)</div>
 <table><tr><th>Параметр</th><th>Тип</th><th>Описание</th></tr><tr><td class="pname">vertices</td><td class="ptype">table</td><td>{ x, y, u, v }</td></tr><tr><td class="pname">indices</td><td class="ptype">table</td><td>Индексы треугольников</td></tr></table>
-<h3>MeshSetTexture</h3><div class="fn-sig">BlazeBolt.MeshSetTexture(entity, texturePath)</div>
-<h3>MeshSetShader</h3><div class="fn-sig">BlazeBolt.MeshSetShader(entity, shaderId)</div>
-<h3>MeshSetColor</h3><div class="fn-sig">BlazeBolt.MeshSetColor(entity, r, g, b, a)</div>
 <h3>MeshDraw</h3><div class="fn-sig">BlazeBolt.MeshDraw(entity)</div>
+<hr><h3>Пример</h3>
+<pre><code>function Start()
+    local m = BlazeBolt.CreateMesh()
+    local verts = {
+        -0.5, -0.5, 0, 0,
+         0.5, -0.5, 1, 0,
+         0.5,  0.5, 1, 1,
+        -0.5,  0.5, 0, 1
+    }
+    local idx = { 0, 1, 2, 2, 3, 0 }
+    BlazeBolt.MeshSetData(m, verts, idx)
+    BlazeBolt.MeshDraw(m)
+end</code></pre></div>
+
+<!-- CAMERA -->
+<div class="tab-content" id="tab-camera">
+<h2>Камера</h2>
+<p>Камера работает в режиме «чёрного ящика» — влияет на матрицу вида всего рендера.</p>
+<h3>CreateCamera</h3>
+<div class="fn-sig">entity = BlazeBolt.CreateCamera()</div>
+<div class="ret"><strong>Возвращает:</strong> entity (integer)</div>
+<h3>CameraSetPosition</h3><div class="fn-sig">BlazeBolt.CameraSetPosition(entity, x, y)</div>
+<h3>CameraGetPosition</h3><div class="fn-sig">x, y = BlazeBolt.CameraGetPosition(entity)</div>
+<div class="ret"><strong>Возвращает:</strong> x, y (number, number)</div>
+<h3>CameraSetZoom</h3><div class="fn-sig">BlazeBolt.CameraSetZoom(entity, zoom)</div>
+<table><tr><th>Параметр</th><th>Тип</th><th>Описание</th></tr><tr><td class="pname">zoom</td><td class="ptype">number</td><td>Множитель масштаба (1.0 = по умолч.)</td></tr></table>
+<h3>CameraGetZoom</h3><div class="fn-sig">zoom = BlazeBolt.CameraGetZoom(entity)</div>
+<div class="ret"><strong>Возвращает:</strong> zoom (number)</div>
+<h3>CameraSetRotation</h3><div class="fn-sig">BlazeBolt.CameraSetRotation(entity, degrees)</div>
+<h3>CameraGetRotation</h3><div class="fn-sig">degrees = BlazeBolt.CameraGetRotation(entity)</div>
+<div class="ret"><strong>Возвращает:</strong> degrees (number)</div>
 </div>
+
+<!-- PARTICLE -->
+<div class="tab-content" id="tab-particle">
+<h2>Системы частиц</h2>
+<h3>CreateParticleSystem</h3>
+<div class="fn-sig">entity = BlazeBolt.CreateParticleSystem(x, y)</div>
+<table><tr><th>Параметр</th><th>Тип</th><th>Описание</th></tr><tr><td class="pname">x, y</td><td class="ptype">number</td><td>Позиция в NDC</td></tr></table>
+<div class="ret"><strong>Возвращает:</strong> entity (integer)</div>
+<h3>ParticleSystemSetPosition</h3><div class="fn-sig">BlazeBolt.ParticleSystemSetPosition(entity, x, y)</div>
+<h3>ParticleSystemSetTexture</h3><div class="fn-sig">BlazeBolt.ParticleSystemSetTexture(entity, texturePath)</div>
+<h3>ParticleSystemSetEmissionRate</h3>
+<div class="fn-sig">BlazeBolt.ParticleSystemSetEmissionRate(entity, rate)</div>
+<table><tr><th>Параметр</th><th>Тип</th><th>Описание</th></tr><tr><td class="pname">rate</td><td class="ptype">number</td><td>Частиц в секунду</td></tr></table>
+<h3>ParticleSystemGetEmissionRate</h3>
+<div class="fn-sig">rate = BlazeBolt.ParticleSystemGetEmissionRate(entity)</div>
+<div class="ret"><strong>Возвращает:</strong> rate (number)</div>
+<h3>ParticleSystemSetLifetime</h3>
+<div class="fn-sig">BlazeBolt.ParticleSystemSetLifetime(entity, lifetime)</div>
+<table><tr><th>Параметр</th><th>Тип</th><th>Описание</th></tr><tr><td class="pname">lifetime</td><td class="ptype">number</td><td>Время жизни частиц (сек)</td></tr></table>
+<h3>ParticleSystemSetSpeed</h3>
+<div class="fn-sig">BlazeBolt.ParticleSystemSetSpeed(entity, speed)</div>
+<table><tr><th>Параметр</th><th>Тип</th><th>Описание</th></tr><tr><td class="pname">speed</td><td class="ptype">number</td><td>Начальная скорость</td></tr></table>
+<h3>ParticleSystemSetSize</h3>
+<div class="fn-sig">BlazeBolt.ParticleSystemSetSize(entity, size)</div>
+<table><tr><th>Параметр</th><th>Тип</th><th>Описание</th></tr><tr><td class="pname">size</td><td class="ptype">number</td><td>Начальный размер в NDC</td></tr></table>
+<h3>ParticleSystemSetEndSize</h3>
+<div class="fn-sig">BlazeBolt.ParticleSystemSetEndSize(entity, endSize)</div>
+<table><tr><th>Параметр</th><th>Тип</th><th>Описание</th></tr><tr><td class="pname">endSize</td><td class="ptype">number</td><td>Размер в конце жизни</td></tr></table>
+<h3>ParticleSystemSetColor</h3>
+<div class="fn-sig">BlazeBolt.ParticleSystemSetColor(entity, r, g, b, a)</div>
+<table><tr><th>Параметр</th><th>Тип</th><th>Описание</th></tr><tr><td class="pname">r, g, b, a</td><td class="ptype">number</td><td>Цвет (0-1)</td></tr></table>
+<h3>ParticleSystemSetDirection</h3>
+<div class="fn-sig">BlazeBolt.ParticleSystemSetDirection(entity, dirX, dirY)</div>
+<table><tr><th>Параметр</th><th>Тип</th><th>Описание</th></tr><tr><td class="pname">dirX, dirY</td><td class="ptype">number</td><td>Направление выброса</td></tr></table>
+<h3>ParticleSystemSetRotationSpeed</h3>
+<div class="fn-sig">BlazeBolt.ParticleSystemSetRotationSpeed(entity, rotSpeed)</div>
+<table><tr><th>Параметр</th><th>Тип</th><th>Описание</th></tr><tr><td class="pname">rotSpeed</td><td class="ptype">number</td><td>Скорость вращения (град/сек)</td></tr></table>
+<h3>ParticleSystemSetActive</h3>
+<div class="fn-sig">BlazeBolt.ParticleSystemSetActive(entity, active)</div>
+<table><tr><th>Параметр</th><th>Тип</th><th>Описание</th></tr><tr><td class="pname">active</td><td class="ptype">boolean</td><td>Активна ли эмиссия</td></tr></table>
+<h3>ParticleSystemIsActive</h3>
+<div class="fn-sig">active = BlazeBolt.ParticleSystemIsActive(entity)</div>
+<div class="ret"><strong>Возвращает:</strong> active (boolean)</div>
+<h3>ParticleSystemSetVisible</h3>
+<div class="fn-sig">BlazeBolt.ParticleSystemSetVisible(entity, visible)</div>
+<h3>ParticleSystemIsVisible</h3>
+<div class="fn-sig">visible = BlazeBolt.ParticleSystemIsVisible(entity)</div>
+<div class="ret"><strong>Возвращает:</strong> visible (boolean)</div>
+<h3>ParticleSystemEmit</h3>
+<div class="fn-sig">BlazeBolt.ParticleSystemEmit(entity, count)</div>
+<table><tr><th>Параметр</th><th>Тип</th><th>Описание</th></tr><tr><td class="pname">count</td><td class="ptype">int</td><td>Количество частиц для ручного выброса</td></tr></table>
+<h3>ParticleSystemClear</h3>
+<div class="fn-sig">BlazeBolt.ParticleSystemClear(entity)</div>
+<h3>ParticleSystemGetCount</h3>
+<div class="fn-sig">count = BlazeBolt.ParticleSystemGetCount(entity)</div>
+<div class="ret"><strong>Возвращает:</strong> count (int)</div>
+<hr><h3>Пример</h3>
+<pre><code>function Start()
+    local ps = BlazeBolt.CreateParticleSystem(0, 0)
+    BlazeBolt.ParticleSystemSetTexture(ps, "particle.png")
+    BlazeBolt.ParticleSystemSetEmissionRate(ps, 50)
+    BlazeBolt.ParticleSystemSetLifetime(ps, 2.0)
+    BlazeBolt.ParticleSystemSetSpeed(ps, 0.5)
+    BlazeBolt.ParticleSystemSetSize(ps, 0.02)
+    BlazeBolt.ParticleSystemSetEndSize(ps, 0.01)
+    BlazeBolt.ParticleSystemSetColor(ps, 1, 0.3, 0.1, 1)
+    BlazeBolt.ParticleSystemSetDirection(ps, 0, 1)
+    BlazeBolt.ParticleSystemSetActive(ps, true)
+end</code></pre></div>
 
 <!-- WINDOW -->
 <div class="tab-content" id="tab-window">
@@ -266,38 +386,26 @@ end</code></pre></div>
 <h3>GetScreenWidth / GetScreenHeight</h3>
 <div class="fn-sig">w = GetScreenWidth()<br>h = GetScreenHeight()</div>
 </div>
+
 <!-- INPUT -->
 <div class="tab-content" id="tab-input">
 <h2>Ввод</h2>
 <h4>Константы клавиш</h4>
 <pre><code>Keys.A..Z, Keys._0.._9
-Keys.UP/DOWN/LEFT/RIGHT, SPACE, ENTER, ESCAPE, TAB, BACKSPACE, DELETE
-Keys.LEFT/RIGHT_SHIFT, LEFT/RIGHT_CONTROL, LEFT/RIGHT_ALT, LEFT/RIGHT_SUPER
+Keys.UP, DOWN, LEFT, RIGHT, SPACE, ENTER, ESCAPE, TAB, BACKSPACE, DELETE
+Keys.LEFT_SHIFT, RIGHT_SHIFT, LEFT_CONTROL, RIGHT_CONTROL, LEFT_ALT, RIGHT_ALT, LEFT_SUPER, RIGHT_SUPER
 Keys.F1..F25, Keys.KP_0..KP_9
 Keys.CAPS_LOCK, SCROLL_LOCK, NUM_LOCK, PRINT_SCREEN, PAUSE, MENU
 Keys.INSERT, HOME, END, PAGE_UP, PAGE_DOWN</code></pre>
 <h4>Константы мыши</h4>
 <pre><code>MouseButtons.LEFT, MouseButtons.RIGHT, MouseButtons.MIDDLE</code></pre>
-<h4>Константы геймпада</h4>
-<pre><code>GamepadButtons.A, B, X, Y, LEFT_BUMPER, RIGHT_BUMPER, BACK, START
-GamepadButtons.LEFT_STICK, RIGHT_STICK, DPAD_UP/DOWN/LEFT/RIGHT
-GamepadAxes.LEFT_X/Y, RIGHT_X/Y, LEFT_TRIGGER, RIGHT_TRIGGER</code></pre>
 <h3>IsKeyPressed</h3><div class="fn-sig">bool = BlazeBolt.IsKeyPressed(key)</div>
 <h3>IsKeyJustPressed</h3><div class="fn-sig">bool = BlazeBolt.IsKeyJustPressed(key)</div>
-<h3>IsKeyJustReleased</h3><div class="fn-sig">bool = BlazeBolt.IsKeyJustReleased(key)</div>
 <h3>GetMouseX / GetMouseY</h3><div class="fn-sig">x = BlazeBolt.GetMouseX()<br>y = BlazeBolt.GetMouseY()</div>
 <h3>GetMouseDeltaX / GetMouseDeltaY</h3><div class="fn-sig">dx = BlazeBolt.GetMouseDeltaX()<br>dy = BlazeBolt.GetMouseDeltaY()</div>
 <h3>IsMouseButtonPressed</h3><div class="fn-sig">bool = BlazeBolt.IsMouseButtonPressed(button)</div>
-<h3>IsMouseButtonJustPressed / JustReleased</h3>
-<div class="fn-sig">bool = BlazeBolt.IsMouseButtonJustPressed(button)<br>bool = BlazeBolt.IsMouseButtonJustReleased(button)</div>
-<h3>GetScrollX / GetScrollY</h3><div class="fn-sig">x = BlazeBolt.GetScrollX()<br>y = BlazeBolt.GetScrollY()</div>
-<h3>IsGamepadConnected</h3><div class="fn-sig">bool = BlazeBolt.IsGamepadConnected(id)</div>
-<h3>IsGamepadButtonPressed / JustPressed / JustReleased</h3>
-<div class="fn-sig">BlazeBolt.IsGamepadButtonPressed(id, button)</div>
-<h3>GetGamepadAxis</h3>
-<div class="fn-sig">val = BlazeBolt.GetGamepadAxis(id, axis)</div>
-<table><tr><th>Параметр</th><th>Тип</th><th>Описание</th></tr><tr><td class="pname">id</td><td class="ptype">int</td><td>ID геймпада (0-15)</td></tr><tr><td class="pname">button/axis</td><td class="ptype">const</td><td>GamepadButtons.* / GamepadAxes.*</td></tr></table>
-<div class="ret"><strong>Возвращает:</strong> float (-1..1). Deadzone &lt; 0.15 игнорируется</div>
+<h3>IsMouseButtonJustPressed</h3><div class="fn-sig">bool = BlazeBolt.IsMouseButtonJustPressed(button)</div>
+<h3>GetScrollY</h3><div class="fn-sig">y = BlazeBolt.GetScrollY()</div>
 </div>
 
 <!-- SOUND -->
@@ -330,22 +438,24 @@ end</code></pre></div>
 <h3>Destroy</h3><div class="fn-sig">BlazeBolt.Destroy(entity)</div>
 <h3>DestroyAll</h3><div class="fn-sig">BlazeBolt.DestroyAll()</div>
 <h3>GetSpriteCount</h3><div class="fn-sig">count = BlazeBolt.GetSpriteCount()</div>
-<h3>GetAnimationCount</h3><div class="fn-sig">count = BlazeBolt.GetAnimationCount()</div>
+<h3>GetAnimatedSpriteCount</h3><div class="fn-sig">count = BlazeBolt.GetAnimatedSpriteCount()</div>
 <h3>GetTextCount</h3><div class="fn-sig">count = BlazeBolt.GetTextCount()</div>
 <h3>GetMeshCount</h3><div class="fn-sig">count = BlazeBolt.GetMeshCount()</div>
 <h3>IsEntityValid</h3><div class="fn-sig">valid = BlazeBolt.IsEntityValid(entity)</div>
 <h3>GetEntityType</h3>
 <div class="fn-sig">type = BlazeBolt.GetEntityType(entity)</div>
 <table><tr><th>Параметр</th><th>Тип</th><th>Описание</th></tr><tr><td class="pname">entity</td><td class="ptype">int</td><td>ID объекта</td></tr></table>
-<div class="ret"><strong>Возвращает:</strong> "Sprite", "Animation", "Text" или "Mesh"</div>
+<div class="ret"><strong>Возвращает:</strong> "Sprite", "AnimatedSprite", "Text", "Mesh" или "ParticleSystem"</div>
 </div>
+
 <!-- PHYSICS -->
 <div class="tab-content" id="tab-physics">
 <h2>Физика</h2>
-<p>Fixed timestep 1/120с, OBB vs SAT, импульсное разрешение коллизий.</p>
+<div class="warn"><strong>ВАЖНО:</strong> Углы в функциях PhysicsSetAngle / PhysicsGetAngle задаются в <strong>РАДИАНАХ</strong>, не в градусах.</div>
+<p>Fixed timestep 1/120 с, OBB vs SAT, импульсное разрешение коллизий.</p>
 <h3>PhysicsInit</h3>
 <div class="fn-sig">BlazeBolt.PhysicsInit(gravityX, gravityY)</div>
-<h3>PhysicsSetGravity / GetGravity</h3>
+<h3>PhysicsSetGravity / PhysicsGetGravity</h3>
 <div class="fn-sig">BlazeBolt.PhysicsSetGravity(x, y)<br>x, y = BlazeBolt.PhysicsGetGravity()</div>
 <h3>PhysicsCreateBody</h3>
 <div class="fn-sig">entity = BlazeBolt.PhysicsCreateBody(bodyType, x, y, mass, friction, restitution)</div>
@@ -355,9 +465,9 @@ end</code></pre></div>
 <div class="fn-sig">BlazeBolt.PhysicsAddCircle(bodyEntity, radius, offsetX, offsetY)</div>
 <h3>PhysicsAddRectangle</h3>
 <div class="fn-sig">BlazeBolt.PhysicsAddRectangle(bodyEntity, halfWidth, halfHeight)</div>
-<h3>PhysicsSetLinearVelocity / GetLinearVelocity</h3>
+<h3>PhysicsSetLinearVelocity / PhysicsGetLinearVelocity</h3>
 <div class="fn-sig">BlazeBolt.PhysicsSetLinearVelocity(body, vx, vy)<br>vx, vy = BlazeBolt.PhysicsGetLinearVelocity(body)</div>
-<h3>PhysicsSetAngularVelocity / GetAngularVelocity</h3>
+<h3>PhysicsSetAngularVelocity / PhysicsGetAngularVelocity</h3>
 <div class="fn-sig">BlazeBolt.PhysicsSetAngularVelocity(body, av)<br>av = BlazeBolt.PhysicsGetAngularVelocity(body)</div>
 <h3>PhysicsApplyForce</h3>
 <div class="fn-sig">BlazeBolt.PhysicsApplyForce(body, fx, fy)</div>
@@ -369,78 +479,29 @@ end</code></pre></div>
 <div class="fn-sig">BlazeBolt.PhysicsApplyImpulseAtPoint(body, ix, iy, px, py)</div>
 <h3>PhysicsApplyTorque</h3>
 <div class="fn-sig">BlazeBolt.PhysicsApplyTorque(body, torque)</div>
-<h3>PhysicsSetPosition / GetPosition</h3>
+<h3>PhysicsSetPosition / PhysicsGetPosition</h3>
 <div class="fn-sig">BlazeBolt.PhysicsSetPosition(body, x, y)<br>x, y = BlazeBolt.PhysicsGetPosition(body)</div>
-<h3>PhysicsSetAngle / GetAngle</h3>
-<div class="fn-sig">BlazeBolt.PhysicsSetAngle(body, angle)<br>angle = BlazeBolt.PhysicsGetAngle(body)</div>
-<h3>PhysicsSetGravityScale / GetGravityScale</h3>
+<h3>PhysicsSetAngle / PhysicsGetAngle</h3>
+<div class="fn-sig">BlazeBolt.PhysicsSetAngle(body, angleRadians)<br>angleRadians = BlazeBolt.PhysicsGetAngle(body)</div>
+<div class="warn"><strong>Радианы!</strong> Используйте math.rad(deg) / math.deg(rad) для пересчёта.</div>
+<h3>PhysicsSetGravityScale / PhysicsGetGravityScale</h3>
 <div class="fn-sig">BlazeBolt.PhysicsSetGravityScale(body, scale)<br>scale = BlazeBolt.PhysicsGetGravityScale(body)</div>
-<h3>PhysicsSetActive / IsActive</h3>
+<h3>PhysicsSetActive / PhysicsIsActive</h3>
 <div class="fn-sig">BlazeBolt.PhysicsSetActive(body, active)<br>active = BlazeBolt.PhysicsIsActive(body)</div>
-<h3>PhysicsSetFixedRotation / IsFixedRotation</h3>
+<h3>PhysicsSetFixedRotation / PhysicsIsFixedRotation</h3>
 <div class="fn-sig">BlazeBolt.PhysicsSetFixedRotation(body, fixed)<br>fixed = BlazeBolt.PhysicsIsFixedRotation(body)</div>
-<h3>PhysicsSetBullet / IsBullet</h3>
+<h3>PhysicsSetBullet / PhysicsIsBullet</h3>
 <div class="fn-sig">BlazeBolt.PhysicsSetBullet(body, bullet)<br>bullet = BlazeBolt.PhysicsIsBullet(body)</div>
+<h3>PhysicsDestroyBody</h3><div class="fn-sig">BlazeBolt.PhysicsDestroyBody(bodyEntity)</div>
 <h3>PhysicsGetMass</h3><div class="fn-sig">mass = BlazeBolt.PhysicsGetMass(body)</div>
-<h3>PhysicsSetFriction / GetFriction</h3>
+<h3>PhysicsSetFriction / PhysicsGetFriction</h3>
 <div class="fn-sig">BlazeBolt.PhysicsSetFriction(body, friction)<br>friction = BlazeBolt.PhysicsGetFriction(body)</div>
-<h3>PhysicsSetRestitution / GetRestitution</h3>
+<h3>PhysicsSetRestitution / PhysicsGetRestitution</h3>
 <div class="fn-sig">BlazeBolt.PhysicsSetRestitution(body, restitution)<br>restitution = BlazeBolt.PhysicsGetRestitution(body)</div>
 <h3>PhysicsStep</h3><div class="fn-sig">BlazeBolt.PhysicsStep()</div>
-<h3>PhysicsSyncSprite / SyncAnimatedSprite / SyncText</h3>
-<div class="fn-sig">BlazeBolt.PhysicsSyncSprite(body, spriteEntity)</div>
-<div class="fn-sig">BlazeBolt.PhysicsSyncAnimatedSprite(body, animEntity)</div>
-<div class="fn-sig">BlazeBolt.PhysicsSyncText(body, textEntity)</div>
-<h3>PhysicsDestroyBody</h3><div class="fn-sig">BlazeBolt.PhysicsDestroyBody(bodyEntity)</div>
-</div>
-
-<!-- UTILS -->
-<div class="tab-content" id="tab-utils">
-<h2>Утилиты</h2>
-<h3>Print</h3><div class="fn-sig">BlazeBolt.Print(...)</div>
-<h3>AddConsoleMessage</h3>
-<div class="fn-sig">BlazeBolt.AddConsoleMessage(msg, type)</div>
-<table><tr><th>Параметр</th><th>Тип</th><th>Описание</th></tr><tr><td class="pname">type</td><td class="ptype">int</td><td>0=info, 1=warning, 2=error</td></tr></table>
-<h3>GetDeltaTime</h3><div class="fn-sig">dt = BlazeBolt.GetDeltaTime()</div>
-<h3>GetTime</h3><div class="fn-sig">time = GetTime()</div>
-<div class="ret"><strong>Возвращает:</strong> секунды с запуска (number)</div>
-<h3>Random</h3><div class="fn-sig">val = BlazeBolt.Random(min, max)</div>
-<table><tr><th>Параметр</th><th>Тип</th><th>Описание</th></tr><tr><td class="pname">min</td><td class="ptype">number</td><td>По умолч. 0</td></tr><tr><td class="pname">max</td><td class="ptype">number</td><td>По умолч. 1</td></tr></table>
-<div class="ret"><strong>Возвращает:</strong> float</div>
-<h3>RandomInt</h3><div class="fn-sig">intVal = BlazeBolt.RandomInt(min, max)</div>
-<div class="ret"><strong>Возвращает:</strong> integer</div>
-<h3>SetRandomSeed</h3><div class="fn-sig">BlazeBolt.SetRandomSeed(seed)</div>
-<h3>Quit</h3><div class="fn-sig">BlazeBolt.Quit()</div>
-</div>
-<!-- GUI -->
-<div class="tab-content" id="tab-gui">
-<h2>GUI</h2>
-<p>Координаты в пикселях. (0,0) — левый верх. Ось Y вниз.</p>
-<h3>GuiSetFont</h3><div class="fn-sig">BlazeBolt.GuiSetFont(fontPath, fontSize)</div>
-<table><tr><th>Параметр</th><th>Тип</th><th>Описание</th></tr><tr><td class="pname">fontSize</td><td class="ptype">int</td><td>По умолч. 24</td></tr></table>
-<h3>GuiPanel</h3><div class="fn-sig">entity = BlazeBolt.GuiPanel(id, x, y, width, height)</div>
-<table><tr><th>Параметр</th><th>Тип</th><th>Описание</th></tr><tr><td class="pname">id</td><td class="ptype">string</td><td>Уникальный ID</td></tr><tr><td class="pname">x, y</td><td class="ptype">number</td><td>Позиция в px</td></tr><tr><td class="pname">width, height</td><td class="ptype">number</td><td>0 = весь экран</td></tr></table>
-<h3>GuiButton</h3><div class="fn-sig">entity = BlazeBolt.GuiButton(id, x, y, w, h, text)</div>
-<h3>GuiLabel</h3><div class="fn-sig">entity = BlazeBolt.GuiLabel(id, x, y, text)</div>
-<h3>GuiSlider</h3><div class="fn-sig">entity = BlazeBolt.GuiSlider(id, x, y, w, minVal, maxVal, initialVal)</div>
-<h3>GuiCheckbox</h3><div class="fn-sig">entity = BlazeBolt.GuiCheckbox(id, x, y, text, checked)</div>
-<h3>GuiRemove / GuiRemoveByEntity / GuiClear</h3>
-<div class="fn-sig">BlazeBolt.GuiRemove(id)<br>BlazeBolt.GuiRemoveByEntity(entity)<br>BlazeBolt.GuiClear()</div>
-<h4>Общие свойства</h4>
-<table><tr><th>Функция</th><th>Параметры</th></tr>
-<tr><td>GuiSetPosition(entity, x, y)</td><td>entity, x(px), y(px)</td></tr>
-<tr><td>GuiSetSize(entity, w, h)</td><td>entity, w(px), h(px)</td></tr>
-<tr><td>GuiSetColor(entity, r, g, b, a)</td><td>entity, r,g,b,a (0-1)</td></tr>
-<tr><td>GuiSetText(entity, text)</td><td>entity, text</td></tr>
-<tr><td>GuiSetVisible(entity, bool)</td><td>entity, bool</td></tr>
-<tr><td>GuiSetEnabled(entity, bool)</td><td>entity, bool</td></tr>
-<tr><td>GuiSetZOrder(entity, z)</td><td>entity, z</td></tr>
-<tr><td>GuiSetBorder(entity, r,g,b,a, w)</td><td>entity, r,g,b,a, borderWidth(px)</td></tr>
-<tr><td>GuiSetValue(entity, value)</td><td>entity, value</td></tr>
-<tr><td>GuiGetValue(entity)</td><td>entity → value</td></tr>
-<tr><td>GuiSetOnClick(entity, func)</td><td>entity, function</td></tr>
-<tr><td>GuiSetOnChange(entity, func)</td><td>entity, function</td></tr>
-</table>
+<h3>PhysicsSyncSprite</h3><div class="fn-sig">BlazeBolt.PhysicsSyncSprite(body, spriteEntity)</div>
+<h3>PhysicsSyncAnimatedSprite</h3><div class="fn-sig">BlazeBolt.PhysicsSyncAnimatedSprite(body, animEntity)</div>
+<h3>PhysicsSyncText</h3><div class="fn-sig">BlazeBolt.PhysicsSyncText(body, textEntity)</div>
 </div>
 
 <!-- SHADER -->
@@ -463,66 +524,25 @@ end</code></pre></div>
 </table>
 </div>
 
-<!-- LIGHTING -->
-<div class="tab-content" id="tab-lighting">
-<h2>Освещение</h2>
-<h4>Константы типов</h4>
-<pre><code>LightType.Point (0), Directional (1), Spot (2), Ambient (3), Sun (4)</code></pre>
-<h3>CreateLight</h3><div class="fn-sig">entity = BlazeBolt.CreateLight(lightType, x, y)</div>
-<h3>GetLightCount</h3><div class="fn-sig">count = BlazeBolt.GetLightCount()</div>
-<h4>Свойства света</h4>
-<table><tr><th>Функция</th><th>Параметры → Возврат</th></tr>
-<tr><td>LightSetPosition(e, x, y)</td><td>entity, x, y</td></tr>
-<tr><td>LightGetPosition(e)</td><td>entity → x, y</td></tr>
-<tr><td>LightSetSize(e, w, h)</td><td>entity, w, h</td></tr>
-<tr><td>LightSetColor(e, r,g,b,a)</td><td>entity, r,g,b,a (0-1)</td></tr>
-<tr><td>LightGetColor(e)</td><td>entity → r,g,b,a</td></tr>
-<tr><td>LightSetIntensity(e, i)</td><td>entity, i</td></tr>
-<tr><td>LightSetRange(e, range)</td><td>entity, range</td></tr>
-<tr><td>LightSetAngle(e, deg)</td><td>entity, degrees</td></tr>
-<tr><td>LightSetInnerCone(e, deg)</td><td>entity, degrees</td></tr>
-<tr><td>LightSetOuterCone(e, deg)</td><td>entity, degrees</td></tr>
-<tr><td>LightSetPenumbra(e, sa, ea)</td><td>entity, startAlpha, endAlpha</td></tr>
-<tr><td>LightSetSegments(e, seg)</td><td>entity, segments (3-360)</td></tr>
-<tr><td>LightSetVisible(e, bool)</td><td>entity, bool</td></tr>
-<tr><td>LightIsVisible(e)</td><td>entity → bool</td></tr>
-<tr><td>LightSetCastShadows(e, bool)</td><td>entity, bool</td></tr>
-<tr><td>LightSetType(e, type)</td><td>entity, type</td></tr>
-<tr><td>LightGetType(e)</td><td>entity → type</td></tr>
-</table>
+<!-- UTILS -->
+<div class="tab-content" id="tab-utils">
+<h2>Утилиты</h2>
+<h3>Print</h3><div class="fn-sig">BlazeBolt.Print(...)</div>
+<h3>AddConsoleMessage</h3>
+<div class="fn-sig">BlazeBolt.AddConsoleMessage(msg, type)</div>
+<table><tr><th>Параметр</th><th>Тип</th><th>Описание</th></tr><tr><td class="pname">type</td><td class="ptype">int</td><td>0=info, 1=warning, 2=error</td></tr></table>
+<h3>GetDeltaTime</h3><div class="fn-sig">dt = BlazeBolt.GetDeltaTime()</div>
+<h3>GetTime</h3><div class="fn-sig">time = GetTime()</div>
+<div class="ret"><strong>Возвращает:</strong> секунды с запуска (number)</div>
+<h3>Random</h3><div class="fn-sig">val = BlazeBolt.Random(min, max)</div>
+<table><tr><th>Параметр</th><th>Тип</th><th>Описание</th></tr><tr><td class="pname">min</td><td class="ptype">number</td><td>По умолч. 0</td></tr><tr><td class="pname">max</td><td class="ptype">number</td><td>По умолч. 1</td></tr></table>
+<div class="ret"><strong>Возвращает:</strong> float</div>
+<h3>RandomInt</h3><div class="fn-sig">intVal = BlazeBolt.RandomInt(min, max)</div>
+<div class="ret"><strong>Возвращает:</strong> integer</div>
+<h3>SetRandomSeed</h3><div class="fn-sig">BlazeBolt.SetRandomSeed(seed)</div>
+<h3>Quit</h3><div class="fn-sig">BlazeBolt.Quit()</div>
 </div>
 
-<!-- PARTICLE -->
-<div class="tab-content" id="tab-particle">
-<h2>Частицы</h2>
-<h3>ParticleSetTexture</h3><div class="fn-sig">BlazeBolt.ParticleSetTexture(path)</div>
-<h3>ParticleEmit</h3>
-<div class="fn-sig">BlazeBolt.ParticleEmit(x, y, vx, vy, sx, sy, r,g,b,a, life, rot, av, sa, ea)</div>
-<table><tr><th>Параметр</th><th>Тип</th><th>Описание</th></tr>
-<tr><td class="pname">x, y</td><td class="ptype">number</td><td>Позиция в NDC</td></tr>
-<tr><td class="pname">vx, vy</td><td class="ptype">number</td><td>Скорость</td></tr>
-<tr><td class="pname">sx, sy</td><td class="ptype">number</td><td>Размер в NDC</td></tr>
-<tr><td class="pname">r,g,b,a</td><td class="ptype">number</td><td>Цвет (0-1)</td></tr>
-<tr><td class="pname">life</td><td class="ptype">number</td><td>Время жизни (сек)</td></tr>
-<tr><td class="pname">rot</td><td class="ptype">number</td><td>Нач. угол (град), по умолч. 0</td></tr>
-<tr><td class="pname">av</td><td class="ptype">number</td><td>Угл. скорость (град/сек), по умолч. 0</td></tr>
-<tr><td class="pname">sa</td><td class="ptype">number</td><td>Альфа в начале, по умолч. 1.0</td></tr>
-<tr><td class="pname">ea</td><td class="ptype">number</td><td>Альфа в конце, по умолч. 0.0</td></tr>
-</table>
-<h3>ParticleBurst</h3>
-<div class="fn-sig">BlazeBolt.ParticleBurst(x, y, count, speed, spread, sx, sy, r,g,b,a, life)</div>
-<table><tr><th>Параметр</th><th>Тип</th><th>Описание</th></tr>
-<tr><td class="pname">x, y</td><td class="ptype">number</td><td>Центр в NDC</td></tr>
-<tr><td class="pname">count</td><td class="ptype">int</td><td>Количество</td></tr>
-<tr><td class="pname">speed</td><td class="ptype">number</td><td>По умолч. 1.0</td></tr>
-<tr><td class="pname">spread</td><td class="ptype">number</td><td>Разброс (град), по умолч. 360</td></tr>
-</table>
-<h3>ParticleUpdate</h3><div class="fn-sig">BlazeBolt.ParticleUpdate(dt)</div>
-<h3>ParticleDraw</h3><div class="fn-sig">BlazeBolt.ParticleDraw()</div>
-<h3>ParticleClear</h3><div class="fn-sig">BlazeBolt.ParticleClear()</div>
-<h3>ParticleGetCount</h3><div class="fn-sig">count = BlazeBolt.ParticleGetCount()</div>
-<h3>ParticleSetMaxCount</h3><div class="fn-sig">BlazeBolt.ParticleSetMaxCount(count)</div>
-</div>
 <!-- SCRIPTS -->
 <div class="tab-content" id="tab-script">
 <h2>Скрипты и сцены</h2>
@@ -540,37 +560,6 @@ end</code></pre></div>
 player=engine/scripts/player.lua
 @menu=engine/scenes/menu.lua
 @game=engine/scenes/game.lua</code></pre>
-</div>
-
-<!-- SCENE SYSTEM -->
-<div class="tab-content" id="tab-scene">
-<div class="warn"><strong>ВНИМАНИЕ:</strong> Scene-система НЕ РЕАЛИЗОВАНА в Lua. Код C++ есть, биндингов нет.</div>
-<h2>Scene-система</h2>
-<h4>Типы объектов</h4>
-<pre><code>SceneObjectType.GameObject, Transform, SpriteRenderer, Camera
-SceneObjectType.AudioSource, Text, RigidBody, BoxCollider, Light</code></pre>
-<h4>Функции (недоступны)</h4>
-<table><tr><th>Функция</th><th>Параметры</th></tr>
-<tr><td>SceneLoad(path)</td><td>path → scene</td></tr>
-<tr><td>SceneSave(scene, path)</td><td>scene, path</td></tr>
-<tr><td>SceneCreateObject(scene, name, type)</td><td>→ objId</td></tr>
-<tr><td>SceneDestroyObject(scene, objId)</td><td>scene, objId</td></tr>
-<tr><td>ObjectSetPosition(id, x, y, z)</td><td>objId, x, y, z</td></tr>
-<tr><td>ObjectGetPosition(id)</td><td>→ x, y, z</td></tr>
-<tr><td>ObjectSetRotation(id, x, y, z)</td><td>objId, x, y, z</td></tr>
-<tr><td>ObjectSetScale(id, x, y, z)</td><td>objId, x, y, z</td></tr>
-<tr><td>ObjectSetName(id, name)</td><td>objId, name</td></tr>
-<tr><td>ObjectSetParent(id, parentId)</td><td>objId, parentId</td></tr>
-<tr><td>ObjectSetActive(id, active)</td><td>objId, active</td></tr>
-</table>
-<p>Формат файла: бинарный .blaze (MAGIC: 0x424C415A, version 1).</p>
-</div>
-
-<!-- WORLD -->
-<div class="tab-content" id="tab-world">
-<div class="warn"><strong>ВНИМАНИЕ:</strong> World/Entity НЕ РЕАЛИЗОВАНЫ в Lua.</div>
-<h2>World/Entity</h2>
-<p>Пул объектов с авто-управлением памятью. Только C++.</p>
 </div>
 
 <!-- MINIGAME -->
@@ -594,6 +583,7 @@ function Start()
 
     BlazeBolt.LoadSound("music/bgm.mp3", "bgm", true)
     BlazeBolt.LoadSound("sfx/jump.wav", "jump", false)
+    BlazeBolt.LoadSound("sfx/collect.wav", "collect", false)
     BlazeBolt.PlaySound("bgm")
 
     BlazeBolt.PhysicsInit(0, -9.8)
@@ -648,6 +638,7 @@ end</code></pre></div>
 <li>Перезагружайте скрипты через ReloadAllScripts без перезапуска</li>
 <li>Проверяйте entity ~= 0 после создания (0 = ошибка)</li>
 <li>Звуки: проверяйте soundId >= 0</li>
+<li>Физика: углы в радианах, используйте math.rad() / math.deg()</li>
 </ul>
 </div>
 

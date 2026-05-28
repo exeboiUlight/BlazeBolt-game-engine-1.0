@@ -74,7 +74,7 @@ def find_cpp_files(directory):
 
 def compile_game():
     core_cpp_files = find_cpp_files('./core')
-    game_files = "src/game.cpp include/glad/glad.c " + " ".join(core_cpp_files)
+    game_files = "src/game.cpp src/stb_image_impl.cpp include/glad/glad.c " + " ".join(core_cpp_files)
     cmd = (
         f"g++{DEBUG_FLAGS1} {game_files} "
         f"-O2 {SIZE_OPT} -s "
@@ -91,7 +91,7 @@ def compile_game():
 
 def compile_release():
     core_cpp_files = find_cpp_files('./core')
-    game_files = "src/game.cpp include/glad/glad.c " + " ".join(core_cpp_files)
+    game_files = "src/game.cpp src/stb_image_impl.cpp include/glad/glad.c " + " ".join(core_cpp_files)
     cmd = (
         f"g++{DEBUG_FLAGS2} {game_files} "
         f"-O2 {SIZE_OPT} -s "
@@ -109,7 +109,7 @@ def compile_release():
 def compile_cs_lib():
     if target == "windows":
         core_cpp_files = find_cpp_files('./core')
-        game_files = "include/glad/glad.c " + " ".join(core_cpp_files)
+        game_files = "include/glad/glad.c src/stb_image_impl.cpp " + " ".join(core_cpp_files)
         cmd = (
             f"g++{DEBUG_FLAGS2} {game_files} -shared "
             f"-O2 {SIZE_OPT} -s "
@@ -126,7 +126,7 @@ def compile_cs_lib():
     
     if target == "linux":
         core_cpp_files = find_cpp_files('./core')
-        game_files = "include/glad/glad.c " + " ".join(core_cpp_files)
+        game_files = "include/glad/glad.c src/stb_image_impl.cpp " + " ".join(core_cpp_files)
         cmd = (
             f"g++ -fPIC{DEBUG_FLAGS2} {game_files} -shared "
             f"-O2 {SIZE_OPT} -s "
