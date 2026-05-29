@@ -7,7 +7,9 @@ static float randFloat(float min, float max) {
 }
 
 ParticleSystem2D::ParticleSystem2D()
-    : position(0, 0)
+    : shaderReady(false)
+    , vaoReady(false)
+    , position(0, 0)
     , texture(nullptr)
     , emissionRate(50.0f)
     , emissionAccumulator(0.0f)
@@ -141,7 +143,6 @@ void ParticleSystem2D::emit(int count) {
 void ParticleSystem2D::update(float dt) {
     if (!active) return;
 
-    // Spawn new particles
     if (emissionRate > 0.0f) {
         emissionAccumulator += emissionRate * dt;
         while (emissionAccumulator >= 1.0f) {
@@ -150,7 +151,6 @@ void ParticleSystem2D::update(float dt) {
         }
     }
 
-    // Update existing particles
     for (auto it = particles.begin(); it != particles.end(); ) {
         it->lifetime -= dt;
         if (it->lifetime <= 0.0f) {
@@ -175,25 +175,128 @@ void ParticleSystem2D::update(float dt) {
     }
 }
 
-void ParticleSystem2D::draw(const GL::Texture2D& defaultTexture, const BlazeBolt::SpriteShader2D& shader, const BlazeBolt::SpriteMesh& mesh, const Matrix3x3& projectionViewMatrix) const {
+void ParticleSystem2D::ensureShader() {
+    if (shaderReady) return;
+
+    constexpr GLchar vertexShaderSource[] = R"(
+        #version 410
+        layout (location = 0) in vec2 a_Position;
+        layout (location = 1) in vec4 i_Transform;
+        layout (location = 2) in vec4 i_Color;
+
+        layout (location = 0) out vec2 v_TexCoord;
+        layout (location = 1) out vec4 v_Color;
+
+        uniform float u_AspectRatio;
+        uniform mat3 u_MVPMatrix;
+        uniform vec4 u_TexRect;
+
+        void main() {
+            vec2 scaled = a_Position * i_Transform.z;
+            float rad = radians(i_Transform.w);
+            float c = cos(rad);
+            float s = sin(rad);
+            vec2 rotated = vec2(scaled.x * c - scaled.y * s, scaled.x * s + scaled.y * c);
+            vec2 pos = rotated + i_Transform.xy;
+
+            vec3 transformed = u_MVPMatrix * vec3(pos, 1.0);
+            gl_Position = vec4(transformed.xy, 0.0, 1.0);
+            gl_Position.x /= u_AspectRatio;
+            v_TexCoord = a_Position * u_TexRect.zw + u_TexRect.xy;
+            v_TexCoord.y = 1.0 - v_TexCoord.y;
+            v_Color = i_Color;
+        }
+    )";
+
+    constexpr GLchar fragmentShaderSource[] = R"(
+        #version 410
+        layout (location = 0) in vec2 v_TexCoord;
+        layout (location = 1) in vec4 v_Color;
+
+        layout (location = 0) out vec4 f_Color;
+
+        uniform sampler2D u_Texture;
+
+        void main() {
+            f_Color = texture(u_Texture, v_TexCoord) * v_Color;
+        }
+    )";
+
+    {
+        auto vertexShader = GL::Shader::fromSource(GL_VERTEX_SHADER, vertexShaderSource);
+        if (!vertexShader.has_value()) return;
+
+        auto fragmentShader = GL::Shader::fromSource(GL_FRAGMENT_SHADER, fragmentShaderSource);
+        if (!fragmentShader.has_value()) return;
+
+        glAttachShader(shaderProgram.get(), vertexShader->get());
+        glAttachShader(shaderProgram.get(), fragmentShader->get());
+        if (!shaderProgram.tryToLink()) return;
+    }
+
+    shaderProgram.bind();
+    glUniform1i(glGetUniformLocation(shaderProgram.get(), "u_Texture"), 0);
+    shaderReady = true;
+}
+
+void ParticleSystem2D::ensureVAO(const BlazeBolt::QuadVertexBufferObject2D& quadVBO) {
+    if (vaoReady) return;
+
+    vao.bind();
+    quadVBO.bind();
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(BlazeBolt::QuadVertexBufferObject2D::Vertex), nullptr);
+
+    instanceVBO.bind(GL_ARRAY_BUFFER);
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, 8 * sizeof(float), nullptr);
+    glVertexAttribDivisor(1, 1);
+    glEnableVertexAttribArray(2);
+    glVertexAttribPointer(2, 4, GL_FLOAT, GL_FALSE, 8 * sizeof(float), reinterpret_cast<void*>(4 * sizeof(float)));
+    glVertexAttribDivisor(2, 1);
+
+    vaoReady = true;
+}
+
+void ParticleSystem2D::draw(const GL::Texture2D& defaultTexture, const BlazeBolt::QuadVertexBufferObject2D& quadVBO, float aspectRatio, const Matrix3x3& projectionViewMatrix) {
     if (!visible || particles.empty()) return;
 
-    shader.bind();
+    ensureShader();
+    if (!shaderReady) return;
+    ensureVAO(quadVBO);
+
+    shaderProgram.bind();
+    glUniform1f(glGetUniformLocation(shaderProgram.get(), "u_AspectRatio"), aspectRatio);
+    glUniformMatrix3fv(glGetUniformLocation(shaderProgram.get(), "u_MVPMatrix"), 1, GL_FALSE, &projectionViewMatrix.m[0][0]);
+    glUniform4f(glGetUniformLocation(shaderProgram.get(), "u_TexRect"), 0.0f, 0.0f, 1.0f, 1.0f);
 
     const GL::Texture2D* activeTex = texture ? texture : &defaultTexture;
     GL::setActiveTextureUnit(0);
     activeTex->bind();
 
+    struct InstanceData {
+        float x, y, size, rotation;
+        float r, g, b, a;
+    };
+
+    std::vector<InstanceData> instanceData;
+    instanceData.reserve(particles.size());
     for (const auto& p : particles) {
-        Matrix3x3 model = Matrix3x3::translation(p.position.x, p.position.y)
-                        * Matrix3x3::rotation(p.rotation)
-                        * Matrix3x3::scale(p.size, p.size);
-        Matrix3x3 mvp = projectionViewMatrix * model;
-
-        shader.setMVPMatrix(mvp);
-        shader.setColor(p.color);
-        shader.setTextureRect(Vector4(0.0f, 0.0f, 1.0f, 1.0f));
-
-        mesh.draw();
+        InstanceData id;
+        id.x = p.position.x;
+        id.y = p.position.y;
+        id.size = p.size;
+        id.rotation = p.rotation;
+        id.r = p.color.x;
+        id.g = p.color.y;
+        id.b = p.color.z;
+        id.a = p.color.w;
+        instanceData.push_back(id);
     }
+
+    instanceVBO.bind(GL_ARRAY_BUFFER);
+    glBufferData(GL_ARRAY_BUFFER, instanceData.size() * sizeof(InstanceData), instanceData.data(), GL_DYNAMIC_DRAW);
+
+    vao.bind();
+    glDrawArraysInstanced(GL_TRIANGLE_FAN, 0, 4, static_cast<GLsizei>(particles.size()));
 }

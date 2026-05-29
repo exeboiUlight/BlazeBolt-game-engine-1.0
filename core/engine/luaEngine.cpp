@@ -1584,7 +1584,7 @@ namespace LuaEngine {
 
         for (const auto& pair : particleWorld.getAllEntities()) {
             if (pair.first && !pair.second) {
-                pair.first->draw(this->textureManager.getDefault2D(), this->spriteShader2D, this->spriteMesh, vp);
+                pair.first->draw(this->textureManager.getDefault2D(), this->quadVertexBufferObject, aspect, vp);
             }
         }
     }

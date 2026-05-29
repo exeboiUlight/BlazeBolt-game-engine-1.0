@@ -297,9 +297,10 @@ end</code></pre></div>
 <!-- PARTICLE -->
 <div class="tab-content" id="tab-particle">
 <h2>Системы частиц</h2>
+<p>Рендеринг через <strong>GPU-инстансинг</strong>: все частицы — один draw call.
+Трансформация (позиция, размер, вращение) и цвет передаются как per-instance vertex-атрибуты.</p>
 <h3>CreateParticleSystem</h3>
-<div class="fn-sig">entity = BlazeBolt.CreateParticleSystem(x, y)</div>
-<table><tr><th>Параметр</th><th>Тип</th><th>Описание</th></tr><tr><td class="pname">x, y</td><td class="ptype">number</td><td>Позиция в NDC</td></tr></table>
+<div class="fn-sig">entity = BlazeBolt.CreateParticleSystem()</div>
 <div class="ret"><strong>Возвращает:</strong> entity (integer)</div>
 <h3>ParticleSystemSetPosition</h3><div class="fn-sig">BlazeBolt.ParticleSystemSetPosition(entity, x, y)</div>
 <h3>ParticleSystemSetTexture</h3><div class="fn-sig">BlazeBolt.ParticleSystemSetTexture(entity, texturePath)</div>
@@ -310,23 +311,23 @@ end</code></pre></div>
 <div class="fn-sig">rate = BlazeBolt.ParticleSystemGetEmissionRate(entity)</div>
 <div class="ret"><strong>Возвращает:</strong> rate (number)</div>
 <h3>ParticleSystemSetLifetime</h3>
-<div class="fn-sig">BlazeBolt.ParticleSystemSetLifetime(entity, lifetime)</div>
-<table><tr><th>Параметр</th><th>Тип</th><th>Описание</th></tr><tr><td class="pname">lifetime</td><td class="ptype">number</td><td>Время жизни частиц (сек)</td></tr></table>
+<div class="fn-sig">BlazeBolt.ParticleSystemSetLifetime(entity, min, max)</div>
+<table><tr><th>Параметр</th><th>Тип</th><th>Описание</th></tr><tr><td class="pname">min</td><td class="ptype">number</td><td>Мин. время жизни (сек)</td></tr><tr><td class="pname">max</td><td class="ptype">number</td><td>Макс. время жизни (сек)</td></tr></table>
 <h3>ParticleSystemSetSpeed</h3>
-<div class="fn-sig">BlazeBolt.ParticleSystemSetSpeed(entity, speed)</div>
-<table><tr><th>Параметр</th><th>Тип</th><th>Описание</th></tr><tr><td class="pname">speed</td><td class="ptype">number</td><td>Начальная скорость</td></tr></table>
+<div class="fn-sig">BlazeBolt.ParticleSystemSetSpeed(entity, min, max)</div>
+<table><tr><th>Параметр</th><th>Тип</th><th>Описание</th></tr><tr><td class="pname">min</td><td class="ptype">number</td><td>Мин. скорость</td></tr><tr><td class="pname">max</td><td class="ptype">number</td><td>Макс. скорость</td></tr></table>
 <h3>ParticleSystemSetSize</h3>
-<div class="fn-sig">BlazeBolt.ParticleSystemSetSize(entity, size)</div>
-<table><tr><th>Параметр</th><th>Тип</th><th>Описание</th></tr><tr><td class="pname">size</td><td class="ptype">number</td><td>Начальный размер в NDC</td></tr></table>
+<div class="fn-sig">BlazeBolt.ParticleSystemSetSize(entity, min, max)</div>
+<table><tr><th>Параметр</th><th>Тип</th><th>Описание</th></tr><tr><td class="pname">min</td><td class="ptype">number</td><td>Мин. начальный размер</td></tr><tr><td class="pname">max</td><td class="ptype">number</td><td>Макс. начальный размер</td></tr></table>
 <h3>ParticleSystemSetEndSize</h3>
-<div class="fn-sig">BlazeBolt.ParticleSystemSetEndSize(entity, endSize)</div>
-<table><tr><th>Параметр</th><th>Тип</th><th>Описание</th></tr><tr><td class="pname">endSize</td><td class="ptype">number</td><td>Размер в конце жизни</td></tr></table>
+<div class="fn-sig">BlazeBolt.ParticleSystemSetEndSize(entity, min, max)</div>
+<table><tr><th>Параметр</th><th>Тип</th><th>Описание</th></tr><tr><td class="pname">min</td><td class="ptype">number</td><td>Мин. конечный размер</td></tr><tr><td class="pname">max</td><td class="ptype">number</td><td>Макс. конечный размер</td></tr></table>
 <h3>ParticleSystemSetColor</h3>
-<div class="fn-sig">BlazeBolt.ParticleSystemSetColor(entity, r, g, b, a)</div>
-<table><tr><th>Параметр</th><th>Тип</th><th>Описание</th></tr><tr><td class="pname">r, g, b, a</td><td class="ptype">number</td><td>Цвет (0-1)</td></tr></table>
+<div class="fn-sig">BlazeBolt.ParticleSystemSetColor(entity, r1, g1, b1, a1, r2, g2, b2, a2)</div>
+<table><tr><th>Параметр</th><th>Тип</th><th>Описание</th></tr><tr><td class="pname">r1, g1, b1, a1</td><td class="ptype">number</td><td>Начальный цвет (0-1)</td></tr><tr><td class="pname">r2, g2, b2, a2</td><td class="ptype">number</td><td>Конечный цвет (0-1)</td></tr></table>
 <h3>ParticleSystemSetDirection</h3>
-<div class="fn-sig">BlazeBolt.ParticleSystemSetDirection(entity, dirX, dirY)</div>
-<table><tr><th>Параметр</th><th>Тип</th><th>Описание</th></tr><tr><td class="pname">dirX, dirY</td><td class="ptype">number</td><td>Направление выброса</td></tr></table>
+<div class="fn-sig">BlazeBolt.ParticleSystemSetDirection(entity, minAngle, maxAngle)</div>
+<table><tr><th>Параметр</th><th>Тип</th><th>Описание</th></tr><tr><td class="pname">minAngle</td><td class="ptype">number</td><td>Мин. угол выброса (градусы)</td></tr><tr><td class="pname">maxAngle</td><td class="ptype">number</td><td>Макс. угол выброса (градусы)</td></tr></table>
 <h3>ParticleSystemSetRotationSpeed</h3>
 <div class="fn-sig">BlazeBolt.ParticleSystemSetRotationSpeed(entity, rotSpeed)</div>
 <table><tr><th>Параметр</th><th>Тип</th><th>Описание</th></tr><tr><td class="pname">rotSpeed</td><td class="ptype">number</td><td>Скорость вращения (град/сек)</td></tr></table>
@@ -343,7 +344,7 @@ end</code></pre></div>
 <div class="ret"><strong>Возвращает:</strong> visible (boolean)</div>
 <h3>ParticleSystemEmit</h3>
 <div class="fn-sig">BlazeBolt.ParticleSystemEmit(entity, count)</div>
-<table><tr><th>Параметр</th><th>Тип</th><th>Описание</th></tr><tr><td class="pname">count</td><td class="ptype">int</td><td>Количество частиц для ручного выброса</td></tr></table>
+<table><tr><th>Параметр</th><th>Тип</th><th>Описание</th></tr><tr><td class="pname">count</td><td class="ptype">int</td><td>Количество частиц для выброса</td></tr></table>
 <h3>ParticleSystemClear</h3>
 <div class="fn-sig">BlazeBolt.ParticleSystemClear(entity)</div>
 <h3>ParticleSystemGetCount</h3>
@@ -351,15 +352,16 @@ end</code></pre></div>
 <div class="ret"><strong>Возвращает:</strong> count (int)</div>
 <hr><h3>Пример</h3>
 <pre><code>function Start()
-    local ps = BlazeBolt.CreateParticleSystem(0, 0)
+    local ps = BlazeBolt.CreateParticleSystem()
     BlazeBolt.ParticleSystemSetTexture(ps, "particle.png")
-    BlazeBolt.ParticleSystemSetEmissionRate(ps, 50)
-    BlazeBolt.ParticleSystemSetLifetime(ps, 2.0)
-    BlazeBolt.ParticleSystemSetSpeed(ps, 0.5)
-    BlazeBolt.ParticleSystemSetSize(ps, 0.02)
-    BlazeBolt.ParticleSystemSetEndSize(ps, 0.01)
-    BlazeBolt.ParticleSystemSetColor(ps, 1, 0.3, 0.1, 1)
-    BlazeBolt.ParticleSystemSetDirection(ps, 0, 1)
+    BlazeBolt.ParticleSystemSetEmissionRate(ps, 100)
+    BlazeBolt.ParticleSystemSetLifetime(ps, 1.0, 2.5)
+    BlazeBolt.ParticleSystemSetSpeed(ps, 0.2, 0.8)
+    BlazeBolt.ParticleSystemSetSize(ps, 0.02, 0.05)
+    BlazeBolt.ParticleSystemSetEndSize(ps, 0.005, 0.01)
+    BlazeBolt.ParticleSystemSetColor(ps, 1, 0.8, 0.2, 1, 1, 0.2, 0, 0)
+    BlazeBolt.ParticleSystemSetDirection(ps, -45, 45)
+    BlazeBolt.ParticleSystemSetRotationSpeed(ps, 90)
     BlazeBolt.ParticleSystemSetActive(ps, true)
 end</code></pre></div>
 

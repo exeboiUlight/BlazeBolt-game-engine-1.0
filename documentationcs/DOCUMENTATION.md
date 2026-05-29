@@ -613,16 +613,15 @@ end
 
 ## Частицы
 
+Система частиц использует **GPU-инстансинг** — все частицы рендерятся одним draw call.
+Трансформация (позиция, размер, вращение) и цвет каждой частицы передаются как
+per-instance vertex-атрибуты, что даёт значительный прирост производительности
+по сравнению с поштучной отрисовкой.
+
 ### Создание системы частиц
 ```lua
-entity = BlazeBolt.CreateParticleSystem(texturePath, x, y)
+entity = BlazeBolt.CreateParticleSystem()
 ```
-| Параметр | Тип | Описание |
-|---|---|---|
-| texturePath | string | Путь к текстуре частицы (PNG) |
-| x | number | Позиция X в NDC |
-| y | number | Позиция Y в NDC |
-
 **Возвращает:** `entity` (integer) — идентификатор системы частиц
 
 ### Позиция
@@ -658,60 +657,70 @@ rate = BlazeBolt.ParticleSystemGetEmissionRate(entity)
 
 ### Время жизни
 ```lua
-BlazeBolt.ParticleSystemSetLifetime(entity, lifetime)
+BlazeBolt.ParticleSystemSetLifetime(entity, min, max)
 ```
 | Параметр | Тип | Описание |
 |---|---|---|
 | entity | integer | Идентификатор системы частиц |
-| lifetime | number | Время жизни частицы (секунды) |
+| min | number | Минимальное время жизни (сек) |
+| max | number | Максимальное время жизни (сек) |
+
+Каждая новая частица получает случайное время жизни в диапазоне `[min, max]`.
 
 ### Скорость
 ```lua
-BlazeBolt.ParticleSystemSetSpeed(entity, speed)
+BlazeBolt.ParticleSystemSetSpeed(entity, min, max)
 ```
 | Параметр | Тип | Описание |
 |---|---|---|
 | entity | integer | Идентификатор системы частиц |
-| speed | number | Скорость частиц |
+| min | number | Минимальная скорость |
+| max | number | Максимальная скорость |
 
 ### Размер
 ```lua
-BlazeBolt.ParticleSystemSetSize(entity, size)
+BlazeBolt.ParticleSystemSetSize(entity, min, max)
 ```
 | Параметр | Тип | Описание |
 |---|---|---|
 | entity | integer | Идентификатор системы частиц |
-| size | number | Начальный размер частицы |
+| min | number | Минимальный начальный размер |
+| max | number | Максимальный начальный размер |
 
 ### Конечный размер
 ```lua
-BlazeBolt.ParticleSystemSetEndSize(entity, endSize)
+BlazeBolt.ParticleSystemSetEndSize(entity, min, max)
 ```
 | Параметр | Тип | Описание |
 |---|---|---|
 | entity | integer | Идентификатор системы частиц |
-| endSize | number | Конечный размер частицы |
+| min | number | Минимальный конечный размер |
+| max | number | Максимальный конечный размер |
 
 ### Цвет
 ```lua
-BlazeBolt.ParticleSystemSetColor(entity, r, g, b, a)
+BlazeBolt.ParticleSystemSetColor(entity, r1, g1, b1, a1, r2, g2, b2, a2)
 ```
 | Параметр | Тип | Описание |
 |---|---|---|
 | entity | integer | Идентификатор системы частиц |
-| r | number | Красный (0–1) |
-| g | number | Зелёный (0–1) |
-| b | number | Синий (0–1) |
-| a | number | Альфа (0–1) |
+| r1, g1, b1, a1 | number | Начальный цвет (0–1) |
+| r2, g2, b2, a2 | number | Конечный цвет (0–1) |
 
-### Направление
+Цвет линейно интерполируется от начального к конечному на протяжении жизни частицы.
+`a1` по умолчанию `1.0`, `a2` по умолчанию `0.0`.
+
+### Направление (угол)
 ```lua
-BlazeBolt.ParticleSystemSetDirection(entity, direction)
+BlazeBolt.ParticleSystemSetDirection(entity, minAngle, maxAngle)
 ```
 | Параметр | Тип | Описание |
 |---|---|---|
 | entity | integer | Идентификатор системы частиц |
-| direction | number | Угол направления в градусах |
+| minAngle | number | Минимальный угол выброса (градусы) |
+| maxAngle | number | Максимальный угол выброса (градусы) |
+
+Угол отсчитывается от оси X. Для веерного выброса укажите, например, `-30, 30`.
 
 ### Скорость вращения
 ```lua
@@ -730,7 +739,7 @@ active = BlazeBolt.ParticleSystemIsActive(entity)
 | Параметр | Тип | Описание |
 |---|---|---|
 | entity | integer | Идентификатор системы частиц |
-| active | boolean | Активна ли система (`true`/`false`) |
+| active | boolean | Активна ли эмиссия (`true`/`false`) |
 
 **Возвращает:** `active` (boolean) — активность
 
@@ -776,14 +785,16 @@ count = BlazeBolt.ParticleSystemGetCount(entity)
 ### Пример
 ```lua
 function Start()
-    ps = BlazeBolt.CreateParticleSystem("particle.png", 0, 0)
+    ps = BlazeBolt.CreateParticleSystem()
+    BlazeBolt.ParticleSystemSetTexture(ps, "particle.png")
     BlazeBolt.ParticleSystemSetEmissionRate(ps, 100)
-    BlazeBolt.ParticleSystemSetLifetime(ps, 1.5)
-    BlazeBolt.ParticleSystemSetSpeed(ps, 0.5)
-    BlazeBolt.ParticleSystemSetSize(ps, 0.03)
-    BlazeBolt.ParticleSystemSetEndSize(ps, 0.01)
-    BlazeBolt.ParticleSystemSetColor(ps, 1, 0.5, 0, 1)
-    BlazeBolt.ParticleSystemSetDirection(ps, 90)
+    BlazeBolt.ParticleSystemSetLifetime(ps, 1.0, 2.5)
+    BlazeBolt.ParticleSystemSetSpeed(ps, 0.2, 0.8)
+    BlazeBolt.ParticleSystemSetSize(ps, 0.02, 0.05)
+    BlazeBolt.ParticleSystemSetEndSize(ps, 0.005, 0.01)
+    BlazeBolt.ParticleSystemSetColor(ps, 1, 0.8, 0.2, 1,   1, 0.2, 0, 0)
+    BlazeBolt.ParticleSystemSetDirection(ps, -45, 45)
+    BlazeBolt.ParticleSystemSetRotationSpeed(ps, 90)
     BlazeBolt.ParticleSystemSetActive(ps, true)
 end
 
