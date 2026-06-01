@@ -314,6 +314,88 @@ namespace LuaEngine {
             return 1;
         }
 
+        // Sprite batch functions
+        static int CreateSpriteBatch(lua_State *state) {
+            LuaEngine *engine = _functions::getEngine(state);
+            if (engine == nullptr) {
+                lua_pushnil(state);
+                return 1;
+            }
+            uint32_t maxSize = luaL_optinteger(state, 1, 25);
+            Entity entity = engine->createSpriteBatch(maxSize);
+            lua_pushinteger(state, entity);
+            return 1;
+        }
+        static int SpriteBatchSetTexture(lua_State *state) {
+            LuaEngine *engine = _functions::getEngine(state);
+            if (engine == nullptr) return 0;
+            Entity batchEntity = luaL_checkinteger(state, 1);
+            const char *texturePath = luaL_checkstring(state, 2);
+            engine->spriteBatchSetTexture(batchEntity, texturePath);
+            return 0;
+        }
+        static int SpriteBatchAdd(lua_State *state) {
+            LuaEngine *engine = _functions::getEngine(state);
+            if (engine == nullptr) { lua_pushboolean(state, false); return 1; }
+            Entity batchEntity = luaL_checkinteger(state, 1);
+            Entity spriteEntity = luaL_checkinteger(state, 2);
+            bool result = engine->spriteBatchAdd(batchEntity, spriteEntity);
+            lua_pushboolean(state, result);
+            return 1;
+        }
+        static int SpriteBatchRemove(lua_State *state) {
+            LuaEngine *engine = _functions::getEngine(state);
+            if (engine == nullptr) { lua_pushboolean(state, false); return 1; }
+            Entity batchEntity = luaL_checkinteger(state, 1);
+            Entity spriteEntity = luaL_checkinteger(state, 2);
+            bool result = engine->spriteBatchRemove(batchEntity, spriteEntity);
+            lua_pushboolean(state, result);
+            return 1;
+        }
+        static int SpriteBatchClear(lua_State *state) {
+            LuaEngine *engine = _functions::getEngine(state);
+            if (engine == nullptr) return 0;
+            Entity batchEntity = luaL_checkinteger(state, 1);
+            engine->spriteBatchClear(batchEntity);
+            return 0;
+        }
+        static int SpriteBatchSetMaxSize(lua_State *state) {
+            LuaEngine *engine = _functions::getEngine(state);
+            if (engine == nullptr) return 0;
+            Entity batchEntity = luaL_checkinteger(state, 1);
+            uint32_t maxSize = luaL_checkinteger(state, 2);
+            engine->spriteBatchSetMaxSize(batchEntity, maxSize);
+            return 0;
+        }
+        static int SpriteBatchGetMaxSize(lua_State *state) {
+            LuaEngine *engine = _functions::getEngine(state);
+            if (engine == nullptr) { lua_pushinteger(state, 0); return 1; }
+            Entity batchEntity = luaL_checkinteger(state, 1);
+            lua_pushinteger(state, engine->spriteBatchGetMaxSize(batchEntity));
+            return 1;
+        }
+        static int SpriteBatchGetCount(lua_State *state) {
+            LuaEngine *engine = _functions::getEngine(state);
+            if (engine == nullptr) { lua_pushinteger(state, 0); return 1; }
+            Entity batchEntity = luaL_checkinteger(state, 1);
+            lua_pushinteger(state, engine->spriteBatchGetCount(batchEntity));
+            return 1;
+        }
+        static int SpriteBatchDraw(lua_State *state) {
+            LuaEngine *engine = _functions::getEngine(state);
+            if (engine == nullptr) return 0;
+            Entity batchEntity = luaL_checkinteger(state, 1);
+            engine->drawSpriteBatch(batchEntity);
+            return 0;
+        }
+        static int DestroySpriteBatch(lua_State *state) {
+            LuaEngine *engine = _functions::getEngine(state);
+            if (engine == nullptr) return 0;
+            Entity batchEntity = luaL_checkinteger(state, 1);
+            engine->destroySpriteBatch(batchEntity);
+            return 0;
+        }
+
         // Text functions
         static int CreateText(lua_State *state) {
             LuaEngine *engine = _functions::getEngine(state);

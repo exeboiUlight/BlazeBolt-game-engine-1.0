@@ -8,6 +8,7 @@
 #include <graphics/window.h>
 #include <subject/sprite/staticSprite2D.hpp>
 #include <subject/sprite/animatedSprite2D.hpp>
+#include <graphics/spriteBatch2D.hpp>
 #include <subject/text2D.hpp>
 #include <subject/audio.h>
 #include <subject/camera2D.hpp>
@@ -72,8 +73,10 @@ namespace LuaEngine {
         Matrix3x3 projectionViewMatrix2D;
         BlazeBolt::QuadVertexBufferObject2D quadVertexBufferObject;
         BlazeBolt::SpriteShader2D spriteShader2D;
+        BlazeBolt::SpriteBatchShader2D spriteBatchShader2D;
         BlazeBolt::FontShader2D fontShader2D;
         BlazeBolt::SpriteMesh spriteMesh;
+        std::vector<BlazeBolt::SpriteBatch2D> spriteBatches;
         BlazeBolt::TextureManager textureManager;
         BlazeBolt::FontManager fontManager;
 
@@ -130,6 +133,19 @@ namespace LuaEngine {
         void spriteSetVisible(Entity entity, bool visible);
         bool spriteIsVisible(Entity entity);
         void drawAllSprites() const;
+
+        // Sprite batch management
+        Entity createSpriteBatch(uint32_t maxSize = 25);
+        void spriteBatchSetTexture(Entity batchEntity, const std::string &texturePath);
+        bool spriteBatchAdd(Entity batchEntity, Entity spriteEntity);
+        bool spriteBatchRemove(Entity batchEntity, Entity spriteEntity);
+        void spriteBatchClear(Entity batchEntity);
+        void spriteBatchSetMaxSize(Entity batchEntity, uint32_t maxSize);
+        uint32_t spriteBatchGetMaxSize(Entity batchEntity);
+        uint32_t spriteBatchGetCount(Entity batchEntity);
+        void drawAllSpriteBatches();
+        void drawSpriteBatch(Entity batchEntity);
+        void destroySpriteBatch(Entity batchEntity);
 
         // Animation management
         Entity createAnimatedSprite(const std::string &texturePath, const Vector2 &position);

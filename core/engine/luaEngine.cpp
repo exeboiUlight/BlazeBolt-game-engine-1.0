@@ -114,6 +114,18 @@ namespace LuaEngine {
         {"SpriteSetVisible", _functions::SpriteSetVisible},
         {"SpriteIsVisible", _functions::SpriteIsVisible},
 
+        // Sprite batch functions
+        {"CreateSpriteBatch", _functions::CreateSpriteBatch},
+        {"SpriteBatchSetTexture", _functions::SpriteBatchSetTexture},
+        {"SpriteBatchAdd", _functions::SpriteBatchAdd},
+        {"SpriteBatchRemove", _functions::SpriteBatchRemove},
+        {"SpriteBatchClear", _functions::SpriteBatchClear},
+        {"SpriteBatchSetMaxSize", _functions::SpriteBatchSetMaxSize},
+        {"SpriteBatchGetMaxSize", _functions::SpriteBatchGetMaxSize},
+        {"SpriteBatchGetCount", _functions::SpriteBatchGetCount},
+        {"SpriteBatchDraw", _functions::SpriteBatchDraw},
+        {"DestroySpriteBatch", _functions::DestroySpriteBatch},
+
         // Animation functions
         {"CreateAnimatedSprite", _functions::CreateAnimatedSprite},
         {"AnimatedSpritePlay", _functions::AnimatedSpritePlay},
@@ -313,7 +325,7 @@ namespace LuaEngine {
         sceneManager(),
         additionalWindows(), mainWindow(&window),
         projectionViewMatrix2D(), quadVertexBufferObject(),
-        spriteShader2D(), fontShader2D(), spriteMesh(),
+        spriteShader2D(), spriteBatchShader2D(), fontShader2D(), spriteMesh(),
         textureManager(), fontManager(),
         shaders(), entityShaderMap(), nextShaderId(1)
     {
@@ -690,6 +702,68 @@ namespace LuaEngine {
                 pair.first->draw(this->textureManager.getDefault2D(), this->spriteShader2D, this->spriteMesh, this->projectionViewMatrix2D);
             }
         }
+    }
+
+    // Sprite batch implementations
+    Entity LuaEngine::createSpriteBatch(uint32_t maxSize) {
+        Entity entity = spriteBatches.size() + 1;
+        spriteBatches.emplace_back(maxSize);
+        return entity;
+    }
+    void LuaEngine::spriteBatchSetTexture(Entity batchEntity, const std::string &texturePath) {
+        if (batchEntity < 1 || batchEntity > spriteBatches.size()) return;
+        const GL::Texture2D *texture = this->textureManager.loadFromFile2D(texturePath);
+        if (texture != nullptr) {
+            spriteBatches[batchEntity - 1].setTexture(*texture);
+        }
+    }
+    bool LuaEngine::spriteBatchAdd(Entity batchEntity, Entity spriteEntity) {
+        if (batchEntity < 1 || batchEntity > spriteBatches.size()) return false;
+        return spriteBatches[batchEntity - 1].add(spriteEntity);
+    }
+    bool LuaEngine::spriteBatchRemove(Entity batchEntity, Entity spriteEntity) {
+        if (batchEntity < 1 || batchEntity > spriteBatches.size()) return false;
+        return spriteBatches[batchEntity - 1].remove(spriteEntity);
+    }
+    void LuaEngine::spriteBatchClear(Entity batchEntity) {
+        if (batchEntity < 1 || batchEntity > spriteBatches.size()) return;
+        spriteBatches[batchEntity - 1].clear();
+    }
+    void LuaEngine::spriteBatchSetMaxSize(Entity batchEntity, uint32_t maxSize) {
+        if (batchEntity < 1 || batchEntity > spriteBatches.size()) return;
+        spriteBatches[batchEntity - 1].setMaxSize(maxSize);
+    }
+    uint32_t LuaEngine::spriteBatchGetMaxSize(Entity batchEntity) {
+        if (batchEntity < 1 || batchEntity > spriteBatches.size()) return 0;
+        return spriteBatches[batchEntity - 1].getMaxSize();
+    }
+    uint32_t LuaEngine::spriteBatchGetCount(Entity batchEntity) {
+        if (batchEntity < 1 || batchEntity > spriteBatches.size()) return 0;
+        return spriteBatches[batchEntity - 1].count();
+    }
+    void LuaEngine::drawAllSpriteBatches() {
+        this->spriteBatchShader2D.bind();
+        this->spriteBatchShader2D.setAspectRatio(static_cast<float>(getScreenWidth()) / static_cast<float>(getScreenHeight()));
+        this->spriteBatchShader2D.setMVPMatrix(this->projectionViewMatrix2D);
+        for (auto &batch : spriteBatches) {
+            if (batch.count() == 0) continue;
+            batch.rebuild(this->spriteWorld);
+            batch.draw(this->textureManager.getDefault2D());
+        }
+    }
+    void LuaEngine::drawSpriteBatch(Entity batchEntity) {
+        if (batchEntity < 1 || batchEntity > spriteBatches.size()) return;
+        auto &batch = spriteBatches[batchEntity - 1];
+        if (batch.count() == 0) return;
+        this->spriteBatchShader2D.bind();
+        this->spriteBatchShader2D.setAspectRatio(static_cast<float>(getScreenWidth()) / static_cast<float>(getScreenHeight()));
+        this->spriteBatchShader2D.setMVPMatrix(this->projectionViewMatrix2D);
+        batch.rebuild(this->spriteWorld);
+        batch.draw(this->textureManager.getDefault2D());
+    }
+    void LuaEngine::destroySpriteBatch(Entity batchEntity) {
+        if (batchEntity < 1 || batchEntity > spriteBatches.size()) return;
+        spriteBatches.erase(spriteBatches.begin() + batchEntity - 1);
     }
 
     // Animation implementations
@@ -1134,6 +1208,7 @@ namespace LuaEngine {
 
     void LuaEngine::destroyAllEntities() {
         spriteWorld.clear();
+        spriteBatches.clear();
         animatedSpriteWorld.clear();
         textWorld.clear();
         meshWorld.clear();

@@ -28,4 +28,15 @@ namespace BlazeBolt {
         void setColor(const Vector4 &color) const;
         void setTextureRect(const Vector4 &rect) const;
     };
+
+    struct SpriteBatchShader2D {
+    private:
+        GL::ShaderProgram shaderProgram;
+    public:
+        SpriteBatchShader2D();
+        ~SpriteBatchShader2D() = default;
+        void bind() const;
+        void setAspectRatio(float aspectRatio) const;
+        void setMVPMatrix(const Matrix3x3 &matrix) const;
+    };
 }

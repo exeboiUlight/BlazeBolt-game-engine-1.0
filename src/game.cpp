@@ -4,6 +4,8 @@
 #include <utils/input.hpp>
 #include <engine/lua.hpp>
 
+#include <debugTimer.h>
+
 int main() {
     Window window = Window(1200, 600, "Untitled project | BlazeBolt");
     if (window.getGLFWwindow() == nullptr) {
@@ -59,7 +61,7 @@ int main() {
         luaEngine.drawAll();
         window.swapBuffers();
 
-        Input::getInstance().postUpdate(); // IMPORTANT! Must be called at the end of the frame after everything else
+        Input::getInstance().postUpdate();
     }
 
     luaEngine.callEnd();
