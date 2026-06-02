@@ -24,6 +24,7 @@ namespace BlazeBolt {
         GL::VertexBufferObject ibo;
 
         bool dirty;
+        uint32_t lastRebuiltVertices;
 
         void buildIndexBuffer();
         void buildVAO();

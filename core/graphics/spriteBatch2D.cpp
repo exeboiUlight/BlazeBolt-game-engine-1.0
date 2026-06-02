@@ -9,11 +9,13 @@ namespace BlazeBolt {
         vao(std::move(other.vao)),
         vbo(std::move(other.vbo)),
         ibo(std::move(other.ibo)),
-        dirty(other.dirty)
+        dirty(other.dirty),
+        lastRebuiltVertices(other.lastRebuiltVertices)
     {
         other.maxSize = 0;
         other.texture = nullptr;
         other.dirty = false;
+        other.lastRebuiltVertices = 0;
     }
 
     SpriteBatch2D &SpriteBatch2D::operator=(SpriteBatch2D&& other) noexcept {
@@ -25,9 +27,11 @@ namespace BlazeBolt {
             vbo = std::move(other.vbo);
             ibo = std::move(other.ibo);
             dirty = other.dirty;
+            lastRebuiltVertices = other.lastRebuiltVertices;
             other.maxSize = 0;
             other.texture = nullptr;
             other.dirty = false;
+            other.lastRebuiltVertices = 0;
         }
         return *this;
     }
@@ -39,7 +43,8 @@ namespace BlazeBolt {
         vao(),
         vbo(),
         ibo(),
-        dirty(false)
+        dirty(false),
+        lastRebuiltVertices(0)
     {
         buildIndexBuffer();
         buildVAO();
@@ -161,7 +166,6 @@ namespace BlazeBolt {
         for (uint32_t i = 0; i < count; i++) {
             const Sprite2D* sprite = spriteWorld.getEntity(spriteEntities[i]);
             if (sprite == nullptr) continue;
-            if (!sprite->isVisible()) continue;
 
             Vector4 color = sprite->getColor();
             Vector4 texRect = sprite->getTextureRect();
@@ -209,6 +213,8 @@ namespace BlazeBolt {
             }
         }
 
+        this->lastRebuiltVertices = vertexIndex;
+
         if (vertexIndex > 0) {
             this->vbo.bind(GL_ARRAY_BUFFER);
             glBufferSubData(GL_ARRAY_BUFFER, 0, vertexIndex * sizeof(BatchVertex), vertices);
@@ -218,8 +224,8 @@ namespace BlazeBolt {
     }
 
     void SpriteBatch2D::draw(const GL::Texture2D& defaultTexture) const {
-        uint32_t count = static_cast<uint32_t>(spriteEntities.size());
-        if (count == 0) return;
+        uint32_t spriteCount = this->lastRebuiltVertices / 4;
+        if (spriteCount == 0) return;
 
         this->vao.bind();
 
@@ -231,6 +237,6 @@ namespace BlazeBolt {
             defaultTexture.bind();
         }
 
-        glDrawElements(GL_TRIANGLES, count * 6, GL_UNSIGNED_SHORT, nullptr);
+        glDrawElements(GL_TRIANGLES, spriteCount * 6, GL_UNSIGNED_SHORT, nullptr);
     }
 }

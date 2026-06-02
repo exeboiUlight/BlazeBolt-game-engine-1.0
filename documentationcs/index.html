@@ -235,6 +235,9 @@
     <a href="#sprites" data-section>
       <span class="nav-icon">✦</span> Спрайты
     </a>
+    <a href="#sprite-batches" data-section>
+      <span class="nav-icon">▤</span> Спрайтовые батчи
+    </a>
     <a href="#animations" data-section>
       <span class="nav-icon">▶</span> Анимации
     </a>
@@ -298,6 +301,7 @@ const DOCS = [
   { id: "coordinate-system", title: "Система координат", icon: "▣" },
   { id: "lifecycle", title: "Жизненный цикл", icon: "◉" },
   { id: "sprites", title: "Спрайты", icon: "✦" },
+  { id: "sprite-batches", title: "Спрайтовые батчи (SpriteBatch)", icon: "▤" },
   { id: "animations", title: "Анимации", icon: "▶" },
   { id: "text", title: "Текст", icon: "Aa" },
   { id: "meshes", title: "Меши", icon: "△" },
@@ -438,6 +442,71 @@ end`)}</code></pre>
     BlazeBolt.SpriteSetOrigin(sprite, 0.5, 0.5)
     BlazeBolt.SpriteSetColor(sprite, 1, 0.5, 0, 1)
     BlazeBolt.SpriteSetRotation(sprite, 45)
+end`)}</code></pre>
+
+<hr>
+
+<h2 id="sprite-batches" class="section-anchor">Спрайтовые батчи (SpriteBatch)</h2>
+<p>Спрайтовый батч группирует несколько спрайтов в один draw call (<code>glDrawElements</code>).
+Все спрайты в батче рисуются одной текстурой за один вызов отрисовки, что значительно повышает производительность при большом количестве спрайтов.</p>
+
+<h3>Создание</h3>
+<pre data-lang="lua"><code>${highlightLua(`batch = BlazeBolt.CreateSpriteBatch(maxSize)`)}</code></pre>
+<div class="table-wrap"><table>
+  <tr><th>Параметр</th><th>Тип</th><th>Описание</th></tr>
+  <tr><td><code>maxSize</code></td><td>integer</td><td>Максимальное количество спрайтов в батче (по умолчанию 25)</td></tr>
+</table></div>
+<p><strong>Возвращает:</strong> <code>batchEntity</code> (integer) — идентификатор батча</p>
+
+<h3>Установка текстуры</h3>
+<pre data-lang="lua"><code>${highlightLua(`BlazeBolt.SpriteBatchSetTexture(batchEntity, texturePath)`)}</code></pre>
+<p>Все спрайты в батче рисуются с одной текстурой.</p>
+
+<h3>Добавление и удаление спрайтов</h3>
+<pre data-lang="lua"><code>${highlightLua(`ok = BlazeBolt.SpriteBatchAdd(batchEntity, spriteEntity)
+ok = BlazeBolt.SpriteBatchRemove(batchEntity, spriteEntity)
+BlazeBolt.SpriteBatchClear(batchEntity)`)}</code></pre>
+<ul>
+  <li><code>SpriteBatchAdd</code> — добавляет спрайт. Возвращает <code>false</code>, если батч заполнен или спрайт уже в батче.</li>
+  <li><code>SpriteBatchRemove</code> — удаляет спрайт. Возвращает <code>false</code>, если спрайт не найден.</li>
+  <li><code>SpriteBatchClear</code> — удаляет все спрайты из батча (сами спрайты не уничтожаются).</li>
+</ul>
+
+<h3>Настройка размера батча</h3>
+<pre data-lang="lua"><code>${highlightLua(`BlazeBolt.SpriteBatchSetMaxSize(batchEntity, maxSize)
+maxSize = BlazeBolt.SpriteBatchGetMaxSize(batchEntity)`)}</code></pre>
+<p><code>SpriteBatchSetMaxSize</code> сбрасывает текущее содержимое батча.</p>
+
+<h3>Текущее количество спрайтов</h3>
+<pre data-lang="lua"><code>${highlightLua(`count = BlazeBolt.SpriteBatchGetCount(batchEntity)`)}</code></pre>
+
+<h3>Отрисовка</h3>
+<pre data-lang="lua"><code>${highlightLua(`BlazeBolt.SpriteBatchDraw(batchEntity)`)}</code></pre>
+<p>Перестраивает вершинные данные из спрайтов и выполняет отрисовку. Вызывайте в <code>Draw()</code>.</p>
+
+<h3>Уничтожение</h3>
+<pre data-lang="lua"><code>${highlightLua(`BlazeBolt.DestroySpriteBatch(batchEntity)`)}</code></pre>
+<p>Уничтожает батч. Спрайты, добавленные в батч, не уничтожаются.</p>
+
+<h3>Важно</h3>
+<ul>
+  <li>Один спрайт можно добавить только в один батч. Добавление спрайта во второй батч проигнорируется.</li>
+  <li>Батч использует текстуру, установленную через <code>SpriteBatchSetTexture</code>. Если текстура не установлена, используется текстура первого добавленного спрайта.</li>
+  <li>Размер, поворот, цвет, видимость и texture rect каждого спрайта применяются при отрисовке батча.</li>
+</ul>
+
+<h3>Полный пример</h3>
+<pre data-lang="lua"><code>${highlightLua(`function Start()
+    batch = BlazeBolt.CreateSpriteBatch(50)
+    for i = 1, 10 do
+        local sprite = BlazeBolt.CreateSprite("icon.png", (i - 5.5) * 0.15, 0)
+        BlazeBolt.SpriteSetSize(sprite, 0.1, 0.1)
+        BlazeBolt.SpriteBatchAdd(batch, sprite)
+    end
+    BlazeBolt.SpriteBatchSetTexture(batch, "icon.png")
+end
+function Draw()
+    BlazeBolt.SpriteBatchDraw(batch)
 end`)}</code></pre>
 
 <hr>
@@ -1320,6 +1389,21 @@ player=engine/scripts/player.lua
   <tr><td><code>SpriteSetTextureRect</code></td><td><code>entity, u, v, w, h</code></td><td>—</td></tr>
   <tr><td><code>SpriteSetVisible</code></td><td><code>entity, bool</code></td><td>—</td></tr>
   <tr><td><code>SpriteIsVisible</code></td><td><code>entity</code></td><td><code>bool</code></td></tr>
+</table></div>
+
+<h3>Спрайтовые батчи (SpriteBatch)</h3>
+<div class="table-wrap"><table>
+  <tr><th>Функция</th><th>Параметры</th><th>Возврат</th></tr>
+  <tr><td><code>BlazeBolt.CreateSpriteBatch</code></td><td><code>[maxSize]</code></td><td><code>batchEntity</code></td></tr>
+  <tr><td><code>SpriteBatchSetTexture</code></td><td><code>batchEntity, path</code></td><td>—</td></tr>
+  <tr><td><code>SpriteBatchAdd</code></td><td><code>batchEntity, spriteEntity</code></td><td><code>bool</code></td></tr>
+  <tr><td><code>SpriteBatchRemove</code></td><td><code>batchEntity, spriteEntity</code></td><td><code>bool</code></td></tr>
+  <tr><td><code>SpriteBatchClear</code></td><td><code>batchEntity</code></td><td>—</td></tr>
+  <tr><td><code>SpriteBatchSetMaxSize</code></td><td><code>batchEntity, maxSize</code></td><td>—</td></tr>
+  <tr><td><code>SpriteBatchGetMaxSize</code></td><td><code>batchEntity</code></td><td><code>maxSize</code></td></tr>
+  <tr><td><code>SpriteBatchGetCount</code></td><td><code>batchEntity</code></td><td><code>count</code></td></tr>
+  <tr><td><code>SpriteBatchDraw</code></td><td><code>batchEntity</code></td><td>—</td></tr>
+  <tr><td><code>DestroySpriteBatch</code></td><td><code>batchEntity</code></td><td>—</td></tr>
 </table></div>
 
 <h3>Анимации</h3>
