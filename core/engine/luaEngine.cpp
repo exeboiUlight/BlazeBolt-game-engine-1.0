@@ -1,4 +1,5 @@
 #include <engine/luaFunctions.hpp>
+#include <engine/luaMathBindings.hpp>
 #include <cmath>
 
 #ifndef M_PIf
@@ -485,6 +486,8 @@ namespace LuaEngine {
         lua_pushinteger(state, GLFW_MOUSE_BUTTON_RIGHT); lua_setfield(state, -2, "RIGHT");
         lua_pushinteger(state, GLFW_MOUSE_BUTTON_MIDDLE); lua_setfield(state, -2, "MIDDLE");
         lua_setglobal(state, "MouseButtons");
+
+        registerMathTypes(state);
     }
 
     bool LuaEngine::loadScriptsFromList(const std::string& listPath) {
