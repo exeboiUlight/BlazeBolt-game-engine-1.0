@@ -17,6 +17,7 @@
 - [Управление объектами](#управление-объектами)
 - [Физика](#физика)
 - [Утилиты](#утилиты)
+- [Шумы (Noise)](#шумы-noise)
 - [Шейдеры](#шейдеры)
 - [Частицы (ParticleSystem2D)](#частицы-particlesystem2d)
 - [Скрипты и сцены](#скрипты-и-сцены)
@@ -1645,6 +1646,42 @@ TextAlignment.RIGHT    -- По правому краю
 | `BlazeBolt.SetRandomSeed` | `seed` | — |
 | `BlazeBolt.Quit` | — | — |
 | `BlazeBolt.AddConsoleMessage` | `msg, type` | — |
+
+### Шумы (Noise)
+
+Функции для генерации процедурного шума. Основаны на алгоритмах Перлина и симплекс-шума.
+
+| Функция | Параметры | Возврат | Описание |
+|---|---|---|---|
+| `PerlinNoise1D` | `x` | `float` | Одномерный шум Перлина, возвращает значение в диапазоне ~[-1, 1] |
+| `PerlinNoise2D` | `x, y` | `float` | Двумерный шум Перлина, возвращает значение в диапазоне ~[-1, 1] |
+| `PerlinNoise3D` | `x, y, z` | `float` | Трёхмерный шум Перлина, возвращает значение в диапазоне ~[-1, 1] |
+| `SimplexNoise2D` | `x, y` | `float` | Двумерный симплекс-шум, менее артефактный чем Перлина |
+| `ValueNoise2D` | `x, y` | `float` | Value-шум (простая интерполяция между случайными значениями), диапазон [0, 1] |
+| `FbmNoise2D` | `x, y, [octaves=6], [lacunarity=2], [gain=0.5]` | `float` | Фрактальный шум Перлина (FBM) с настраиваемым количеством октав |
+| `FbmSimplexNoise2D` | `x, y, [octaves=6], [lacunarity=2], [gain=0.5]` | `float` | Фрактальный симплекс-шум |
+| `DomainWarpNoise2D` | `x, y, [warpScale=1]` | `float` | Шум Перлина с domain warping для более органичных текстур |
+| `SetNoiseSeed` | `seed` | — | Устанавливает seed для генератора шума |
+
+**Примеры использования:**
+```lua
+-- Базовый шум Перлина
+local value = PerlinNoise2D(x * 0.1, y * 0.1)
+
+-- Фрактальный шум (FBM) для ландшафта
+local terrain = FbmNoise2D(x * 0.02, y * 0.02, 8, 2.0, 0.5)
+
+-- Domain warping для облаков
+local cloud = DomainWarpNoise2D(x * 0.01, y * 0.01, 2.0)
+
+-- Шум с кастомным seed
+SetNoiseSeed(12345)
+local noise1 = PerlinNoise2D(x, y)
+SetNoiseSeed(67890)
+local noise2 = PerlinNoise2D(x, y)
+```
+
+---
 
 ### Шейдеры
 | Функция | Параметры | Возврат |

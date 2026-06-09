@@ -488,6 +488,26 @@ namespace LuaEngine {
         lua_setglobal(state, "MouseButtons");
 
         registerMathTypes(state);
+
+        // Noise functions
+        lua_pushcfunction(state, _functions::SetNoiseSeed);
+        lua_setglobal(state, "SetNoiseSeed");
+        lua_pushcfunction(state, _functions::PerlinNoise1D);
+        lua_setglobal(state, "PerlinNoise1D");
+        lua_pushcfunction(state, _functions::PerlinNoise2D);
+        lua_setglobal(state, "PerlinNoise2D");
+        lua_pushcfunction(state, _functions::PerlinNoise3D);
+        lua_setglobal(state, "PerlinNoise3D");
+        lua_pushcfunction(state, _functions::SimplexNoise2D);
+        lua_setglobal(state, "SimplexNoise2D");
+        lua_pushcfunction(state, _functions::ValueNoise2D);
+        lua_setglobal(state, "ValueNoise2D");
+        lua_pushcfunction(state, _functions::FbmNoise2D);
+        lua_setglobal(state, "FbmNoise2D");
+        lua_pushcfunction(state, _functions::FbmSimplexNoise2D);
+        lua_setglobal(state, "FbmSimplexNoise2D");
+        lua_pushcfunction(state, _functions::DomainWarpNoise2D);
+        lua_setglobal(state, "DomainWarpNoise2D");
     }
 
     bool LuaEngine::loadScriptsFromList(const std::string& listPath) {

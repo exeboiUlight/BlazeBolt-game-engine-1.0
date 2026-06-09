@@ -1,5 +1,6 @@
 #pragma once
 #include <engine/luaEngine.hpp>
+#include <utils/math/noise.h>
 
 namespace LuaEngine {
 
@@ -1904,6 +1905,81 @@ namespace LuaEngine {
                 engine->addConsoleMessage(msg, type);
             }
             return 0;
+        }
+
+        // Noise functions
+        static Noise& getNoise() {
+            static Noise noise(42);
+            return noise;
+        }
+
+        static int SetNoiseSeed(lua_State* state) {
+            uint32_t seed = static_cast<uint32_t>(luaL_checkinteger(state, 1));
+            getNoise().setSeed(seed);
+            return 0;
+        }
+
+        static int PerlinNoise1D(lua_State* state) {
+            float x = luaL_checknumber(state, 1);
+            lua_pushnumber(state, getNoise().perlin1D(x));
+            return 1;
+        }
+
+        static int PerlinNoise2D(lua_State* state) {
+            float x = luaL_checknumber(state, 1);
+            float y = luaL_checknumber(state, 2);
+            lua_pushnumber(state, getNoise().perlin2D(x, y));
+            return 1;
+        }
+
+        static int PerlinNoise3D(lua_State* state) {
+            float x = luaL_checknumber(state, 1);
+            float y = luaL_checknumber(state, 2);
+            float z = luaL_checknumber(state, 3);
+            lua_pushnumber(state, getNoise().perlin3D(x, y, z));
+            return 1;
+        }
+
+        static int SimplexNoise2D(lua_State* state) {
+            float x = luaL_checknumber(state, 1);
+            float y = luaL_checknumber(state, 2);
+            lua_pushnumber(state, getNoise().simplex2D(x, y));
+            return 1;
+        }
+
+        static int ValueNoise2D(lua_State* state) {
+            float x = luaL_checknumber(state, 1);
+            float y = luaL_checknumber(state, 2);
+            lua_pushnumber(state, getNoise().value2D(x, y));
+            return 1;
+        }
+
+        static int FbmNoise2D(lua_State* state) {
+            float x = luaL_checknumber(state, 1);
+            float y = luaL_checknumber(state, 2);
+            int octaves = static_cast<int>(luaL_optinteger(state, 3, 6));
+            float lacunarity = static_cast<float>(luaL_optnumber(state, 4, 2.0));
+            float gain = static_cast<float>(luaL_optnumber(state, 5, 0.5));
+            lua_pushnumber(state, getNoise().fbm2D(x, y, octaves, lacunarity, gain));
+            return 1;
+        }
+
+        static int FbmSimplexNoise2D(lua_State* state) {
+            float x = luaL_checknumber(state, 1);
+            float y = luaL_checknumber(state, 2);
+            int octaves = static_cast<int>(luaL_optinteger(state, 3, 6));
+            float lacunarity = static_cast<float>(luaL_optnumber(state, 4, 2.0));
+            float gain = static_cast<float>(luaL_optnumber(state, 5, 0.5));
+            lua_pushnumber(state, getNoise().fbmSimplex2D(x, y, octaves, lacunarity, gain));
+            return 1;
+        }
+
+        static int DomainWarpNoise2D(lua_State* state) {
+            float x = luaL_checknumber(state, 1);
+            float y = luaL_checknumber(state, 2);
+            float warpScale = static_cast<float>(luaL_optnumber(state, 3, 1.0));
+            lua_pushnumber(state, getNoise().domainWarp2D(x, y, warpScale));
+            return 1;
         }
     };
 }

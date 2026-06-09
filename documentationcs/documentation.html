@@ -64,9 +64,14 @@
   .sidebar-search input:focus { border-color: var(--accent); }
   .sidebar-search input::placeholder { color: var(--text2); }
   .sidebar-nav { padding: 10px 0; }
+  .sidebar-nav .cat {
+    padding: 12px 20px 4px; font-size: 0.65rem; font-weight: 700;
+    color: var(--text2); text-transform: uppercase; letter-spacing: 1px;
+    cursor: default; pointer-events: none;
+  }
   .sidebar-nav a {
     display: flex; align-items: center; gap: 8px;
-    padding: 7px 20px; color: var(--text2); text-decoration: none;
+    padding: 6px 20px; color: var(--text2); text-decoration: none;
     font-size: 0.82rem; transition: all .15s;
     border-left: 3px solid transparent;
   }
@@ -226,12 +231,15 @@
     <input type="text" id="searchInput" placeholder="Поиск..." autocomplete="off">
   </div>
   <nav class="sidebar-nav" id="sidebarNav">
+    <div class="cat">Основы</div>
     <a href="#coordinate-system" class="active" data-section>
       <span class="nav-icon">▣</span> Система координат
     </a>
     <a href="#lifecycle" data-section>
       <span class="nav-icon">◉</span> Жизненный цикл
     </a>
+
+    <div class="cat">Графика</div>
     <a href="#sprites" data-section>
       <span class="nav-icon">✦</span> Спрайты
     </a>
@@ -250,6 +258,22 @@
     <a href="#camera" data-section>
       <span class="nav-icon">◈</span> Камера
     </a>
+    <a href="#particles" data-section>
+      <span class="nav-icon">✦</span> Частицы
+    </a>
+    <a href="#shaders" data-section>
+      <span class="nav-icon">◐</span> Шейдеры
+    </a>
+
+    <div class="cat">Математика</div>
+    <a href="#vectors" data-section>
+      <span class="nav-icon">▷</span> Векторы и матрицы
+    </a>
+    <a href="#noise" data-section>
+      <span class="nav-icon">〰</span> Шумы
+    </a>
+
+    <div class="cat">Окно и ввод</div>
     <a href="#window" data-section>
       <span class="nav-icon">▭</span> Окно
     </a>
@@ -259,24 +283,26 @@
     <a href="#audio" data-section>
       <span class="nav-icon">♪</span> Звук
     </a>
-    <a href="#object-management" data-section>
-      <span class="nav-icon">✕</span> Управление объектами
-    </a>
+
+    <div class="cat">Физика</div>
     <a href="#physics" data-section>
       <span class="nav-icon">⚙</span> Физика
+    </a>
+
+    <div class="cat">Управление</div>
+    <a href="#object-management" data-section>
+      <span class="nav-icon">✕</span> Управление объектами
     </a>
     <a href="#utilities" data-section>
       <span class="nav-icon">⚡</span> Утилиты
     </a>
-    <a href="#shaders" data-section>
-      <span class="nav-icon">◐</span> Шейдеры
-    </a>
-    <a href="#particles" data-section>
-      <span class="nav-icon">✦</span> Частицы
-    </a>
+
+    <div class="cat">Скрипты</div>
     <a href="#scripts" data-section>
       <span class="nav-icon">📄</span> Скрипты и сцены
     </a>
+
+    <div class="cat">Разное</div>
     <a href="#minigame" data-section>
       <span class="nav-icon">🎮</span> Пример мини-игры
     </a>
@@ -296,40 +322,20 @@
 <main class="main" id="mainContent"></main>
 
 <script>
-// Parsed sections data
-const DOCS = [
-  { id: "coordinate-system", title: "Система координат", icon: "▣" },
-  { id: "lifecycle", title: "Жизненный цикл", icon: "◉" },
-  { id: "sprites", title: "Спрайты", icon: "✦" },
-  { id: "sprite-batches", title: "Спрайтовые батчи (SpriteBatch)", icon: "▤" },
-  { id: "animations", title: "Анимации", icon: "▶" },
-  { id: "text", title: "Текст", icon: "Aa" },
-  { id: "meshes", title: "Меши", icon: "△" },
-  { id: "camera", title: "Камера (Camera2D)", icon: "◈" },
-  { id: "window", title: "Окно", icon: "▭" },
-  { id: "input", title: "Ввод", icon: "⌨" },
-  { id: "audio", title: "Звук", icon: "♪" },
-  { id: "object-management", title: "Управление объектами", icon: "✕" },
-  { id: "physics", title: "Физика", icon: "⚙" },
-  { id: "utilities", title: "Утилиты", icon: "⚡" },
-  { id: "shaders", title: "Шейдеры", icon: "◐" },
-  { id: "particles", title: "Частицы (ParticleSystem2D)", icon: "✦" },
-  { id: "scripts", title: "Скрипты и сцены", icon: "📄" },
-  { id: "minigame", title: "Пример: полная мини-игра", icon: "🎮", top: true },
-  { id: "best-practices", title: "Лучшие практики", icon: "★", top: true },
-  { id: "project-structure", title: "Структура проекта", icon: "📁", top: true },
-  { id: "reference", title: "Справочник всех функций", icon: "📋", top: true }
-];
+// (section metadata is in the HTML sidebar above)
 
 function highlightLua(code) {
-  return code
+  // extract strings first so nothing matches inside them
+  const strs = [];
+  let s = code.replace(/("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')/g, m => (strs.push(m), `\x00S${strs.length-1}\x00`));
+  s = s
     .replace(/(--\[\[[\s\S]*?\]\]|--.*$)/gm, '<span class="cm">$&</span>')
-    .replace(/("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')/g, '<span class="str">$&</span>')
     .replace(/\b(\d+(?:\.\d+)?)\b/g, '<span class="num">$1</span>')
     .replace(/\b(function|end|if|then|else|elseif|for|while|do|return|local|in|repeat|until|break|and|or|not|nil|true|false)\b/g, '<span class="kw">$1</span>')
     .replace(/\b([A-Z]\w+(?:\.[A-Z]\w+)+)\b/g, '<span class="tp">$1</span>')
     .replace(/\b(BlazeBolt\.\w+)\b/g, '<span class="fn">$1</span>')
     .replace(/\b(print|math\.\w+|table\.\w+|ipairs|pairs)\b/g, '<span class="fn">$1</span>');
+  return s.replace(/\x00S(\d+)\x00/g, (_, i) => `<span class="str">${strs[+i]}</span>`);
 }
 
 function buildHTML() {
@@ -987,6 +993,127 @@ function Update(dt)
     BlazeBolt.Print("Delta: " .. dt .. ", Time: " .. GetTime())
 end`)}</code></pre>
 
+<hr>
+
+<h2 id="vectors" class="section-anchor">Векторы и матрицы</h2>
+<p>В движок встроены типы для работы с математикой: <code>Vector2</code>, <code>Vector3</code>, <code>Vector4</code> и <code>Matrix3x3</code>. Они доступны из Lua как полноценные объекты с перегруженными операторами.</p>
+
+<h3>Vector2</h3>
+<pre data-lang="lua"><code>${highlightLua(`local v = Vector2(x, y)        -- создание
+local v = Vector2()              -- (0, 0)
+print(v.x, v.y)                  -- доступ к компонентам
+v.x = 5                          -- изменение компоненты`)}</code></pre>
+<div class="table-wrap"><table>
+  <tr><th>Операция</th><th>Описание</th></tr>
+  <tr><td><code>a + b</code></td><td>Сложение</td></tr>
+  <tr><td><code>a - b</code></td><td>Вычитание</td></tr>
+  <tr><td><code>a * n</code><br><code>n * a</code></td><td>Умножение на скаляр</td></tr>
+  <tr><td><code>a / n</code></td><td>Деление на скаляр</td></tr>
+  <tr><td><code>-a</code></td><td>Отрицание</td></tr>
+  <tr><td><code>a == b</code></td><td>Сравнение</td></tr>
+  <tr><td><code>tostring(a)</code></td><td>Строковое представление <code>(x, y)</code></td></tr>
+</table></div>
+<div class="table-wrap"><table>
+  <tr><th>Метод</th><th>Возврат</th><th>Описание</th></tr>
+  <tr><td><code>v:length()</code></td><td>number</td><td>Длина вектора</td></tr>
+  <tr><td><code>v:lengthSquared()</code></td><td>number</td><td>Квадрат длины</td></tr>
+  <tr><td><code>v:normalized()</code></td><td>Vector2</td><td>Нормализованная копия</td></tr>
+  <tr><td><code>v:normalize()</code></td><td>—</td><td>Нормализовать на месте</td></tr>
+  <tr><td><code>v:dot(other)</code></td><td>number</td><td>Скалярное произведение</td></tr>
+  <tr><td><code>v:cross(other)</code></td><td>number</td><td>Псевдоскалярное (2D) произведение</td></tr>
+  <tr><td><code>v:clone()</code></td><td>Vector2</td><td>Копия</td></tr>
+</table></div>
+
+<h3>Vector3</h3>
+<pre data-lang="lua"><code>${highlightLua(`local v = Vector3(x, y, z)      -- создание
+print(v.x, v.y, v.z)             -- доступ к компонентам`)}</code></pre>
+<p>Операторы: <code>+</code>, <code>-</code>, <code>*</code> (скаляр), <code>/</code>, <code>-</code> (унарный), <code>==</code>, <code>tostring</code></p>
+<div class="table-wrap"><table>
+  <tr><th>Метод</th><th>Возврат</th><th>Описание</th></tr>
+  <tr><td><code>v:length()</code></td><td>number</td><td>Длина вектора</td></tr>
+  <tr><td><code>v:lengthSquared()</code></td><td>number</td><td>Квадрат длины</td></tr>
+  <tr><td><code>v:normalized()</code></td><td>Vector3</td><td>Нормализованная копия</td></tr>
+  <tr><td><code>v:normalize()</code></td><td>—</td><td>Нормализовать на месте</td></tr>
+  <tr><td><code>v:dot(other)</code></td><td>number</td><td>Скалярное произведение</td></tr>
+  <tr><td><code>v:cross(other)</code></td><td>Vector3</td><td>Векторное произведение</td></tr>
+  <tr><td><code>v:clone()</code></td><td>Vector3</td><td>Копия</td></tr>
+</table></div>
+
+<h3>Vector4</h3>
+<pre data-lang="lua"><code>${highlightLua(`local v = Vector4(x, y, z, w)    -- создание
+print(v.x, v.y, v.z, v.w)        -- доступ к компонентам`)}</code></pre>
+<p>Операторы: <code>+</code>, <code>-</code>, <code>*</code> (скаляр), <code>/</code>, <code>-</code> (унарный), <code>==</code>, <code>tostring</code></p>
+<div class="table-wrap"><table>
+  <tr><th>Метод</th><th>Возврат</th><th>Описание</th></tr>
+  <tr><td><code>v:length()</code></td><td>number</td><td>Длина вектора</td></tr>
+  <tr><td><code>v:lengthSquared()</code></td><td>number</td><td>Квадрат длины</td></tr>
+  <tr><td><code>v:normalized()</code></td><td>Vector4</td><td>Нормализованная копия</td></tr>
+  <tr><td><code>v:normalize()</code></td><td>—</td><td>Нормализовать на месте</td></tr>
+  <tr><td><code>v:dot(other)</code></td><td>number</td><td>Скалярное произведение</td></tr>
+  <tr><td><code>v:toVector3()</code></td><td>Vector3</td><td>Конвертация (отбрасывает w)</td></tr>
+  <tr><td><code>v:clone()</code></td><td>Vector4</td><td>Копия</td></tr>
+</table></div>
+
+<h3>Matrix3x3</h3>
+<pre data-lang="lua"><code>${highlightLua(`local m = Matrix3x3()               -- единичная матрица
+local m = Matrix3x3.identity()     -- единичная матрица
+local m = Matrix3x3.translation(x, y)  -- матрица сдвига
+local m = Matrix3x3.scale(x, y)    -- матрица масштаба
+local m = Matrix3x3.rotation(deg)  -- матрица поворота (градусы)
+
+local r = a * b                    -- умножение матриц
+print(m[1], m[5], m[9])            -- доступ по индексу 1..9 (col-major)
+m[1] = 5                           -- установка значения
+print(tostring(m))                 -- [[...] [...] [...]]
+local arr = m:toArray()            -- таблица из 9 чисел`)}</code></pre>
+<div class="table-wrap"><table>
+  <tr><th>Метод</th><th>Параметры</th><th>Возврат</th><th>Описание</th></tr>
+  <tr><td><code>m:get(col, row)</code></td><td><code>1..3, 1..3</code></td><td>number</td><td>Получить элемент</td></tr>
+  <tr><td><code>m:set(col, row, val)</code></td><td><code>1..3, 1..3, number</code></td><td>—</td><td>Установить элемент</td></tr>
+  <tr><td><code>m:toArray()</code></td><td>—</td><td>table</td><td>Массив из 9 чисел (col-major)</td></tr>
+  <tr><td><code>m:clone()</code></td><td>—</td><td>Matrix3x3</td><td>Копия</td></tr>
+  <tr><td><code>m:identity()</code></td><td>—</td><td>Matrix3x3</td><td>Единичная матрица</td></tr>
+  <tr><td><code>m:translation(x, y)</code></td><td>number, number</td><td>Matrix3x3</td><td>Матрица сдвига</td></tr>
+  <tr><td><code>m:scale(x, y)</code></td><td>number, number</td><td>Matrix3x3</td><td>Матрица масштаба</td></tr>
+  <tr><td><code>m:rotation(deg)</code></td><td>number</td><td>Matrix3x3</td><td>Матрица поворота</td></tr>
+</table></div>
+<p>Индексация через <code>m[index]</code> (1–9) работает в column-major порядке:</p>
+<pre data-lang="text"><code>m[1] m[4] m[7]
+m[2] m[5] m[8]
+m[3] m[6] m[9]</code></pre>
+<p>Операторы: <code>*</code> (умножение матриц), <code>==</code>, <code>tostring</code>.</p>
+
+<hr>
+
+<h2 id="noise" class="section-anchor">Шумы (Noise)</h2>
+<p>Функции для генерации процедурного шума. Основаны на алгоритмах Перлина и симплекс-шума.</p>
+<div class="table-wrap"><table>
+  <tr><th>Функция</th><th>Параметры</th><th>Возврат</th><th>Описание</th></tr>
+  <tr><td><code>PerlinNoise1D</code></td><td><code>x</code></td><td><code>float</code></td><td>Одномерный шум Перлина, диапазон ~[-1, 1]</td></tr>
+  <tr><td><code>PerlinNoise2D</code></td><td><code>x, y</code></td><td><code>float</code></td><td>Двумерный шум Перлина, диапазон ~[-1, 1]</td></tr>
+  <tr><td><code>PerlinNoise3D</code></td><td><code>x, y, z</code></td><td><code>float</code></td><td>Трёхмерный шум Перлина, диапазон ~[-1, 1]</td></tr>
+  <tr><td><code>SimplexNoise2D</code></td><td><code>x, y</code></td><td><code>float</code></td><td>Двумерный симплекс-шум, менее артефактный чем Перлина</td></tr>
+  <tr><td><code>ValueNoise2D</code></td><td><code>x, y</code></td><td><code>float</code></td><td>Value-шум, диапазон [0, 1]</td></tr>
+  <tr><td><code>FbmNoise2D</code></td><td><code>x, y, [octaves=6], [lacunarity=2], [gain=0.5]</code></td><td><code>float</code></td><td>Фрактальный шум Перлина (FBM)</td></tr>
+  <tr><td><code>FbmSimplexNoise2D</code></td><td><code>x, y, [octaves=6], [lacunarity=2], [gain=0.5]</code></td><td><code>float</code></td><td>Фрактальный симплекс-шум</td></tr>
+  <tr><td><code>DomainWarpNoise2D</code></td><td><code>x, y, [warpScale=1]</code></td><td><code>float</code></td><td>Шум Перлина с domain warping</td></tr>
+  <tr><td><code>SetNoiseSeed</code></td><td><code>seed</code></td><td>—</td><td>Устанавливает seed для генератора шума</td></tr>
+</table></div>
+<h3>Примеры</h3>
+<pre data-lang="lua"><code>${highlightLua(`-- Базовый шум Перлина
+local value = PerlinNoise2D(x * 0.1, y * 0.1)
+
+-- Фрактальный шум (FBM) для ландшафта
+local terrain = FbmNoise2D(x * 0.02, y * 0.02, 8, 2.0, 0.5)
+
+-- Domain warping для облаков
+local cloud = DomainWarpNoise2D(x * 0.01, y * 0.01, 2.0)
+
+-- Шум с кастомным seed
+SetNoiseSeed(12345)
+local noise1 = PerlinNoise2D(x, y)
+SetNoiseSeed(67890)
+local noise2 = PerlinNoise2D(x, y)`)}</code></pre>
 <hr>
 
 <h2 id="shaders" class="section-anchor">Шейдеры</h2>
