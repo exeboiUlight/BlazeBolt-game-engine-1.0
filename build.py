@@ -32,7 +32,7 @@ else:
     DEBUG_FLAGS1 = " -g"
     DEBUG_FLAGS2 = " -Wl,-subsystem,windows"
     COMMON_INCLUDES = "-I./include -I./core"
-    COMMON_LIBS = "-L./lib -lopengl32 -lglfw3 -lfreetype -lgdi32 -llua54 -lopenal32"
+    COMMON_LIBS = "-L./lib -lopengl32 -lglfw3 -lfreetype -lgdi32 -llua54 -lopenal32 -lws2_32"
     COMMON_STATIC = "-static-libgcc -static-libstdc++"
     EXT = ".exe"
     SIZE_OPT = "-Oz"
@@ -145,4 +145,4 @@ if __name__ == '__main__':
     make_project()
     compile_game()
     compile_release()
-    compile_cs_lib()
+    # compile_cs_lib()

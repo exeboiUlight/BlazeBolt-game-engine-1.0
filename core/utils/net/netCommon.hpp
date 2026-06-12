@@ -8,6 +8,12 @@
     #include <winsock2.h>
     #include <ws2tcpip.h>
     #pragma comment(lib, "ws2_32.lib")
+    #undef CreateWindow
+    #undef CreateDialog
+    #undef LoadImage
+    #undef GetMessage
+    #undef SendMessage
+    #undef GetObject
     typedef SOCKET SocketType;
     #define INVALID_SOCK INVALID_SOCKET
 #else
