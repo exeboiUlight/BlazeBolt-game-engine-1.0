@@ -1,5 +1,6 @@
 #include <engine/luaFunctions.hpp>
 #include <engine/luaMathBindings.hpp>
+#include <engine/luaNetBindings.hpp>
 #include <cmath>
 
 #ifndef M_PIf
@@ -310,6 +311,51 @@ namespace LuaEngine {
 
         // Console
         {"AddConsoleMessage", _functions::AddConsoleMessage},
+
+        // Network - Init
+        {"NetInit", _netFunctions::NetInit},
+        {"NetShutdown", _netFunctions::NetShutdown},
+
+        // Network - TCP Server
+        {"CreateTCPServer", _netFunctions::CreateTCPServer},
+        {"TCPServerStop", _netFunctions::TCPServerStop},
+        {"TCPServerIsRunning", _netFunctions::TCPServerIsRunning},
+        {"TCPServerPoll", _netFunctions::TCPServerPoll},
+        {"TCPServerAccept", _netFunctions::TCPServerAccept},
+        {"TCPServerSend", _netFunctions::TCPServerSend},
+        {"TCPServerBroadcast", _netFunctions::TCPServerBroadcast},
+        {"TCPServerReceive", _netFunctions::TCPServerReceive},
+        {"TCPServerDisconnect", _netFunctions::TCPServerDisconnect},
+        {"TCPServerGetClientCount", _netFunctions::TCPServerGetClientCount},
+        {"TCPServerIsClientConnected", _netFunctions::TCPServerIsClientConnected},
+
+        // Network - TCP Client
+        {"CreateTCPClient", _netFunctions::CreateTCPClient},
+        {"TCPClientConnect", _netFunctions::TCPClientConnect},
+        {"TCPClientSend", _netFunctions::TCPClientSend},
+        {"TCPClientReceive", _netFunctions::TCPClientReceive},
+        {"TCPClientDisconnect", _netFunctions::TCPClientDisconnect},
+        {"TCPClientIsConnected", _netFunctions::TCPClientIsConnected},
+
+        // Network - UDP Server
+        {"CreateUDPServer", _netFunctions::CreateUDPServer},
+        {"UDPServerStop", _netFunctions::UDPServerStop},
+        {"UDPServerIsRunning", _netFunctions::UDPServerIsRunning},
+        {"UDPServerPoll", _netFunctions::UDPServerPoll},
+        {"UDPServerSend", _netFunctions::UDPServerSend},
+        {"UDPServerReceive", _netFunctions::UDPServerReceive},
+        {"UDPServerReceiveAny", _netFunctions::UDPServerReceiveAny},
+        {"UDPServerRemovePeer", _netFunctions::UDPServerRemovePeer},
+        {"UDPServerGetPeerCount", _netFunctions::UDPServerGetPeerCount},
+        {"UDPServerIsPeerKnown", _netFunctions::UDPServerIsPeerKnown},
+
+        // Network - UDP Client
+        {"CreateUDPClient", _netFunctions::CreateUDPClient},
+        {"UDPClientConnect", _netFunctions::UDPClientConnect},
+        {"UDPClientSend", _netFunctions::UDPClientSend},
+        {"UDPClientReceive", _netFunctions::UDPClientReceive},
+        {"UDPClientDisconnect", _netFunctions::UDPClientDisconnect},
+        {"UDPClientIsConnected", _netFunctions::UDPClientIsConnected},
 
         {nullptr, nullptr}
     };

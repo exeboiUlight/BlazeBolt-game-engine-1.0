@@ -20,6 +20,7 @@
 - [Шумы (Noise)](#шумы-noise)
 - [Шейдеры](#шейдеры)
 - [Частицы (ParticleSystem2D)](#частицы-particlesystem2d)
+- [Сетевое взаимодействие (Networking)](#сетевое-взаимодействие-networking)
 - [Скрипты и сцены](#скрипты-и-сцены)
 
 ---
@@ -1144,6 +1145,425 @@ function Start()
 end
 ```
 
+## Сетевое взаимодействие (Networking)
+
+Модуль сети позволяет создавать онлайн-игры с поддержкой протоколов TCP и UDP. TCP обеспечивает надёжную доставку данных (порядок, гарантированная доставка), UDP — быструю передачу без гарантий (подходит для позиций игроков в реальном времени).
+
+### Инициализация
+
+Перед использованием сети необходимо вызвать `NetInit()`:
+
+```lua
+BlazeBolt.NetInit()
+```
+
+Инициализирует подсистему сети (Winsock на Windows, POSIX-сокеты на Linux). Вызывается один раз в `Start()`.
+
+---
+
+### TCP (Transmission Control Protocol)
+
+TCP — надёжный протокол с установлением соединения. Гарантирует порядок и доставку данных. Используйте для: лобби, чата, передачи игровых событий, действий, где важна надёжность.
+
+#### TCP Server
+
+**Создание сервера:**
+```lua
+serverId = BlazeBolt.CreateTCPServer(port)
+```
+| Параметр | Тип | Описание |
+|---|---|---|
+| port | integer | Порт для прослушивания (1–65535) |
+
+**Возвращает:** `serverId` (integer) — идентификатор сервера, или `nil` при ошибке.
+
+**Пример:**
+```lua
+server = BlazeBolt.CreateTCPServer(7777)
+```
+
+**Остановка сервера:**
+```lua
+BlazeBolt.TCPServerStop(serverId)
+```
+Закрывает все соединения и освобождает ресурсы.
+
+**Проверка работы:**
+```lua
+running = BlazeBolt.TCPServerIsRunning(serverId)  -- boolean
+```
+
+**Приём нового клиента:**
+```lua
+clientId, clientIP, clientPort = BlazeBolt.TCPServerAccept(serverId)
+```
+**Возвращает:**
+- `clientId` (integer) — ID нового клиента (или `nil`, если новых нет)
+- `clientIP` (string) — IP-адрес клиента
+- `clientPort` (integer) — порт клиента
+
+**Пример:**
+```lua
+function Update(dt)
+    local id, ip, port = BlazeBolt.TCPServerAccept(server)
+    if id then
+        BlazeBolt.Print("Новый клиент: " .. ip .. ":" .. port .. " (id=" .. id .. ")")
+        BlazeBolt.TCPServerSend(server, id, "Добро пожаловать!")
+    end
+end
+```
+
+**Отправка данных клиенту:**
+```lua
+success = BlazeBolt.TCPServerSend(serverId, clientId, data)  -- boolean
+```
+| Параметр | Тип | Описание |
+|---|---|---|
+| clientId | integer | ID клиента |
+| data | string | Данные для отправки |
+
+**Рассылка всем клиентам:**
+```lua
+success = BlazeBolt.TCPServerBroadcast(serverId, data)  -- boolean
+```
+Отправляет данные всем подключённым клиентам.
+
+**Получение данных от клиента:**
+```lua
+data = BlazeBolt.TCPServerReceive(serverId, clientId)  -- string или nil
+```
+Возвращает строку с данными или `nil`, если данных нет.
+
+**Пример чат-сервера:**
+```lua
+function Update(dt)
+    -- Принять новых клиентов
+    local id, ip, port = BlazeBolt.TCPServerAccept(server)
+    if id then
+        BlazeBolt.TCPServerBroadcast(server, "Игрок " .. id .. " подключился!")
+    end
+
+    -- Принять сообщения от всех клиентов
+    for i = 1, BlazeBolt.TCPServerGetClientCount(server) do
+        local data = BlazeBolt.TCPServerReceive(server, i)
+        if data then
+            BlazeBolt.TCPServerBroadcast(server, data)
+        end
+    end
+end
+```
+
+**Отключение клиента:**
+```lua
+BlazeBolt.TCPServerDisconnect(serverId, clientId)
+```
+
+**Количество клиентов:**
+```lua
+count = BlazeBolt.TCPServerGetClientCount(serverId)  -- integer
+```
+
+**Проверка подключения клиента:**
+```lua
+connected = BlazeBolt.TCPServerIsClientConnected(serverId, clientId)  -- boolean
+```
+
+---
+
+#### TCP Client
+
+**Создание клиента:**
+```lua
+clientId = BlazeBolt.CreateTCPClient()  -- integer
+```
+
+**Подключение к серверу:**
+```lua
+success = BlazeBolt.TCPClientConnect(clientId, host, port)  -- boolean
+```
+| Параметр | Тип | Описание |
+|---|---|---|
+| host | string | IP-адрес или домен сервера |
+| port | integer | Порт сервера |
+
+**Пример:**
+```lua
+client = BlazeBolt.CreateTCPClient()
+connected = BlazeBolt.TCPClientConnect(client, "127.0.0.1", 7777)
+if connected then
+    BlazeBolt.Print("Подключено к серверу!")
+end
+```
+
+**Отправка данных:**
+```lua
+success = BlazeBolt.TCPClientSend(clientId, data)  -- boolean
+```
+
+**Получение данных:**
+```lua
+data = BlazeBolt.TCPClientReceive(clientId)  -- string или nil
+```
+
+**Пример клиента:**
+```lua
+function Start()
+    BlazeBolt.NetInit()
+    client = BlazeBolt.CreateTCPClient()
+    BlazeBolt.TCPClientConnect(client, "127.0.0.1", 7777)
+end
+
+function Update(dt)
+    local data = BlazeBolt.TCPClientReceive(client)
+    if data then
+        BlazeBolt.Print("Сервер: " .. data)
+    end
+
+    -- Отправка по нажатию пробела
+    if BlazeBolt.IsKeyJustPressed(Keys.SPACE) then
+        BlazeBolt.TCPClientSend(client, "Привет от клиента!")
+    end
+end
+```
+
+**Отключение:**
+```lua
+BlazeBolt.TCPClientDisconnect(clientId)
+```
+
+**Проверка подключения:**
+```lua
+connected = BlazeBolt.TCPClientIsConnected(clientId)  -- boolean
+```
+
+---
+
+### UDP (User Datagram Protocol)
+
+UDP — быстрый протокол без установления соединения. Данные отправляются в виде дейтаграмм. Нет гарантии доставки или порядка. Используйте для: позиций игроков, состояния игры в реальном времени, стрельбы.
+
+#### UDP Server
+
+**Создание сервера:**
+```lua
+serverId = BlazeBolt.CreateUDPServer(port)  -- integer или nil
+```
+
+**Остановка сервера:**
+```lua
+BlazeBolt.UDPServerStop(serverId)
+```
+
+**Проверка работы:**
+```lua
+running = BlazeBolt.UDPServerIsRunning(serverId)  -- boolean
+```
+
+**Получение данных от конкретного пира:**
+```lua
+data = BlazeBolt.UDPServerReceive(serverId, peerId)  -- string или nil
+```
+
+**Получение данных от любого пира:**
+```lua
+peerId, data = BlazeBolt.UDPServerReceiveAny(serverId)  -- integer, string или nil
+```
+Возвращает ID пира и данные, или `nil` если данных нет. Удобно для обработки сообщений от всех клиентов в одном вызове.
+
+**Пример UDP-сервера:**
+```lua
+function Start()
+    BlazeBolt.NetInit()
+    server = BlazeBolt.CreateUDPServer(8888)
+end
+
+function Update(dt)
+    local peerId, data = BlazeBolt.UDPServerReceiveAny(server)
+    if peerId then
+        BlazeBolt.Print("Пир " .. peerId .. ": " .. data)
+        -- Эхо-ответ
+        BlazeBolt.UDPServerSend(server, peerId, "Получено: " .. data)
+    end
+end
+```
+
+**Отправка данных пиру:**
+```lua
+success = BlazeBolt.UDPServerSend(serverId, peerId, data)  -- boolean
+```
+
+**Удаление пира:**
+```lua
+BlazeBolt.UDPServerRemovePeer(serverId, peerId)
+```
+
+**Количество пиров:**
+```lua
+count = BlazeBolt.UDPServerGetPeerCount(serverId)  -- integer
+```
+
+**Проверка существования пира:**
+```lua
+known = BlazeBolt.UDPServerIsPeerKnown(serverId, peerId)  -- boolean
+```
+
+---
+
+#### UDP Client
+
+**Создание клиента:**
+```lua
+clientId = BlazeBolt.CreateUDPClient()  -- integer
+```
+
+**Подключение (установка удалённого адреса):**
+```lua
+success = BlazeBolt.UDPClientConnect(clientId, host, port)  -- boolean
+```
+Для UDP "подключение" означает установку адреса получателя. Физическое соединение не устанавливается.
+
+**Пример UDP-клиента:**
+```lua
+function Start()
+    BlazeBolt.NetInit()
+    client = BlazeBolt.CreateUDPClient()
+    BlazeBolt.UDPClientConnect(client, "127.0.0.1", 8888)
+    BlazeBolt.UDPClientSend(client, "PING")
+end
+
+function Update(dt)
+    local data = BlazeBolt.UDPClientReceive(client)
+    if data then
+        BlazeBolt.Print("Ответ: " .. data)
+    end
+end
+```
+
+**Отправка данных:**
+```lua
+success = BlazeBolt.UDPClientSend(clientId, data)  -- boolean
+```
+
+**Получение данных:**
+```lua
+data = BlazeBolt.UDPClientReceive(clientId)  -- string или nil
+```
+
+**Отключение:**
+```lua
+BlazeBolt.UDPClientDisconnect(clientId)
+```
+
+**Проверка подключения:**
+```lua
+connected = BlazeBolt.UDPClientIsConnected(clientId)  -- boolean
+```
+
+---
+
+### Пример: multiplayer-игра на TCP
+
+```lua
+-- server.lua
+local server
+local players = {}
+
+function Start()
+    BlazeBolt.NetInit()
+    server = BlazeBolt.CreateTCPServer(7777)
+    BlazeBolt.Print("Сервер запущен на порту 7777")
+end
+
+function Update(dt)
+    -- Новые подключения
+    local id, ip, port = BlazeBolt.TCPServerAccept(server)
+    if id then
+        players[id] = { x = 0, y = 0 }
+        BlazeBolt.Print("Игрок " .. id .. " подключился с " .. ip)
+        BlazeBolt.TCPServerBroadcast(server, "JOIN:" .. id)
+    end
+
+    -- Обработка сообщений
+    for id, _ in pairs(players) do
+        local data = BlazeBolt.TCPServerReceive(server, id)
+        if data then
+            local cmd, params = data:match("^(%w+):(.+)$")
+            if cmd == "POS" then
+                local x, y = params:match("([%d%.]+),([%d%.]+)")
+                players[id].x = tonumber(x)
+                players[id].y = tonumber(y)
+                BlazeBolt.TCPServerBroadcast(server, "POS:" .. id .. ":" .. x .. "," .. y)
+            end
+        end
+    end
+end
+```
+
+```lua
+-- client.lua
+local client
+local players = {}
+
+function Start()
+    BlazeBolt.NetInit()
+    client = BlazeBolt.CreateTCPClient()
+    BlazeBolt.TCPClientConnect(client, "127.0.0.1", 7777)
+end
+
+function Update(dt)
+    local x, y = 0, 0
+    if BlazeBolt.IsKeyPressed(Keys.W) then y = y + 1 end
+    if BlazeBolt.IsKeyPressed(Keys.S) then y = y - 1 end
+    if BlazeBolt.IsKeyPressed(Keys.A) then x = x - 1 end
+    if BlazeBolt.IsKeyPressed(Keys.D) then x = x + 1 end
+
+    if x ~= 0 or y ~= 0 then
+        BlazeBolt.TCPClientSend(client, "POS:" .. x .. "," .. y)
+    end
+
+    local data = BlazeBolt.TCPClientReceive(client)
+    while data do
+        local cmd, params = data:match("^(%w+):(.+)$")
+        if cmd == "JOIN" then
+            local id = tonumber(params)
+            players[id] = { sprite = BlazeBolt.CreateSprite("player.png", 0, 0) }
+        elseif cmd == "POS" then
+            local id, px, py = params:match("([%d%.]+):([%d%.]+),([%d%.]+)")
+            id = tonumber(id)
+            if players[id] then
+                BlazeBolt.SpriteSetPosition(players[id].sprite, tonumber(px), tonumber(py))
+            end
+        end
+        data = BlazeBolt.TCPClientReceive(client)
+    end
+end
+```
+
+---
+
+### Выбор протокола
+
+| Критерий | TCP | UDP |
+|---|---|---|
+| Надёжность доставки | Да | Нет |
+| Порядок данных | Да | Нет |
+| Скорость | Ниже | Выше |
+| Установка соединения | Да | Нет |
+| Подходит для | Чат, лобби, действия | Позиции, стрельба, FPS |
+
+**Рекомендация:** Используйте TCP для важных событий (подключение, выстрелы, смерть) и UDP для частых обновлений позиций (60 раз в секунду).
+
+### Важные замечания
+
+- Вызывайте `BlazeBolt.NetInit()` в `Start()` перед использованием сети
+- Все ID (серверов, клиентов, пиров) — целые числа, начинающиеся с 1
+- Данные передаются как строки. Для структурированных данных используйте формат `"CMD:param1,param2"` или JSON
+- Сокеты работают в non-blocking режиме — вызовы `Receive` не блокируют игру
+- Максимальный размер пакета: 65507 байт (ограничение UDP)
+- При завершении игры рекомендуется вызывать `TCPServerStop` / `TCPServerDisconnect` / `UDPServerStop` / `UDPClientDisconnect`
+
+---
+
 ## Скрипты и сцены
 
 ### Загрузка скриптов
@@ -1696,6 +2116,61 @@ local noise2 = PerlinNoise2D(x, y)
 | `BlazeBolt.SetShaderVec2` | `shaderId, name, x, y` | — |
 | `BlazeBolt.SetShaderVec3` | `shaderId, name, x, y, z` | — |
 | `BlazeBolt.SetShaderVec4` | `shaderId, name, x, y, z, w` | — |
+
+### Сеть — Инициализация
+| Функция | Параметры | Возврат |
+|---|---|---|
+| `BlazeBolt.NetInit` | — | `bool` |
+| `BlazeBolt.NetShutdown` | — | — |
+
+### Сеть — TCP Server
+| Функция | Параметры | Возврат |
+|---|---|---|
+| `BlazeBolt.CreateTCPServer` | `port` | `serverId` |
+| `BlazeBolt.TCPServerStop` | `serverId` | — |
+| `BlazeBolt.TCPServerIsRunning` | `serverId` | `bool` |
+| `BlazeBolt.TCPServerPoll` | `serverId` | — |
+| `BlazeBolt.TCPServerAccept` | `serverId` | `clientId, ip, port` |
+| `BlazeBolt.TCPServerSend` | `serverId, clientId, data` | `bool` |
+| `BlazeBolt.TCPServerBroadcast` | `serverId, data` | `bool` |
+| `BlazeBolt.TCPServerReceive` | `serverId, clientId` | `data` |
+| `BlazeBolt.TCPServerDisconnect` | `serverId, clientId` | — |
+| `BlazeBolt.TCPServerGetClientCount` | `serverId` | `count` |
+| `BlazeBolt.TCPServerIsClientConnected` | `serverId, clientId` | `bool` |
+
+### Сеть — TCP Client
+| Функция | Параметры | Возврат |
+|---|---|---|
+| `BlazeBolt.CreateTCPClient` | — | `clientId` |
+| `BlazeBolt.TCPClientConnect` | `clientId, host, port` | `bool` |
+| `BlazeBolt.TCPClientSend` | `clientId, data` | `bool` |
+| `BlazeBolt.TCPClientReceive` | `clientId` | `data` |
+| `BlazeBolt.TCPClientDisconnect` | `clientId` | — |
+| `BlazeBolt.TCPClientIsConnected` | `clientId` | `bool` |
+
+### Сеть — UDP Server
+| Функция | Параметры | Возврат |
+|---|---|---|
+| `BlazeBolt.CreateUDPServer` | `port` | `serverId` |
+| `BlazeBolt.UDPServerStop` | `serverId` | — |
+| `BlazeBolt.UDPServerIsRunning` | `serverId` | `bool` |
+| `BlazeBolt.UDPServerPoll` | `serverId` | — |
+| `BlazeBolt.UDPServerSend` | `serverId, peerId, data` | `bool` |
+| `BlazeBolt.UDPServerReceive` | `serverId, peerId` | `data` |
+| `BlazeBolt.UDPServerReceiveAny` | `serverId` | `peerId, data` |
+| `BlazeBolt.UDPServerRemovePeer` | `serverId, peerId` | — |
+| `BlazeBolt.UDPServerGetPeerCount` | `serverId` | `count` |
+| `BlazeBolt.UDPServerIsPeerKnown` | `serverId, peerId` | `bool` |
+
+### Сеть — UDP Client
+| Функция | Параметры | Возврат |
+|---|---|---|
+| `BlazeBolt.CreateUDPClient` | — | `clientId` |
+| `BlazeBolt.UDPClientConnect` | `clientId, host, port` | `bool` |
+| `BlazeBolt.UDPClientSend` | `clientId, data` | `bool` |
+| `BlazeBolt.UDPClientReceive` | `clientId` | `data` |
+| `BlazeBolt.UDPClientDisconnect` | `clientId` | — |
+| `BlazeBolt.UDPClientIsConnected` | `clientId` | `bool` |
 
 ### Скрипты и сцены
 | Функция | Параметры | Возврат |

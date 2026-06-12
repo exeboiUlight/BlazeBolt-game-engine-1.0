@@ -29,6 +29,8 @@ add_executable(${PROJECT_NAME}
     core/subject/particle2D.cpp
     core/subject/text2D.cpp
     core/utils/input.cpp
+    core/utils/net/server.cpp
+    core/utils/net/client.cpp
 )
 target_include_directories(${PROJECT_NAME} PRIVATE
     core
@@ -45,3 +47,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     lua
     openal
 )
+
+if(WIN32)
+    target_link_libraries(${PROJECT_NAME} PRIVATE ws2_32)
+endif()
