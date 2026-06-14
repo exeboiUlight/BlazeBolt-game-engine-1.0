@@ -20,6 +20,8 @@
 - [Шумы (Noise)](#шумы-noise)
 - [Шейдеры](#шейдеры)
 - [Частицы (ParticleSystem2D)](#частицы-particlesystem2d)
+- [Тайлсеты (Tileset2D)](#тайлсеты-tileset2d)
+- [Освещение (Light2D)](#освещение-light2d)
 - [Сетевое взаимодействие (Networking)](#сетевое-взаимодействие-networking)
 - [Скрипты и сцены](#скрипты-и-сцены)
 
@@ -1151,6 +1153,219 @@ function Start()
 end
 ```
 
+---
+
+## Тайловые карты (Tileset2D)
+
+Тайловые карты (tileset) позволяют строить 2D-уровни из набора тайлов — прямоугольных фрагментов текстуры (атласа). Каждый тайл имеет индекс, который определяет его позицию в атласе. Tileset2D эффективно рендерит большие карты, используя batching.
+
+### Создание и настройка
+
+```lua
+tileset = BlazeBolt.CreateTileset(atlasPath, tileSize, tileCountX, tileCountY)
+-- atlasPath: путь к текстуре-атласу (PNG)
+-- tileSize: размер тайла в пикселях (целое число)
+-- tileCountX: количество тайлов по X в атласе
+-- tileCountY: количество тайлов по Y в атласе
+
+BlazeBolt.TilesetSetTileSize(tileset, tileSize)
+BlazeBolt.TilesetSetPosition(tileset, x, y)
+```
+
+### Карта тайлов
+
+Карта — это таблица (массив массивов) с индексами тайлов. Индекс `-1` означает пустой тайл (не рисуется). Индекс `0+` — индекс тайла в атласе (слева направо, сверху вниз).
+
+```lua
+BlazeBolt.TilesetSetMap(tileset, mapTable)
+tile = BlazeBolt.TilesetGetTile(tileset, col, row)
+BlazeBolt.TilesetSetTile(tileset, col, row, tileIndex)
+```
+
+### Отрисовка и уничтожение
+
+```lua
+BlazeBolt.TilesetDraw(tileset)
+count = BlazeBolt.TilesetGetTileCount(tileset)
+BlazeBolt.DestroyTileset(tileset)
+```
+
+### Пример: простая карта
+
+```lua
+local tileset
+
+function Start()
+    -- Создаём тайлсет: атлас 4x4 тайла по 32px
+    tileset = BlazeBolt.CreateTileset("atlas.png", 32, 4, 4)
+    BlazeBolt.TilesetSetPosition(tileset, 0, 0)
+    
+    -- Определяем карту 8x6 (индексы тайлов в атласе)
+    local map = {
+        { 0, 0, 0, 0, 0, 0, 0, 0},
+        { 0, 1, 1, 1, 1, 1, 1, 0},
+        { 0, 1, 2, 2, 2, 2, 1, 0},
+        { 0, 1, 2, 3, 3, 2, 1, 0},
+        { 0, 1, 2, 2, 2, 2, 1, 0},
+        { 0, 0, 0, 0, 0, 0, 0, 0},
+    }
+    BlazeBolt.TilesetSetMap(tileset, map)
+end
+
+function Draw()
+    BlazeBolt.TilesetDraw(tileset)
+end
+```
+
+### Пример: редактор тайлов
+
+```lua
+local tileset
+local currentTile = 1
+
+function Start()
+    tileset = BlazeBolt.CreateTileset("atlas.png", 16, 8, 8)
+    BlazeBolt.TilesetSetPosition(tileset, 0, 0)
+    
+    -- Пустая карта 16x12
+    local map = {}
+    for y = 1, 12 do
+        map[y] = {}
+        for x = 1, 16 do
+            map[y][x] = -1
+        end
+    end
+    BlazeBolt.TilesetSetMap(tileset, map)
+end
+
+function Update(dt)
+    if BlazeBolt.IsMouseButtonJustPressed(MouseButton.LEFT) then
+        local mx, my = BlazeBolt.GetMouseX(), BlazeBolt.GetMouseY()
+        local tileSize = BlazeBolt.TilesetGetTileSize(tileset)
+        local col = math.floor(mx / tileSize)
+        local row = math.floor(my / tileSize)
+        BlazeBolt.TilesetSetTile(tileset, col, row, currentTile)
+    end
+end
+
+function Draw()
+    BlazeBolt.TilesetDraw(tileset)
+end
+```
+
+---
+
+## Освещение (Light2D)
+
+Система освещения поддерживает точечные (point) и фоновые (ambient) источники света. Максимум **8 точечных источников** одновременно. Освещение автоматически применяется ко всем шейдерам спрайтов и батчей.
+
+### Создание источников света
+
+```lua
+-- Точечный источник (все параметры опциональны)
+pointLight = BlazeBolt.CreatePointLight(x, y, r, g, b, intensity, radius)
+-- x, y: позиция (по умолчанию 0, 0)
+-- r, g, b: цвет (по умолчанию 1, 1, 1 — белый)
+-- intensity: интенсивность (по умолчанию 1.0)
+-- radius: радиус действия (по умолчанию 1.0)
+
+-- Фоновый свет (все параметры опциональны)
+ambientLight = BlazeBolt.CreateAmbientLight(r, g, b, intensity)
+-- r, g, b: цвет (по умолчанию 1, 1, 1)
+-- intensity: интенсивность (по умолчанию 0.3 — тусклый фон)
+```
+
+### Управление параметрами
+
+```lua
+BlazeBolt.LightSetPosition(light, x, y)
+x, y = BlazeBolt.LightGetPosition(light)
+
+BlazeBolt.LightSetColor(light, r, g, b)
+r, g, b = BlazeBolt.LightGetColor(light)
+
+BlazeBolt.LightSetIntensity(light, intensity)
+intensity = BlazeBolt.LightGetIntensity(light)
+
+BlazeBolt.LightSetRadius(light, radius)    -- только для точечных
+radius = BlazeBolt.LightGetRadius(light)
+
+BlazeBolt.LightSetEnabled(light, bool)
+enabled = BlazeBolt.LightGetEnabled(light)
+```
+
+### Уничтожение
+
+```lua
+BlazeBolt.DestroyLight(light)
+```
+
+### Пример: 기본ное освещение
+
+```lua
+local playerSprite
+local playerLight
+local ambient
+
+function Start()
+    BlazeBolt.SetMainWindowTitle("Lighting Demo")
+    
+    -- Игрок
+    playerSprite = BlazeBolt.CreateSprite("player.png", 0, 0)
+    BlazeBolt.SpriteSetSize(playerSprite, 0.08, 0.08)
+    
+    -- Фоновый свет (тусклый)
+    ambient = BlazeBolt.CreateAmbientLight(0.2, 0.2, 0.3, 0.3)
+    
+    -- Точечный свет跟着玩家
+    playerLight = BlazeBolt.CreatePointLight(0, 0, 1, 0.9, 0.7, 1.5, 0.5)
+end
+
+function Update(dt)
+    -- Движение игрока
+    local x, y = BlazeBolt.SpriteGetPosition(playerSprite)
+    if BlazeBolt.IsKeyPressed(Keys.LEFT) then x = x - 0.5 * dt end
+    if BlazeBolt.IsKeyPressed(Keys.RIGHT) then x = x + 0.5 * dt end
+    if BlazeBolt.IsKeyPressed(Keys.UP) then y = y + 0.5 * dt end
+    if BlazeBolt.IsKeyPressed(Keys.DOWN) then y = y - 0.5 * dt end
+    BlazeBolt.SpriteSetPosition(playerSprite, x, y)
+    
+    -- Свет следует за игроком
+    BlazeBolt.LightSetPosition(playerLight, x, y)
+end
+
+function Draw()
+    BlazeBolt.SpriteDraw(playerSprite)
+end
+```
+
+### Пример: несколько источников
+
+```lua
+local lights = {}
+
+function Start()
+    BlazeBolt.CreateAmbientLight(0.1, 0.1, 0.1, 0.2)
+    
+    -- Создаём 3 источника
+    table.insert(lights, BlazeBolt.CreatePointLight(-0.5, 0.3, 1, 0, 0, 1.0, 0.4))
+    table.insert(lights, BlazeBolt.CreatePointLight(0, -0.3, 0, 1, 0, 1.0, 0.4))
+    table.insert(lights, BlazeBolt.CreatePointLight(0.5, 0.3, 0, 0, 1, 1.0, 0.4))
+end
+
+function Update(dt)
+    local t = GetTime()
+    for i, light in ipairs(lights) do
+        local offset = (i - 1) * 2.094  -- 120 градусов в радианах
+        local x = math.cos(t + offset) * 0.3
+        local y = math.sin(t + offset) * 0.3
+        BlazeBolt.LightSetPosition(light, x, y)
+    end
+end
+```
+
+---
+
 ## Сетевое взаимодействие (Networking)
 
 Модуль сети позволяет создавать онлайн-игры с поддержкой протоколов TCP и UDP. TCP обеспечивает надёжную доставку данных (порядок, гарантированная доставка), UDP — быструю передачу без гарантий (подходит для позиций игроков в реальном времени).
@@ -1897,6 +2112,40 @@ player=engine/scripts/player.lua
 | `BlazeBolt.ParticleSystemEmit` | `entity, count` | — |
 | `BlazeBolt.ParticleSystemClear` | `entity` | — |
 | `BlazeBolt.ParticleSystemGetCount` | `entity` | `count` |
+
+### Тайловые карты (Tileset2D)
+| Функция | Параметры | Возврат |
+|---|---|---|
+| `BlazeBolt.CreateTileset` | `atlasPath, tileSize, tileCountX, tileCountY` | `entity` |
+| `BlazeBolt.TilesetSetMap` | `entity, mapTable` | — |
+| `BlazeBolt.TilesetGetTile` | `entity, col, row` | `tileIndex` |
+| `BlazeBolt.TilesetSetTile` | `entity, col, row, tileIndex` | — |
+| `BlazeBolt.TilesetSetTileSize` | `entity, tileSize` | — |
+| `BlazeBolt.TilesetGetTileSize` | `entity` | `tileSize` |
+| `BlazeBolt.TilesetSetPosition` | `entity, x, y` | — |
+| `BlazeBolt.TilesetGetPosition` | `entity` | `x, y` |
+| `BlazeBolt.TilesetGetMapWidth` | `entity` | `width` |
+| `BlazeBolt.TilesetGetMapHeight` | `entity` | `height` |
+| `BlazeBolt.TilesetGetTileCount` | `entity` | `count` |
+| `BlazeBolt.TilesetDraw` | `entity` | — |
+| `BlazeBolt.DestroyTileset` | `entity` | — |
+
+### Освещение (Light2D)
+| Функция | Параметры | Возврат |
+|---|---|---|
+| `BlazeBolt.CreatePointLight` | `[x, y, r, g, b, intensity, radius]` | `entity` |
+| `BlazeBolt.CreateAmbientLight` | `[r, g, b, intensity]` | `entity` |
+| `BlazeBolt.LightSetPosition` | `entity, x, y` | — |
+| `BlazeBolt.LightGetPosition` | `entity` | `x, y` |
+| `BlazeBolt.LightSetColor` | `entity, r, g, b` | — |
+| `BlazeBolt.LightGetColor` | `entity` | `r, g, b` |
+| `BlazeBolt.LightSetIntensity` | `entity, intensity` | — |
+| `BlazeBolt.LightGetIntensity` | `entity` | `intensity` |
+| `BlazeBolt.LightSetRadius` | `entity, radius` | — |
+| `BlazeBolt.LightGetRadius` | `entity` | `radius` |
+| `BlazeBolt.LightSetEnabled` | `entity, bool` | — |
+| `BlazeBolt.LightGetEnabled` | `entity` | `bool` |
+| `BlazeBolt.DestroyLight` | `entity` | — |
 
 ### Спрайты
 | Функция | Параметры | Возврат |

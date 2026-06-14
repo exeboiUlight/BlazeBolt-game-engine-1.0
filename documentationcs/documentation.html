@@ -261,6 +261,12 @@
     <a href="#particles" data-section>
       <span class="nav-icon">✦</span> Частицы
     </a>
+    <a href="#tilesets" data-section>
+      <span class="nav-icon">▦</span> Тайловые карты
+    </a>
+    <a href="#lighting" data-section>
+      <span class="nav-icon">☀</span> Освещение
+    </a>
     <a href="#shaders" data-section>
       <span class="nav-icon">◐</span> Шейдеры
     </a>
@@ -1255,6 +1261,120 @@ end`)}</code></pre>
     BlazeBolt.ParticleSystemSetEndSize(ps, 0.06, 0.08)
     BlazeBolt.ParticleSystemSetColor(ps, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0)
     BlazeBolt.ParticleSystemSetDirection(ps, 80, 100)
+end`)}</code></pre>
+
+<hr>
+
+<h2 id="tilesets" class="section-anchor">Тайловые карты (Tileset2D)</h2>
+<p>Тайловые карты позволяют строить 2D-уровни из набора тайлов — прямоугольных фрагментов текстуры (атласа). Каждый тайл имеет индекс, определяющий его позицию в атласе.</p>
+
+<h3>Создание и настройка</h3>
+<pre data-lang="lua"><code>${highlightLua(`tileset = BlazeBolt.CreateTileset(atlasPath, tileSize, tileCountX, tileCountY)
+BlazeBolt.TilesetSetTileSize(tileset, tileSize)
+BlazeBolt.TilesetSetPosition(tileset, x, y)`)}</code></pre>
+
+<h3>Карта тайлов</h3>
+<p>Карта — таблица (массив массивов) с индексами тайлов. Индекс <code>-1</code> = пустой тайл, <code>0+</code> — индекс в атласе (слева направо, сверху вниз).</p>
+<pre data-lang="lua"><code>${highlightLua(`BlazeBolt.TilesetSetMap(tileset, mapTable)
+tile = BlazeBolt.TilesetGetTile(tileset, col, row)
+BlazeBolt.TilesetSetTile(tileset, col, row, tileIndex)`)}</code></pre>
+
+<h3>Отрисовка и уничтожение</h3>
+<pre data-lang="lua"><code>${highlightLua(`BlazeBolt.TilesetDraw(tileset)
+count = BlazeBolt.TilesetGetTileCount(tileset)
+BlazeBolt.DestroyTileset(tileset)`)}</code></pre>
+
+<h3>Пример: простая карта</h3>
+<pre data-lang="lua"><code>${highlightLua(`local tileset
+
+function Start()
+    tileset = BlazeBolt.CreateTileset("atlas.png", 32, 4, 4)
+    BlazeBolt.TilesetSetPosition(tileset, 0, 0)
+    
+    local map = {
+        { 0, 0, 0, 0, 0, 0, 0, 0},
+        { 0, 1, 1, 1, 1, 1, 1, 0},
+        { 0, 1, 2, 2, 2, 2, 1, 0},
+        { 0, 1, 2, 3, 3, 2, 1, 0},
+        { 0, 1, 2, 2, 2, 2, 1, 0},
+        { 0, 0, 0, 0, 0, 0, 0, 0},
+    }
+    BlazeBolt.TilesetSetMap(tileset, map)
+end
+
+function Draw()
+    BlazeBolt.TilesetDraw(tileset)
+end`)}</code></pre>
+
+<hr>
+
+<h2 id="lighting" class="section-anchor">Освещение (Light2D)</h2>
+<p>Система освещения поддерживает точечные (point) и фоновые (ambient) источники света. Максимум <strong>8 точечных источников</strong> одновременно. Освещение автоматически применяется ко всем шейдерам спрайтов и батчей.</p>
+
+<h3>Создание источников света</h3>
+<pre data-lang="lua"><code>${highlightLua(`-- Точечный光源 (все параметры опциональны)
+pointLight = BlazeBolt.CreatePointLight(x, y, r, g, b, intensity, radius)
+
+-- Фоновый свет (все параметры опциональны)
+ambientLight = BlazeBolt.CreateAmbientLight(r, g, b, intensity)`)}</code></pre>
+
+<h3>Управление параметрами</h3>
+<pre data-lang="lua"><code>${highlightLua(`BlazeBolt.LightSetPosition(light, x, y)
+x, y = BlazeBolt.LightGetPosition(light)
+
+BlazeBolt.LightSetColor(light, r, g, b)
+r, g, b = BlazeBolt.LightGetColor(light)
+
+BlazeBolt.LightSetIntensity(light, intensity)
+intensity = BlazeBolt.LightGetIntensity(light)
+
+BlazeBolt.LightSetRadius(light, radius)
+radius = BlazeBolt.LightGetRadius(light)
+
+BlazeBolt.LightSetEnabled(light, bool)
+enabled = BlazeBolt.LightGetEnabled(light)
+
+BlazeBolt.DestroyLight(light)`)}</code></pre>
+
+<h3>Пример: свет跟着玩家</h3>
+<pre data-lang="lua"><code>${highlightLua(`local playerSprite, playerLight, ambient
+
+function Start()
+    playerSprite = BlazeBolt.CreateSprite("player.png", 0, 0)
+    BlazeBolt.SpriteSetSize(playerSprite, 0.08, 0.08)
+    
+    ambient = BlazeBolt.CreateAmbientLight(0.2, 0.2, 0.3, 0.3)
+    playerLight = BlazeBolt.CreatePointLight(0, 0, 1, 0.9, 0.7, 1.5, 0.5)
+end
+
+function Update(dt)
+    local x, y = BlazeBolt.SpriteGetPosition(playerSprite)
+    if BlazeBolt.IsKeyPressed(Keys.LEFT) then x = x - 0.5 * dt end
+    if BlazeBolt.IsKeyPressed(Keys.RIGHT) then x = x + 0.5 * dt end
+    if BlazeBolt.IsKeyPressed(Keys.UP) then y = y + 0.5 * dt end
+    if BlazeBolt.IsKeyPressed(Keys.DOWN) then y = y - 0.5 * dt end
+    BlazeBolt.SpriteSetPosition(playerSprite, x, y)
+    BlazeBolt.LightSetPosition(playerLight, x, y)
+end`)}</code></pre>
+
+<h3>Пример: несколько источников</h3>
+<pre data-lang="lua"><code>${highlightLua(`local lights = {}
+
+function Start()
+    BlazeBolt.CreateAmbientLight(0.1, 0.1, 0.1, 0.2)
+    table.insert(lights, BlazeBolt.CreatePointLight(-0.5, 0.3, 1, 0, 0, 1.0, 0.4))
+    table.insert(lights, BlazeBolt.CreatePointLight(0, -0.3, 0, 1, 0, 1.0, 0.4))
+    table.insert(lights, BlazeBolt.CreatePointLight(0.5, 0.3, 0, 0, 1, 1.0, 0.4))
+end
+
+function Update(dt)
+    local t = GetTime()
+    for i, light in ipairs(lights) do
+        local offset = (i - 1) * 2.094
+        local x = math.cos(t + offset) * 0.3
+        local y = math.sin(t + offset) * 0.3
+        BlazeBolt.LightSetPosition(light, x, y)
+    end
 end`)}</code></pre>
 
 <hr>
