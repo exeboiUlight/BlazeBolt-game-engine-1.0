@@ -1128,6 +1128,279 @@ namespace LuaEngine {
             return 1;
         }
 
+        // Tileset functions
+        static int CreateTileset(lua_State* state) {
+            LuaEngine* engine = getEngine(state);
+            if (!engine) { lua_pushnil(state); return 1; }
+            const char* texturePath = luaL_checkstring(state, 1);
+            uint32_t tileW = luaL_checkinteger(state, 2);
+            uint32_t tileH = luaL_checkinteger(state, 3);
+            uint32_t atlasCols = luaL_checkinteger(state, 4);
+            uint32_t atlasRows = luaL_checkinteger(state, 5);
+            Entity entity = engine->createTileset(texturePath, tileW, tileH, atlasCols, atlasRows);
+            lua_pushinteger(state, entity);
+            return 1;
+        }
+
+        static int TilesetSetMap(lua_State* state) {
+            LuaEngine* engine = getEngine(state);
+            if (!engine) return 0;
+            Entity entity = luaL_checkinteger(state, 1);
+            luaL_checktype(state, 2, LUA_TTABLE);
+            std::vector<std::vector<int>> map;
+            int rows = lua_rawlen(state, 2);
+            for (int r = 1; r <= rows; r++) {
+                lua_rawgeti(state, 2, r);
+                luaL_checktype(state, -1, LUA_TTABLE);
+                int cols = lua_rawlen(state, -1);
+                std::vector<int> row;
+                for (int c = 1; c <= cols; c++) {
+                    lua_rawgeti(state, -1, c);
+                    row.push_back(luaL_checkinteger(state, -1));
+                    lua_pop(state, 1);
+                }
+                map.push_back(row);
+                lua_pop(state, 1);
+            }
+            engine->tilesetSetMap(entity, map);
+            return 0;
+        }
+
+        static int TilesetGetTile(lua_State* state) {
+            LuaEngine* engine = getEngine(state);
+            if (!engine) { lua_pushinteger(state, -1); return 1; }
+            Entity entity = luaL_checkinteger(state, 1);
+            uint32_t col = luaL_checkinteger(state, 2);
+            uint32_t row = luaL_checkinteger(state, 3);
+            lua_pushinteger(state, engine->tilesetGetTile(entity, col, row));
+            return 1;
+        }
+
+        static int TilesetSetTile(lua_State* state) {
+            LuaEngine* engine = getEngine(state);
+            if (!engine) return 0;
+            Entity entity = luaL_checkinteger(state, 1);
+            uint32_t col = luaL_checkinteger(state, 2);
+            uint32_t row = luaL_checkinteger(state, 3);
+            int tileIndex = luaL_checkinteger(state, 4);
+            engine->tilesetSetTile(entity, col, row, tileIndex);
+            return 0;
+        }
+
+        static int TilesetSetTileSize(lua_State* state) {
+            LuaEngine* engine = getEngine(state);
+            if (!engine) return 0;
+            Entity entity = luaL_checkinteger(state, 1);
+            uint32_t w = luaL_checkinteger(state, 2);
+            uint32_t h = luaL_checkinteger(state, 3);
+            engine->tilesetSetTileSize(entity, w, h);
+            return 0;
+        }
+
+        static int TilesetGetTileSize(lua_State* state) {
+            LuaEngine* engine = getEngine(state);
+            if (!engine) { lua_pushinteger(state, 0); lua_pushinteger(state, 0); return 2; }
+            Entity entity = luaL_checkinteger(state, 1);
+            uint32_t w, h;
+            engine->tilesetGetTileSize(entity, &w, &h);
+            lua_pushinteger(state, w);
+            lua_pushinteger(state, h);
+            return 2;
+        }
+
+        static int TilesetSetPosition(lua_State* state) {
+            LuaEngine* engine = getEngine(state);
+            if (!engine) return 0;
+            Entity entity = luaL_checkinteger(state, 1);
+            float x = luaL_checknumber(state, 2);
+            float y = luaL_checknumber(state, 3);
+            engine->tilesetSetPosition(entity, Vector2(x, y));
+            return 0;
+        }
+
+        static int TilesetGetPosition(lua_State* state) {
+            LuaEngine* engine = getEngine(state);
+            if (!engine) { lua_pushnumber(state, 0); lua_pushnumber(state, 0); return 2; }
+            Entity entity = luaL_checkinteger(state, 1);
+            Vector2 pos = engine->tilesetGetPosition(entity);
+            lua_pushnumber(state, pos.x);
+            lua_pushnumber(state, pos.y);
+            return 2;
+        }
+
+        static int TilesetGetMapWidth(lua_State* state) {
+            LuaEngine* engine = getEngine(state);
+            if (!engine) { lua_pushinteger(state, 0); return 1; }
+            Entity entity = luaL_checkinteger(state, 1);
+            lua_pushinteger(state, engine->tilesetGetMapWidth(entity));
+            return 1;
+        }
+
+        static int TilesetGetMapHeight(lua_State* state) {
+            LuaEngine* engine = getEngine(state);
+            if (!engine) { lua_pushinteger(state, 0); return 1; }
+            Entity entity = luaL_checkinteger(state, 1);
+            lua_pushinteger(state, engine->tilesetGetMapHeight(entity));
+            return 1;
+        }
+
+        static int TilesetGetTileCount(lua_State* state) {
+            LuaEngine* engine = getEngine(state);
+            if (!engine) { lua_pushinteger(state, 0); return 1; }
+            Entity entity = luaL_checkinteger(state, 1);
+            lua_pushinteger(state, engine->tilesetGetTileCount(entity));
+            return 1;
+        }
+
+        static int TilesetDraw(lua_State* state) {
+            LuaEngine* engine = getEngine(state);
+            if (!engine) return 0;
+            Entity entity = luaL_checkinteger(state, 1);
+            BlazeBolt::Tileset2D* tileset = engine->getTilesetWorld().getEntity(entity);
+            if (tileset) {
+                tileset->rebuild(engine->getSpriteWorld());
+                tileset->draw(engine->getTextureManager().getDefault2D());
+            }
+            return 0;
+        }
+
+        static int DestroyTileset(lua_State* state) {
+            LuaEngine* engine = getEngine(state);
+            if (!engine) return 0;
+            Entity entity = luaL_checkinteger(state, 1);
+            engine->destroyTileset(entity);
+            return 0;
+        }
+
+        // Light functions
+        static int CreatePointLight(lua_State* state) {
+            LuaEngine* engine = getEngine(state);
+            if (!engine) { lua_pushnil(state); return 1; }
+            float x = luaL_optnumber(state, 1, 0);
+            float y = luaL_optnumber(state, 2, 0);
+            float r = luaL_optnumber(state, 3, 1);
+            float g = luaL_optnumber(state, 4, 1);
+            float b = luaL_optnumber(state, 5, 1);
+            float intensity = luaL_optnumber(state, 6, 1.0f);
+            float radius = luaL_optnumber(state, 7, 200.0f);
+            Entity entity = engine->createPointLight(x, y, r, g, b, intensity, radius);
+            lua_pushinteger(state, entity);
+            return 1;
+        }
+
+        static int CreateAmbientLight(lua_State* state) {
+            LuaEngine* engine = getEngine(state);
+            if (!engine) { lua_pushnil(state); return 1; }
+            float r = luaL_optnumber(state, 1, 1);
+            float g = luaL_optnumber(state, 2, 1);
+            float b = luaL_optnumber(state, 3, 1);
+            float intensity = luaL_optnumber(state, 4, 0.3f);
+            Entity entity = engine->createAmbientLight(r, g, b, intensity);
+            lua_pushinteger(state, entity);
+            return 1;
+        }
+
+        static int LightSetPosition(lua_State* state) {
+            LuaEngine* engine = getEngine(state);
+            if (!engine) return 0;
+            Entity entity = luaL_checkinteger(state, 1);
+            float x = luaL_checknumber(state, 2);
+            float y = luaL_checknumber(state, 3);
+            engine->lightSetPosition(entity, Vector2(x, y));
+            return 0;
+        }
+
+        static int LightGetPosition(lua_State* state) {
+            LuaEngine* engine = getEngine(state);
+            if (!engine) { lua_pushnumber(state, 0); lua_pushnumber(state, 0); return 2; }
+            Entity entity = luaL_checkinteger(state, 1);
+            Vector2 pos = engine->lightGetPosition(entity);
+            lua_pushnumber(state, pos.x);
+            lua_pushnumber(state, pos.y);
+            return 2;
+        }
+
+        static int LightSetColor(lua_State* state) {
+            LuaEngine* engine = getEngine(state);
+            if (!engine) return 0;
+            Entity entity = luaL_checkinteger(state, 1);
+            float r = luaL_checknumber(state, 2);
+            float g = luaL_checknumber(state, 3);
+            float b = luaL_checknumber(state, 4);
+            engine->lightSetColor(entity, Vector3(r, g, b));
+            return 0;
+        }
+
+        static int LightGetColor(lua_State* state) {
+            LuaEngine* engine = getEngine(state);
+            if (!engine) { lua_pushnumber(state, 1); lua_pushnumber(state, 1); lua_pushnumber(state, 1); return 3; }
+            Entity entity = luaL_checkinteger(state, 1);
+            Vector3 color = engine->lightGetColor(entity);
+            lua_pushnumber(state, color.x);
+            lua_pushnumber(state, color.y);
+            lua_pushnumber(state, color.z);
+            return 3;
+        }
+
+        static int LightSetIntensity(lua_State* state) {
+            LuaEngine* engine = getEngine(state);
+            if (!engine) return 0;
+            Entity entity = luaL_checkinteger(state, 1);
+            float intensity = luaL_checknumber(state, 2);
+            engine->lightSetIntensity(entity, intensity);
+            return 0;
+        }
+
+        static int LightGetIntensity(lua_State* state) {
+            LuaEngine* engine = getEngine(state);
+            if (!engine) { lua_pushnumber(state, 0); return 1; }
+            Entity entity = luaL_checkinteger(state, 1);
+            lua_pushnumber(state, engine->lightGetIntensity(entity));
+            return 1;
+        }
+
+        static int LightSetRadius(lua_State* state) {
+            LuaEngine* engine = getEngine(state);
+            if (!engine) return 0;
+            Entity entity = luaL_checkinteger(state, 1);
+            float radius = luaL_checknumber(state, 2);
+            engine->lightSetRadius(entity, radius);
+            return 0;
+        }
+
+        static int LightGetRadius(lua_State* state) {
+            LuaEngine* engine = getEngine(state);
+            if (!engine) { lua_pushnumber(state, 0); return 1; }
+            Entity entity = luaL_checkinteger(state, 1);
+            lua_pushnumber(state, engine->lightGetRadius(entity));
+            return 1;
+        }
+
+        static int LightSetEnabled(lua_State* state) {
+            LuaEngine* engine = getEngine(state);
+            if (!engine) return 0;
+            Entity entity = luaL_checkinteger(state, 1);
+            bool enabled = lua_toboolean(state, 2);
+            engine->lightSetEnabled(entity, enabled);
+            return 0;
+        }
+
+        static int LightGetEnabled(lua_State* state) {
+            LuaEngine* engine = getEngine(state);
+            if (!engine) { lua_pushboolean(state, false); return 1; }
+            Entity entity = luaL_checkinteger(state, 1);
+            lua_pushboolean(state, engine->lightGetEnabled(entity));
+            return 1;
+        }
+
+        static int DestroyLight(lua_State* state) {
+            LuaEngine* engine = getEngine(state);
+            if (!engine) return 0;
+            Entity entity = luaL_checkinteger(state, 1);
+            engine->destroyLight(entity);
+            return 0;
+        }
+
         // Object deletion
         static int Destroy(lua_State* state) {
             Entity entity = luaL_checkinteger(state, 1);

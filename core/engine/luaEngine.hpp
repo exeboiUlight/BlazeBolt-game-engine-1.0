@@ -13,6 +13,8 @@
 #include <subject/audio.h>
 #include <subject/camera2D.hpp>
 #include <subject/particle2D.hpp>
+#include <subject/tileset2D.hpp>
+#include <subject/light2D.hpp>
 #include <engine/managers.hpp>
 #include <graphics/mesh.h>
 #include <utils/input.hpp>
@@ -42,6 +44,8 @@ namespace LuaEngine {
         World<Mesh2D> meshWorld;
         World<Camera2D> cameraWorld;
         World<ParticleSystem2D> particleWorld;
+        World<BlazeBolt::Tileset2D> tilesetWorld;
+        World<BlazeBolt::Light2D> lightWorld;
 
         Audio audioEngine;
 
@@ -95,6 +99,11 @@ namespace LuaEngine {
         Window* getMainWindow() const { return mainWindow; }
         int getScreenWidth() const { return mainWindow ? mainWindow->getWidth() : 0; }
         int getScreenHeight() const { return mainWindow ? mainWindow->getHeight() : 0; }
+
+        // Accessors for internal systems
+        World<BlazeBolt::Sprite2D>& getSpriteWorld() { return spriteWorld; }
+        World<BlazeBolt::Tileset2D>& getTilesetWorld() { return tilesetWorld; }
+        BlazeBolt::TextureManager& getTextureManager() { return textureManager; }
 
         // Script management
         bool loadScriptsFromList(const std::string& listPath);
@@ -302,6 +311,38 @@ namespace LuaEngine {
         int particleSystemGetCount(Entity entity);
         void updateAllParticleSystems(float dt);
         void drawAllParticleSystems();
+
+        // Tileset management
+        Entity createTileset(const std::string& texturePath, uint32_t tileW, uint32_t tileH, uint32_t atlasCols, uint32_t atlasRows);
+        void tilesetSetMap(Entity entity, const std::vector<std::vector<int>>& map);
+        int tilesetGetTile(Entity entity, uint32_t col, uint32_t row);
+        void tilesetSetTile(Entity entity, uint32_t col, uint32_t row, int tileIndex);
+        void tilesetSetTileSize(Entity entity, uint32_t w, uint32_t h);
+        void tilesetGetTileSize(Entity entity, uint32_t* w, uint32_t* h);
+        void tilesetSetPosition(Entity entity, const Vector2& pos);
+        Vector2 tilesetGetPosition(Entity entity);
+        uint32_t tilesetGetMapWidth(Entity entity);
+        uint32_t tilesetGetMapHeight(Entity entity);
+        uint32_t tilesetGetTileCount(Entity entity);
+        void drawAllTilesets();
+        void destroyTileset(Entity entity);
+
+        // Light management
+        Entity createPointLight(float x, float y, float r, float g, float b, float intensity, float radius);
+        Entity createAmbientLight(float r, float g, float b, float intensity);
+        void lightSetPosition(Entity entity, const Vector2& pos);
+        Vector2 lightGetPosition(Entity entity);
+        void lightSetColor(Entity entity, const Vector3& color);
+        Vector3 lightGetColor(Entity entity);
+        void lightSetIntensity(Entity entity, float intensity);
+        float lightGetIntensity(Entity entity);
+        void lightSetRadius(Entity entity, float radius);
+        float lightGetRadius(Entity entity);
+        void lightSetEnabled(Entity entity, bool enabled);
+        bool lightGetEnabled(Entity entity);
+        void destroyLight(Entity entity);
+        void uploadLightDataToShader(const BlazeBolt::SpriteShader2D& shader) const;
+        void uploadLightDataToShader(const BlazeBolt::SpriteBatchShader2D& shader) const;
 
         // General
         float getDeltaTime() const;

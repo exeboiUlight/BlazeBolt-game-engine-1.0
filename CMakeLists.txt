@@ -27,6 +27,8 @@ add_executable(${PROJECT_NAME}
     core/subject/sprite/staticSprite2D.cpp
     core/subject/camera2D.cpp
     core/subject/particle2D.cpp
+    core/subject/tileset2D.cpp
+    core/subject/light2D.cpp
     core/subject/text2D.cpp
     core/utils/net/client.cpp
     core/utils/net/server.cpp
