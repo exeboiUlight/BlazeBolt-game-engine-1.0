@@ -25,6 +25,17 @@ make            # или mingw32-make
 
 После сборки в `./bin/` появится `game.exe` (Windows) или `game` (Linux).
 
+### Зависимости
+
+| Библиотека | Назначение |
+|---|---|
+| GLFW | Окна и ввод |
+| GLAD | OpenGL-загрузчик |
+| FreeType | Рендеринг шрифтов |
+| Lua 5.4 | Скриптовый движок |
+| OpenAL | Звук |
+| ws2_32 (Windows) | Сетевые сокеты (TCP/UDP) |
+
 ---
 
 ## Идеология
@@ -56,6 +67,15 @@ make            # или mingw32-make
 
 Полная документация по Lua API находится в папке `./documentationcs/`.
 Также доступна на сайте: https://exeboiulight.github.io/MirulitSoftware-web/ (кнопка «?» внизу).
+
+---
+
+## Решение проблем
+
+### Ошибка `undefined reference to __imp_WSAStartup` (Windows)
+
+При компиляции с сетевым модулем линковщик не находит Winsock-функции.
+Убедитесь, что `-lws2_32` добавлен в флаги линковщика. В `build.py` это уже исправлено.
 
 ---
 

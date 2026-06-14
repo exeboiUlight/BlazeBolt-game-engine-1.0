@@ -27,6 +27,8 @@ namespace BlazeBolt {
         void setMVPMatrix(const Matrix3x3 &matrix) const;
         void setColor(const Vector4 &color) const;
         void setTextureRect(const Vector4 &rect) const;
+        void setWorldPos(const Vector2 &pos) const;
+        void setLightData(int count, const float* positions, const float* colors, const float* intensities, const float* radii, const Vector3& ambientColor, float ambientIntensity) const;
     };
 
     struct SpriteBatchShader2D {
@@ -38,5 +40,6 @@ namespace BlazeBolt {
         void bind() const;
         void setAspectRatio(float aspectRatio) const;
         void setMVPMatrix(const Matrix3x3 &matrix) const;
+        void setLightData(int count, const float* positions, const float* colors, const float* intensities, const float* radii, const Vector3& ambientColor, float ambientIntensity) const;
     };
 }

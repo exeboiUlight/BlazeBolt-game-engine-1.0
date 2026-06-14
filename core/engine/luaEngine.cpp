@@ -207,6 +207,36 @@ namespace LuaEngine {
         {"ParticleSystemClear", _functions::ParticleSystemClear},
         {"ParticleSystemGetCount", _functions::ParticleSystemGetCount},
 
+        // Tileset functions
+        {"CreateTileset", _functions::CreateTileset},
+        {"TilesetSetMap", _functions::TilesetSetMap},
+        {"TilesetGetTile", _functions::TilesetGetTile},
+        {"TilesetSetTile", _functions::TilesetSetTile},
+        {"TilesetSetTileSize", _functions::TilesetSetTileSize},
+        {"TilesetGetTileSize", _functions::TilesetGetTileSize},
+        {"TilesetSetPosition", _functions::TilesetSetPosition},
+        {"TilesetGetPosition", _functions::TilesetGetPosition},
+        {"TilesetGetMapWidth", _functions::TilesetGetMapWidth},
+        {"TilesetGetMapHeight", _functions::TilesetGetMapHeight},
+        {"TilesetGetTileCount", _functions::TilesetGetTileCount},
+        {"TilesetDraw", _functions::TilesetDraw},
+        {"DestroyTileset", _functions::DestroyTileset},
+
+        // Light functions
+        {"CreatePointLight", _functions::CreatePointLight},
+        {"CreateAmbientLight", _functions::CreateAmbientLight},
+        {"LightSetPosition", _functions::LightSetPosition},
+        {"LightGetPosition", _functions::LightGetPosition},
+        {"LightSetColor", _functions::LightSetColor},
+        {"LightGetColor", _functions::LightGetColor},
+        {"LightSetIntensity", _functions::LightSetIntensity},
+        {"LightGetIntensity", _functions::LightGetIntensity},
+        {"LightSetRadius", _functions::LightSetRadius},
+        {"LightGetRadius", _functions::LightGetRadius},
+        {"LightSetEnabled", _functions::LightSetEnabled},
+        {"LightGetEnabled", _functions::LightGetEnabled},
+        {"DestroyLight", _functions::DestroyLight},
+
         // Object deletion
         {"Destroy", _functions::Destroy},
         {"DestroyAll", _functions::DestroyAll},
@@ -758,6 +788,7 @@ namespace LuaEngine {
     void LuaEngine::drawAllSprites() const {
         this->spriteShader2D.bind();
         this->spriteShader2D.setAspectRatio(static_cast<float>(getScreenWidth()) / static_cast<float>(getScreenHeight()));
+        this->uploadLightDataToShader(this->spriteShader2D);
         for (const auto &pair : spriteWorld.getAllEntities()) {
             if (pair.first && !pair.second) {
                 // Check if entity has a custom shader
@@ -814,6 +845,7 @@ namespace LuaEngine {
         this->spriteBatchShader2D.bind();
         this->spriteBatchShader2D.setAspectRatio(static_cast<float>(getScreenWidth()) / static_cast<float>(getScreenHeight()));
         this->spriteBatchShader2D.setMVPMatrix(this->projectionViewMatrix2D);
+        this->uploadLightDataToShader(this->spriteBatchShader2D);
         for (auto &batch : spriteBatches) {
             if (batch.count() == 0) continue;
             batch.rebuild(this->spriteWorld);
@@ -1267,6 +1299,12 @@ namespace LuaEngine {
                 case RegisteredObject::PARTICLE:
                     particleWorld.destroy(entity);
                     break;
+                case RegisteredObject::TILESET:
+                    tilesetWorld.destroy(entity);
+                    break;
+                case RegisteredObject::LIGHT:
+                    lightWorld.destroy(entity);
+                    break;
                 default: break;
             }
             objectMap.erase(it);
@@ -1283,6 +1321,8 @@ namespace LuaEngine {
         meshWorld.clear();
         cameraWorld.clear();
         particleWorld.clear();
+        tilesetWorld.clear();
+        lightWorld.clear();
         physicsWorld.clear();
         physicsBodyMap.clear();
         objectMap.clear();
@@ -1733,6 +1773,251 @@ namespace LuaEngine {
         }
     }
 
+    // Tileset implementations
+    Entity LuaEngine::createTileset(const std::string& texturePath, uint32_t tileW, uint32_t tileH, uint32_t atlasCols, uint32_t atlasRows) {
+        BlazeBolt::Tileset2D *tileset = new BlazeBolt::Tileset2D(tileW, tileH, atlasCols, atlasRows);
+        const GL::Texture2D *texture = this->textureManager.loadFromFile2D(texturePath);
+        Entity entity = tilesetWorld.spawn(tileset);
+        objectMap[entity] = RegisteredObject(RegisteredObject::TILESET, tileset, entity);
+        if (texture != nullptr) {
+            tileset->setMap({}, this->spriteWorld, *texture);
+        }
+        return entity;
+    }
+
+    void LuaEngine::tilesetSetMap(Entity entity, const std::vector<std::vector<int>>& map) {
+        BlazeBolt::Tileset2D *tileset = tilesetWorld.getEntity(entity);
+        if (!tileset) return;
+        const GL::Texture2D *texture = tileset->getBatch().getTexture();
+        if (!texture) {
+            const GL::Texture2D *defaultTex = &this->textureManager.getDefault2D();
+            tileset->setMap(map, this->spriteWorld, *defaultTex);
+        } else {
+            tileset->setMap(map, this->spriteWorld, *texture);
+        }
+    }
+
+    int LuaEngine::tilesetGetTile(Entity entity, uint32_t col, uint32_t row) {
+        BlazeBolt::Tileset2D *tileset = tilesetWorld.getEntity(entity);
+        if (!tileset) return -1;
+        return tileset->getTile(col, row);
+    }
+
+    void LuaEngine::tilesetSetTile(Entity entity, uint32_t col, uint32_t row, int tileIndex) {
+        BlazeBolt::Tileset2D *tileset = tilesetWorld.getEntity(entity);
+        if (!tileset) return;
+        const GL::Texture2D *texture = tileset->getBatch().getTexture();
+        if (!texture) {
+            const GL::Texture2D *defaultTex = &this->textureManager.getDefault2D();
+            tileset->setTile(col, row, tileIndex, this->spriteWorld, *defaultTex);
+        } else {
+            tileset->setTile(col, row, tileIndex, this->spriteWorld, *texture);
+        }
+    }
+
+    void LuaEngine::tilesetSetTileSize(Entity entity, uint32_t w, uint32_t h) {
+        BlazeBolt::Tileset2D *tileset = tilesetWorld.getEntity(entity);
+        if (tileset) tileset->setTileSize(w, h);
+    }
+
+    void LuaEngine::tilesetGetTileSize(Entity entity, uint32_t* w, uint32_t* h) {
+        BlazeBolt::Tileset2D *tileset = tilesetWorld.getEntity(entity);
+        if (tileset) tileset->getTileSize(*w, *h);
+        else { *w = 0; *h = 0; }
+    }
+
+    void LuaEngine::tilesetSetPosition(Entity entity, const Vector2& pos) {
+        BlazeBolt::Tileset2D *tileset = tilesetWorld.getEntity(entity);
+        if (tileset) tileset->setPosition(pos);
+    }
+
+    Vector2 LuaEngine::tilesetGetPosition(Entity entity) {
+        BlazeBolt::Tileset2D *tileset = tilesetWorld.getEntity(entity);
+        if (tileset) return tileset->getPosition();
+        return Vector2(0, 0);
+    }
+
+    uint32_t LuaEngine::tilesetGetMapWidth(Entity entity) {
+        BlazeBolt::Tileset2D *tileset = tilesetWorld.getEntity(entity);
+        return tileset ? tileset->getMapWidth() : 0;
+    }
+
+    uint32_t LuaEngine::tilesetGetMapHeight(Entity entity) {
+        BlazeBolt::Tileset2D *tileset = tilesetWorld.getEntity(entity);
+        return tileset ? tileset->getMapHeight() : 0;
+    }
+
+    uint32_t LuaEngine::tilesetGetTileCount(Entity entity) {
+        BlazeBolt::Tileset2D *tileset = tilesetWorld.getEntity(entity);
+        return tileset ? tileset->getTileCount() : 0;
+    }
+
+    void LuaEngine::drawAllTilesets() {
+        this->spriteBatchShader2D.bind();
+        this->spriteBatchShader2D.setAspectRatio(static_cast<float>(getScreenWidth()) / static_cast<float>(getScreenHeight()));
+        this->spriteBatchShader2D.setMVPMatrix(this->projectionViewMatrix2D);
+        this->uploadLightDataToShader(this->spriteBatchShader2D);
+        for (auto& pair : tilesetWorld.getAllEntities()) {
+            if (pair.first && !pair.second) {
+                pair.first->rebuild(this->spriteWorld);
+                pair.first->draw(this->textureManager.getDefault2D());
+            }
+        }
+    }
+
+    void LuaEngine::destroyTileset(Entity entity) {
+        auto it = objectMap.find(entity);
+        if (it != objectMap.end()) {
+            tilesetWorld.destroy(entity);
+            objectMap.erase(it);
+        }
+    }
+
+    // Light implementations
+    Entity LuaEngine::createPointLight(float x, float y, float r, float g, float b, float intensity, float radius) {
+        BlazeBolt::Light2D *light = new BlazeBolt::Light2D(BlazeBolt::Light2D::POINT);
+        light->setPosition(Vector2(x, y));
+        light->setColor(Vector3(r, g, b));
+        light->setIntensity(intensity);
+        light->setRadius(radius);
+        Entity entity = lightWorld.spawn(light);
+        objectMap[entity] = RegisteredObject(RegisteredObject::LIGHT, light, entity);
+        return entity;
+    }
+
+    Entity LuaEngine::createAmbientLight(float r, float g, float b, float intensity) {
+        BlazeBolt::Light2D *light = new BlazeBolt::Light2D(BlazeBolt::Light2D::AMBIENT);
+        light->setColor(Vector3(r, g, b));
+        light->setIntensity(intensity);
+        Entity entity = lightWorld.spawn(light);
+        objectMap[entity] = RegisteredObject(RegisteredObject::LIGHT, light, entity);
+        return entity;
+    }
+
+    void LuaEngine::lightSetPosition(Entity entity, const Vector2& pos) {
+        BlazeBolt::Light2D *light = lightWorld.getEntity(entity);
+        if (light) light->setPosition(pos);
+    }
+
+    Vector2 LuaEngine::lightGetPosition(Entity entity) {
+        BlazeBolt::Light2D *light = lightWorld.getEntity(entity);
+        return light ? light->getPosition() : Vector2(0, 0);
+    }
+
+    void LuaEngine::lightSetColor(Entity entity, const Vector3& color) {
+        BlazeBolt::Light2D *light = lightWorld.getEntity(entity);
+        if (light) light->setColor(color);
+    }
+
+    Vector3 LuaEngine::lightGetColor(Entity entity) {
+        BlazeBolt::Light2D *light = lightWorld.getEntity(entity);
+        return light ? light->getColor() : Vector3(1, 1, 1);
+    }
+
+    void LuaEngine::lightSetIntensity(Entity entity, float intensity) {
+        BlazeBolt::Light2D *light = lightWorld.getEntity(entity);
+        if (light) light->setIntensity(intensity);
+    }
+
+    float LuaEngine::lightGetIntensity(Entity entity) {
+        BlazeBolt::Light2D *light = lightWorld.getEntity(entity);
+        return light ? light->getIntensity() : 0;
+    }
+
+    void LuaEngine::lightSetRadius(Entity entity, float radius) {
+        BlazeBolt::Light2D *light = lightWorld.getEntity(entity);
+        if (light) light->setRadius(radius);
+    }
+
+    float LuaEngine::lightGetRadius(Entity entity) {
+        BlazeBolt::Light2D *light = lightWorld.getEntity(entity);
+        return light ? light->getRadius() : 0;
+    }
+
+    void LuaEngine::lightSetEnabled(Entity entity, bool enabled) {
+        BlazeBolt::Light2D *light = lightWorld.getEntity(entity);
+        if (light) light->setEnabled(enabled);
+    }
+
+    bool LuaEngine::lightGetEnabled(Entity entity) {
+        BlazeBolt::Light2D *light = lightWorld.getEntity(entity);
+        return light ? light->isEnabled() : false;
+    }
+
+    void LuaEngine::destroyLight(Entity entity) {
+        auto it = objectMap.find(entity);
+        if (it != objectMap.end()) {
+            lightWorld.destroy(entity);
+            objectMap.erase(it);
+        }
+    }
+
+    void LuaEngine::uploadLightDataToShader(const BlazeBolt::SpriteShader2D& shader) const {
+        float positions[16];
+        float colors[24];
+        float intensities[8];
+        float radii[8];
+        int pointCount = 0;
+        float ambientR = 1, ambientG = 1, ambientB = 1, ambientI = 0.3f;
+
+        for (const auto& pair : lightWorld.getAllEntities()) {
+            if (!pair.first || pair.second) continue;
+            BlazeBolt::Light2D *light = pair.first;
+            if (!light->isEnabled()) continue;
+
+            if (light->getType() == BlazeBolt::Light2D::AMBIENT) {
+                ambientR = light->getColor().x;
+                ambientG = light->getColor().y;
+                ambientB = light->getColor().z;
+                ambientI = light->getIntensity();
+            } else if (light->getType() == BlazeBolt::Light2D::POINT && pointCount < 8) {
+                positions[pointCount * 2 + 0] = light->getPosition().x;
+                positions[pointCount * 2 + 1] = light->getPosition().y;
+                colors[pointCount * 3 + 0] = light->getColor().x;
+                colors[pointCount * 3 + 1] = light->getColor().y;
+                colors[pointCount * 3 + 2] = light->getColor().z;
+                intensities[pointCount] = light->getIntensity();
+                radii[pointCount] = light->getRadius();
+                pointCount++;
+            }
+        }
+
+        shader.setLightData(pointCount, positions, colors, intensities, radii, Vector3(ambientR, ambientG, ambientB), ambientI);
+    }
+
+    void LuaEngine::uploadLightDataToShader(const BlazeBolt::SpriteBatchShader2D& shader) const {
+        float positions[16];
+        float colors[24];
+        float intensities[8];
+        float radii[8];
+        int pointCount = 0;
+        float ambientR = 1, ambientG = 1, ambientB = 1, ambientI = 0.3f;
+
+        for (const auto& pair : lightWorld.getAllEntities()) {
+            if (!pair.first || pair.second) continue;
+            BlazeBolt::Light2D *light = pair.first;
+            if (!light->isEnabled()) continue;
+
+            if (light->getType() == BlazeBolt::Light2D::AMBIENT) {
+                ambientR = light->getColor().x;
+                ambientG = light->getColor().y;
+                ambientB = light->getColor().z;
+                ambientI = light->getIntensity();
+            } else if (light->getType() == BlazeBolt::Light2D::POINT && pointCount < 8) {
+                positions[pointCount * 2 + 0] = light->getPosition().x;
+                positions[pointCount * 2 + 1] = light->getPosition().y;
+                colors[pointCount * 3 + 0] = light->getColor().x;
+                colors[pointCount * 3 + 1] = light->getColor().y;
+                colors[pointCount * 3 + 2] = light->getColor().z;
+                intensities[pointCount] = light->getIntensity();
+                radii[pointCount] = light->getRadius();
+                pointCount++;
+            }
+        }
+
+        shader.setLightData(pointCount, positions, colors, intensities, radii, Vector3(ambientR, ambientG, ambientB), ambientI);
+    }
+
     // General
     float LuaEngine::getDeltaTime() const { return deltaTime; }
     void LuaEngine::setDeltaTime(float dt) { deltaTime = dt; }
@@ -1870,6 +2155,7 @@ namespace LuaEngine {
         this->drawAllTexts();
         this->drawAllMeshes();
         this->drawAllParticleSystems();
+        this->drawAllTilesets();
     }
 
     void LuaEngine::updateAll(float deltaTime) {
