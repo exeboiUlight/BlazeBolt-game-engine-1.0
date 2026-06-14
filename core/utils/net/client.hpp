@@ -5,6 +5,7 @@
 #include <atomic>
 #include <queue>
 #include <unordered_map>
+#include <memory>
 
 namespace BlazeBolt {
 namespace Net {
