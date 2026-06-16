@@ -19,6 +19,8 @@
 - [Утилиты](#утилиты)
 - [Шумы (Noise)](#шумы-noise)
 - [Шейдеры](#шейдеры)
+- [Порядок отрисовки (Render Order)](#порядок-отрисовки-render-order)
+- [Математические типы](#математические-типы)
 - [Частицы (ParticleSystem2D)](#частицы-particlesystem2d)
 - [Тайлсеты (Tileset2D)](#тайлсеты-tileset2d)
 - [Освещение (Light2D)](#освещение-light2d)
@@ -319,10 +321,15 @@ speed        = BlazeBolt.AnimatedSpriteGetPlaybackSpeed(entity)
 ### Позиция и размер
 ```lua
 BlazeBolt.AnimatedSpriteSetPosition(entity, x, y)
+x, y = BlazeBolt.AnimatedSpriteGetPosition(entity)
 BlazeBolt.AnimatedSpriteSetSize(entity, width, height)
+width, height = BlazeBolt.AnimatedSpriteGetSize(entity)
 BlazeBolt.AnimatedSpriteSetOrigin(entity, originX, originY)
+originX, originY = BlazeBolt.AnimatedSpriteGetOrigin(entity)
 BlazeBolt.AnimatedSpriteSetRotation(entity, degrees)
+degrees = BlazeBolt.AnimatedSpriteGetRotation(entity)
 BlazeBolt.AnimatedSpriteSetColor(entity, r, g, b, a)
+r, g, b, a = BlazeBolt.AnimatedSpriteGetColor(entity)
 ```
 
 ### Пример
@@ -561,7 +568,7 @@ scrollY = BlazeBolt.GetScrollY()      -- вертикальная прокрут
 Keys.A, Keys.B, Keys.C, ..., Keys.Z
 
 -- Цифры
-Keys._0, Keys._1, ..., Keys._9
+Keys[0], Keys[1], ..., Keys[9]
 
 -- Стрелки
 Keys.UP, Keys.DOWN, Keys.LEFT, Keys.RIGHT
@@ -959,6 +966,37 @@ end
 
 ---
 
+## Порядок отрисовки (Render Order)
+
+Позволяет управлять порядком отрисовки不同类型 объектов. По умолчанию порядок:
+`{"Tilesets", "Sprites", "AnimatedSprites", "Texts", "Meshes", "Particles"}`
+
+### Установка
+```lua
+BlazeBolt.SetRenderOrder(orderTable)
+```
+`orderTable` — таблица (массив) строк с именами типов объектов. Объекты рисуются в указанном порядке: первый в списке — самый задний (рисуется первым).
+
+### Получение
+```lua
+orderTable = BlazeBolt.GetRenderOrder()
+```
+Возвращает текущий порядок отрисовки как таблицу строк.
+
+### Пример
+```lua
+function Start()
+    BlazeBolt.SetRenderOrder({"Particles", "Tilesets", "Sprites", "AnimatedSprites", "Texts", "Meshes"})
+end
+
+function Draw()
+    local order = BlazeBolt.GetRenderOrder()
+    for i, name in ipairs(order) do
+        BlazeBolt.Print(i .. ": " .. name)
+    end
+end
+```
+
 ---
 
 ## Камера (Camera2D)
@@ -1162,13 +1200,14 @@ end
 ### Создание и настройка
 
 ```lua
-tileset = BlazeBolt.CreateTileset(atlasPath, tileSize, tileCountX, tileCountY)
+tileset = BlazeBolt.CreateTileset(atlasPath, tileW, tileH, tileCountX, tileCountY)
 -- atlasPath: путь к текстуре-атласу (PNG)
--- tileSize: размер тайла в пикселях (целое число)
+-- tileW: ширина тайла в пикселях (целое число)
+-- tileH: высота тайла в пикселях (целое число)
 -- tileCountX: количество тайлов по X в атласе
 -- tileCountY: количество тайлов по Y в атласе
 
-BlazeBolt.TilesetSetTileSize(tileset, tileSize)
+BlazeBolt.TilesetSetTileSize(tileset, tileW, tileH)
 BlazeBolt.TilesetSetPosition(tileset, x, y)
 ```
 
@@ -1197,7 +1236,7 @@ local tileset
 
 function Start()
     -- Создаём тайлсет: атлас 4x4 тайла по 32px
-    tileset = BlazeBolt.CreateTileset("atlas.png", 32, 4, 4)
+    tileset = BlazeBolt.CreateTileset("atlas.png", 32, 32, 4, 4)
     BlazeBolt.TilesetSetPosition(tileset, 0, 0)
     
     -- Определяем карту 8x6 (индексы тайлов в атласе)
@@ -1224,7 +1263,7 @@ local tileset
 local currentTile = 1
 
 function Start()
-    tileset = BlazeBolt.CreateTileset("atlas.png", 16, 8, 8)
+    tileset = BlazeBolt.CreateTileset("atlas.png", 16, 16, 8, 8)
     BlazeBolt.TilesetSetPosition(tileset, 0, 0)
     
     -- Пустая карта 16x12
@@ -1241,9 +1280,9 @@ end
 function Update(dt)
     if BlazeBolt.IsMouseButtonJustPressed(MouseButton.LEFT) then
         local mx, my = BlazeBolt.GetMouseX(), BlazeBolt.GetMouseY()
-        local tileSize = BlazeBolt.TilesetGetTileSize(tileset)
-        local col = math.floor(mx / tileSize)
-        local row = math.floor(my / tileSize)
+        local tileW, tileH = BlazeBolt.TilesetGetTileSize(tileset)
+        local col = math.floor(mx / tileW)
+        local row = math.floor(my / tileH)
         BlazeBolt.TilesetSetTile(tileset, col, row, currentTile)
     end
 end
@@ -2077,6 +2116,116 @@ player=engine/scripts/player.lua
 
 ---
 
+## Математические типы
+
+Движок предоставляет глобальные типы для работы с математикой: `Vector2`, `Vector3`, `Vector4` и `Matrix3x3`. Все типы поддерживают арифметические операторы (`+`, `-`, `*`, `/`), сравнение (`==`), унарный минус (`-v`), а также строковое представление (`tostring`).
+
+### Vector2
+
+Двумерный вектор с полями `x` и `y`.
+
+```lua
+local v = Vector2(1.0, 2.0)   -- создание
+v.x = 5.0                      -- изменение полей
+v.y = 3.0
+print(v)                        -- "(5, 3)"
+```
+
+**Методы:**
+| Метод | Описание |
+|---|---|
+| `v:length()` | Длина вектора |
+| `v:lengthSquared()` | Квадрат длины (быстрее) |
+| `v:normalized()` | Нормализованный копия (не изменяет оригинал) |
+| `v:normalize()` | Нормализует вектор на месте |
+| `v:dot(other)` | Скалярное произведение |
+| `v:cross(other)` | Векторное произведение (возвращает число) |
+| `v:clone()` | Копия вектора |
+
+**Операторы:**
+```lua
+local a = Vector2(1, 2)
+local b = Vector2(3, 4)
+local c = a + b        -- Vector2(4, 6)
+local d = a - b        -- Vector2(-2, -2)
+local e = a * 2        -- Vector2(2, 4)
+local f = 3 * a        -- Vector2(3, 6)
+local g = a / 2        -- Vector2(0.5, 1)
+local h = -a           -- Vector2(-1, -2)
+print(a == b)          -- false
+```
+
+### Vector3
+
+Трёхмерный вектор с полями `x`, `y`, `z`.
+
+```lua
+local v = Vector3(1.0, 2.0, 3.0)
+```
+
+**Методы:** аналогичны Vector2 (`length`, `lengthSquared`, `normalized`, `normalize`, `dot`, `cross`, `clone`), но `cross` возвращает `Vector3`.
+
+### Vector4
+
+Четырёхмерный вектор с полями `x`, `y`, `z`, `w`.
+
+```lua
+local v = Vector4(1.0, 2.0, 3.0, 4.0)
+```
+
+**Методы:** `length`, `lengthSquared`, `normalized`, `normalize`, `dot`, `clone`, а также:
+| Метод | Описание |
+|---|---|
+| `v:toVector3()` | Конвертация в Vector3 (отбрасывает `w`) |
+
+### Matrix3x3
+
+Матрица 3x3. Индексация элементов через числовые индексы 1–9 (column-major).
+
+```lua
+local m = Matrix3x3()          -- нулевая матрица
+local id = Matrix3x3.identity() -- единичная матрица
+```
+
+**Статические методы создания:**
+| Метод | Описание |
+|---|---|
+| `Matrix3x3()` | Нулевая матрица |
+| `Matrix3x3.identity()` | Единичная матрица |
+| `Matrix3x3.translation(x, y)` | Матрица переноса |
+| `Matrix3x3.scale(x, y)` | Матрица масштабирования (`y` по умолчанию = `x`) |
+| `Matrix3x3.rotation(degrees)` | Матрица вращения (в градусах) |
+
+**Методы:**
+| Метод | Описание |
+|---|---|
+| `m:get(col, row)` | Получить элемент (col и row от 1 до 3) |
+| `m:set(col, row, val)` | Установить элемент |
+| `m:toArray()` | Конвертировать в Lua-таблицу из 9 элементов |
+| `m:clone()` | Копия матрицы |
+
+**Операторы:**
+```lua
+local a = Matrix3x3.translation(1, 2)
+local b = Matrix3x3.rotation(45)
+local c = a * b          -- умножение матриц
+print(a == b)            -- false
+print(a)                 -- "[[1 0 1] [0 1 2] [0 0 1]]"
+```
+
+### Пример: движение через матрицу
+```lua
+function Start()
+    local pos = Vector2(0, 0)
+    local mat = Matrix3x3.translation(pos.x, pos.y)
+               * Matrix3x3.rotation(45)
+               * Matrix3x3.scale(2, 2)
+    BlazeBolt.Print(tostring(mat))
+end
+```
+
+---
+
 ## Справочник всех функций
 
 ### Камера
@@ -2116,12 +2265,12 @@ player=engine/scripts/player.lua
 ### Тайловые карты (Tileset2D)
 | Функция | Параметры | Возврат |
 |---|---|---|
-| `BlazeBolt.CreateTileset` | `atlasPath, tileSize, tileCountX, tileCountY` | `entity` |
+| `BlazeBolt.CreateTileset` | `atlasPath, tileW, tileH, tileCountX, tileCountY` | `entity` |
 | `BlazeBolt.TilesetSetMap` | `entity, mapTable` | — |
 | `BlazeBolt.TilesetGetTile` | `entity, col, row` | `tileIndex` |
 | `BlazeBolt.TilesetSetTile` | `entity, col, row, tileIndex` | — |
-| `BlazeBolt.TilesetSetTileSize` | `entity, tileSize` | — |
-| `BlazeBolt.TilesetGetTileSize` | `entity` | `tileSize` |
+| `BlazeBolt.TilesetSetTileSize` | `entity, w, h` | — |
+| `BlazeBolt.TilesetGetTileSize` | `entity` | `w, h` |
 | `BlazeBolt.TilesetSetPosition` | `entity, x, y` | — |
 | `BlazeBolt.TilesetGetPosition` | `entity` | `x, y` |
 | `BlazeBolt.TilesetGetMapWidth` | `entity` | `width` |
@@ -2394,6 +2543,62 @@ local noise2 = PerlinNoise2D(x, y)
 | `BlazeBolt.SetShaderVec2` | `shaderId, name, x, y` | — |
 | `BlazeBolt.SetShaderVec3` | `shaderId, name, x, y, z` | — |
 | `BlazeBolt.SetShaderVec4` | `shaderId, name, x, y, z, w` | — |
+
+### Порядок отрисовки
+| Функция | Параметры | Возврат |
+|---|---|---|
+| `BlazeBolt.SetRenderOrder` | `orderTable` | — |
+| `BlazeBolt.GetRenderOrder` | — | `table` |
+
+### Математические типы (глобальные)
+
+**Vector2**
+| Операция | Описание |
+|---|---|
+| `Vector2(x, y)` | Создание |
+| `v.x`, `v.y` | Поля |
+| `v:length()` | Длина |
+| `v:lengthSquared()` | Квадрат длины |
+| `v:normalized()` | Нормализованная копия |
+| `v:normalize()` | Нормализация на месте |
+| `v:dot(other)` | Скалярное произведение |
+| `v:cross(other)` | Векторное произведение |
+| `v:clone()` | Копия |
+| `v1 + v2`, `v1 - v2` | Сложение/вычитание |
+| `v * scalar`, `scalar * v` | Умножение на число |
+| `v / scalar` | Деление на число |
+| `-v` | Унарный минус |
+| `v1 == v2` | Сравнение |
+
+**Vector3**
+| Операция | Описание |
+|---|---|
+| `Vector3(x, y, z)` | Создание |
+| `v.x`, `v.y`, `v.z` | Поля |
+| Методы | Аналогичны Vector2 + `cross` возвращает Vector3 |
+
+**Vector4**
+| Операция | Описание |
+|---|---|
+| `Vector4(x, y, z, w)` | Создание |
+| `v.x`, `v.y`, `v.z`, `v.w` | Поля |
+| `v:toVector3()` | Конвертация в Vector3 |
+| Методы | Аналогичны Vector2 |
+
+**Matrix3x3**
+| Операция | Описание |
+|---|---|
+| `Matrix3x3()` | Нулевая матрица |
+| `Matrix3x3.identity()` | Единичная матрица |
+| `Matrix3x3.translation(x, y)` | Перенос |
+| `Matrix3x3.scale(x, y)` | Масштабирование |
+| `Matrix3x3.rotation(degrees)` | Вращение |
+| `m:get(col, row)` | Получить элемент (1–3) |
+| `m:set(col, row, val)` | Установить элемент |
+| `m:toArray()` | В Lua-таблицу |
+| `m:clone()` | Копия |
+| `m1 * m2` | Умножение матриц |
+| `m1 == m2` | Сравнение |
 
 ### Сеть — Инициализация
 | Функция | Параметры | Возврат |

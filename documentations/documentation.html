@@ -270,6 +270,9 @@
     <a href="#shaders" data-section>
       <span class="nav-icon">◐</span> Шейдеры
     </a>
+    <a href="#render-order" data-section>
+      <span class="nav-icon">↕</span> Порядок отрисовки
+    </a>
 
     <div class="cat">Математика</div>
     <a href="#vectors" data-section>
@@ -566,10 +569,15 @@ speed        = BlazeBolt.AnimatedSpriteGetPlaybackSpeed(entity)`)}</code></pre>
 
 <h3>Позиция и размер</h3>
 <pre data-lang="lua"><code>${highlightLua(`BlazeBolt.AnimatedSpriteSetPosition(entity, x, y)
+x, y = BlazeBolt.AnimatedSpriteGetPosition(entity)
 BlazeBolt.AnimatedSpriteSetSize(entity, width, height)
+width, height = BlazeBolt.AnimatedSpriteGetSize(entity)
 BlazeBolt.AnimatedSpriteSetOrigin(entity, originX, originY)
+originX, originY = BlazeBolt.AnimatedSpriteGetOrigin(entity)
 BlazeBolt.AnimatedSpriteSetRotation(entity, degrees)
-BlazeBolt.AnimatedSpriteSetColor(entity, r, g, b, a)`)}</code></pre>
+degrees = BlazeBolt.AnimatedSpriteGetRotation(entity)
+BlazeBolt.AnimatedSpriteSetColor(entity, r, g, b, a)
+r, g, b, a = BlazeBolt.AnimatedSpriteGetColor(entity)`)}</code></pre>
 
 <h3>Пример</h3>
 <pre data-lang="lua"><code>${highlightLua(`function Start()
@@ -779,7 +787,7 @@ isPressed = BlazeBolt.IsMouseButtonJustPressed(button)`)}</code></pre>
 <pre data-lang="lua"><code>${highlightLua(`-- Буквы
 Keys.A .. Keys.Z
 -- Цифры
-Keys._0 .. Keys._9
+Keys[0] .. Keys[9]
 -- Стрелки
 Keys.UP, Keys.DOWN, Keys.LEFT, Keys.RIGHT
 -- Специальные
@@ -1172,6 +1180,23 @@ end`)}</code></pre>
 
 <hr>
 
+<h2 id="render-order" class="section-anchor">Порядок отрисовки (Render Order)</h2>
+<p>Позволяет управлять порядком отрисовки不同类型 объектов. По умолчанию: <code>{"Tilesets", "Sprites", "AnimatedSprites", "Texts", "Meshes", "Particles"}</code>.</p>
+
+<h3>Установка</h3>
+<pre data-lang="lua"><code>${highlightLua(`BlazeBolt.SetRenderOrder(orderTable)`)}</code></pre>
+<p><code>orderTable</code> — таблица (массив) строк с именами типов. Объекты рисуются в указанном порядке.</p>
+
+<h3>Получение</h3>
+<pre data-lang="lua"><code>${highlightLua(`orderTable = BlazeBolt.GetRenderOrder()`)}</code></pre>
+
+<h3>Пример</h3>
+<pre data-lang="lua"><code>${highlightLua(`function Start()
+    BlazeBolt.SetRenderOrder({"Particles", "Tilesets", "Sprites", "AnimatedSprites", "Texts", "Meshes"})
+end`)}</code></pre>
+
+<hr>
+
 <h2 id="particles" class="section-anchor">Частицы (ParticleSystem2D)</h2>
 <p>GPU-инстанциированная система частиц для создания визуальных эффектов: взрывы, искры, дым, огонь и др.</p>
 <p>Каждая система частиц — объект-сущность (<code>entity</code>). Она автоматически обновляется и отрисовывается каждый кадр с использованием instanced-рендеринга OpenGL. Поддерживаются параметры эмиссии, времени жизни, скорости, размера (начальный и конечный), цвета (начальный и конечный), направления разлёта и скорости вращения. Эмиссия может быть непрерывной (с заданной частотой) или ручной (burst через <code>Emit</code>).</p>
@@ -1269,8 +1294,8 @@ end`)}</code></pre>
 <p>Тайловые карты позволяют строить 2D-уровни из набора тайлов — прямоугольных фрагментов текстуры (атласа). Каждый тайл имеет индекс, определяющий его позицию в атласе.</p>
 
 <h3>Создание и настройка</h3>
-<pre data-lang="lua"><code>${highlightLua(`tileset = BlazeBolt.CreateTileset(atlasPath, tileSize, tileCountX, tileCountY)
-BlazeBolt.TilesetSetTileSize(tileset, tileSize)
+<pre data-lang="lua"><code>${highlightLua(`tileset = BlazeBolt.CreateTileset(atlasPath, tileW, tileH, tileCountX, tileCountY)
+BlazeBolt.TilesetSetTileSize(tileset, tileW, tileH)
 BlazeBolt.TilesetSetPosition(tileset, x, y)`)}</code></pre>
 
 <h3>Карта тайлов</h3>
@@ -1288,7 +1313,7 @@ BlazeBolt.DestroyTileset(tileset)`)}</code></pre>
 <pre data-lang="lua"><code>${highlightLua(`local tileset
 
 function Start()
-    tileset = BlazeBolt.CreateTileset("atlas.png", 32, 4, 4)
+    tileset = BlazeBolt.CreateTileset("atlas.png", 32, 32, 4, 4)
     BlazeBolt.TilesetSetPosition(tileset, 0, 0)
     
     local map = {
@@ -1847,6 +1872,13 @@ TextAlignment.RIGHT    -- По правому краю`)}</code></pre>
   <tr><td><code>BlazeBolt.SetShaderVec4</code></td><td><code>shaderId, name, x, y, z, w</code></td><td>—</td></tr>
 </table></div>
 
+<h3>Порядок отрисовки</h3>
+<div class="table-wrap"><table>
+  <tr><th>Функция</th><th>Параметры</th><th>Возврат</th></tr>
+  <tr><td><code>BlazeBolt.SetRenderOrder</code></td><td><code>orderTable</code></td><td>—</td></tr>
+  <tr><td><code>BlazeBolt.GetRenderOrder</code></td><td>—</td><td><code>table</code></td></tr>
+</table></div>
+
 <h3>Скрипты и сцены</h3>
 <div class="table-wrap"><table>
   <tr><th>Функция</th><th>Параметры</th><th>Возврат</th></tr>
@@ -1859,6 +1891,42 @@ TextAlignment.RIGHT    -- По правому краю`)}</code></pre>
   <tr><td><code>BlazeBolt.GetLoadedScripts</code></td><td>—</td><td><code>table</code></td></tr>
   <tr><td><code>BlazeBolt.LoadScene</code></td><td><code>sceneName</code></td><td><code>bool</code></td></tr>
   <tr><td><code>BlazeBolt.GetCurrentScene</code></td><td>—</td><td><code>name</code></td></tr>
+</table></div>
+
+<h3>Тайловые карты (Tileset2D)</h3>
+<div class="table-wrap"><table>
+  <tr><th>Функция</th><th>Параметры</th><th>Возврат</th></tr>
+  <tr><td><code>BlazeBolt.CreateTileset</code></td><td><code>atlasPath, tileW, tileH, tileCountX, tileCountY</code></td><td><code>entity</code></td></tr>
+  <tr><td><code>TilesetSetMap</code></td><td><code>entity, mapTable</code></td><td>—</td></tr>
+  <tr><td><code>TilesetGetTile</code></td><td><code>entity, col, row</code></td><td><code>tileIndex</code></td></tr>
+  <tr><td><code>TilesetSetTile</code></td><td><code>entity, col, row, tileIndex</code></td><td>—</td></tr>
+  <tr><td><code>TilesetSetTileSize</code></td><td><code>entity, w, h</code></td><td>—</td></tr>
+  <tr><td><code>TilesetGetTileSize</code></td><td><code>entity</code></td><td><code>w, h</code></td></tr>
+  <tr><td><code>TilesetSetPosition</code></td><td><code>entity, x, y</code></td><td>—</td></tr>
+  <tr><td><code>TilesetGetPosition</code></td><td><code>entity</code></td><td><code>x, y</code></td></tr>
+  <tr><td><code>TilesetGetMapWidth</code></td><td><code>entity</code></td><td><code>width</code></td></tr>
+  <tr><td><code>TilesetGetMapHeight</code></td><td><code>entity</code></td><td><code>height</code></td></tr>
+  <tr><td><code>TilesetGetTileCount</code></td><td><code>entity</code></td><td><code>count</code></td></tr>
+  <tr><td><code>TilesetDraw</code></td><td><code>entity</code></td><td>—</td></tr>
+  <tr><td><code>DestroyTileset</code></td><td><code>entity</code></td><td>—</td></tr>
+</table></div>
+
+<h3>Освещение (Light2D)</h3>
+<div class="table-wrap"><table>
+  <tr><th>Функция</th><th>Параметры</th><th>Возврат</th></tr>
+  <tr><td><code>BlazeBolt.CreatePointLight</code></td><td><code>x, y, r, g, b, intensity, radius</code></td><td><code>entity</code></td></tr>
+  <tr><td><code>BlazeBolt.CreateAmbientLight</code></td><td><code>r, g, b, intensity</code></td><td><code>entity</code></td></tr>
+  <tr><td><code>LightSetPosition</code></td><td><code>entity, x, y</code></td><td>—</td></tr>
+  <tr><td><code>LightGetPosition</code></td><td><code>entity</code></td><td><code>x, y</code></td></tr>
+  <tr><td><code>LightSetColor</code></td><td><code>entity, r, g, b</code></td><td>—</td></tr>
+  <tr><td><code>LightGetColor</code></td><td><code>entity</code></td><td><code>r, g, b</code></td></tr>
+  <tr><td><code>LightSetIntensity</code></td><td><code>entity, intensity</code></td><td>—</td></tr>
+  <tr><td><code>LightGetIntensity</code></td><td><code>entity</code></td><td><code>intensity</code></td></tr>
+  <tr><td><code>LightSetRadius</code></td><td><code>entity, radius</code></td><td>—</td></tr>
+  <tr><td><code>LightGetRadius</code></td><td><code>entity</code></td><td><code>radius</code></td></tr>
+  <tr><td><code>LightSetEnabled</code></td><td><code>entity, bool</code></td><td>—</td></tr>
+  <tr><td><code>LightGetEnabled</code></td><td><code>entity</code></td><td><code>bool</code></td></tr>
+  <tr><td><code>DestroyLight</code></td><td><code>entity</code></td><td>—</td></tr>
 </table></div>
 
 <hr>
@@ -1943,480 +2011,6 @@ function Update(dt)
         if data then BlazeBolt.TCPServerBroadcast(server, data) end
     end
 end`)}</code></pre>
-
-<hr>
-
-<h2 id="minigame" class="section-anchor">Пример: полная мини-игра</h2>
-<pre data-lang="lua"><code>${highlightLua(`-- player.lua
-local playerSprite
-local playerBody
-local score = 0
-local scoreText
-
-function Start()
-    BlazeBolt.SetMainWindowTitle("Mini Game")
-    playerSprite = BlazeBolt.CreateSprite("player.png", 0, 0)
-    BlazeBolt.SpriteSetSize(playerSprite, 0.08, 0.08)
-    BlazeBolt.SpriteSetOrigin(playerSprite, 0.5, 0.5)
-    playerBody = BlazeBolt.PhysicsCreateBody(1, 0, 0, 1, 0.2, 0.6)
-    BlazeBolt.PhysicsAddRectangle(playerBody, 0.04, 0.04)
-    scoreText = BlazeBolt.CreateText("fonts/arial.ttf", "Score: 0", -0.8, 0.85)
-    BlazeBolt.TextSetColor(scoreText, 1, 1, 1, 1)
-    BlazeBolt.LoadSound("music/bgm.wav", "bgm", true)
-    BlazeBolt.LoadSound("sfx/jump.wav", "jump", false)
-    BlazeBolt.LoadSound("sfx/collect.wav", "collect", false)
-    BlazeBolt.PlaySound("bgm")
-    BlazeBolt.PhysicsInit(0, -9.8)
-    spawnCoins()
-end
-
-function spawnCoins()
-    coins = {}
-    coinBodies = {}
-    for i = 1, 5 do
-        local cx = BlazeBolt.Random(-0.6, 0.6)
-        local cy = BlazeBolt.Random(-0.5, 0.6)
-        local coin = BlazeBolt.CreateSprite("coin.png", cx, cy)
-        BlazeBolt.SpriteSetSize(coin, 0.06, 0.06)
-        local cb = BlazeBolt.PhysicsCreateBody(0, cx, cy, 0, 0, 0)
-        BlazeBolt.PhysicsAddCircle(cb, 0.03, 0, 0)
-        table.insert(coins, coin)
-        table.insert(coinBodies, cb)
-    end
-end
-
-function Update(dt)
-    local vx, vy = BlazeBolt.PhysicsGetLinearVelocity(playerBody)
-    if BlazeBolt.IsKeyPressed(Keys.A) then
-        BlazeBolt.PhysicsApplyForce(playerBody, -15, 0)
-    end
-    if BlazeBolt.IsKeyPressed(Keys.D) then
-        BlazeBolt.PhysicsApplyForce(playerBody, 15, 0)
-    end
-    if BlazeBolt.IsKeyJustPressed(Keys.SPACE) and vy < 0.1 then
-        BlazeBolt.PhysicsApplyImpulse(playerBody, 0, 8)
-        BlazeBolt.PlaySound("jump")
-    end
-    BlazeBolt.PhysicsStep()
-    BlazeBolt.PhysicsSyncSprite(playerBody, playerSprite)
-    local px, py = BlazeBolt.PhysicsGetPosition(playerBody)
-    for i = #coins, 1, -1 do
-        local cx, cy = BlazeBolt.PhysicsGetPosition(coinBodies[i])
-        if math.sqrt((px - cx)^2 + (py - cy)^2) < 0.08 then
-            BlazeBolt.Destroy(coins[i])
-            BlazeBolt.PhysicsDestroyBody(coinBodies[i])
-            table.remove(coins, i)
-            table.remove(coinBodies, i)
-            score = score + 10
-            BlazeBolt.TextSetString(scoreText, "Score: " .. score)
-            BlazeBolt.PlaySound("collect")
-        end
-    end
-    if #coins == 0 then spawnCoins() end
-    if BlazeBolt.IsKeyJustPressed(Keys.ESCAPE) then
-        BlazeBolt.Quit()
-    end
-end`)}</code></pre>
-
-<hr>
-
-<h2 id="best-practices" class="section-anchor">Лучшие практики</h2>
-<h3>Организация кода</h3>
-<ul>
-  <li>Разделяйте логику на отдельные скрипты через <code>.BlazeBoltProject</code> / <code>scripts.list</code></li>
-  <li>Используйте <code>BlazeBolt.EnableScript(name, false)</code> для отладки</li>
-  <li>Храните пути к ресурсам в константах</li>
-</ul>
-<h3>Производительность</h3>
-<ul>
-  <li>Не создавайте объекты в <code>Update()</code> — создавайте в <code>Start()</code></li>
-  <li>Используйте <code>Destroy()</code> для удаления ненужных объектов</li>
-  <li>Не загружайте текстуры повторно — <code>SpriteSetTexture</code> использует кеш</li>
-</ul>
-<h3>Масштабирование</h3>
-<ul>
-  <li>Проектируйте игру в NDC — она будет работать на любом разрешении</li>
-  <li>Для pixel-art используйте <code>Nearest</code> фильтр текстур (по умолчанию)</li>
-  <li>Тестируйте на разных размерах окна</li>
-</ul>
-<h3>Отладка</h3>
-<ul>
-  <li>Используйте <code>BlazeBolt.Print()</code> для вывода значений</li>
-  <li><code>BlazeBolt.GetDeltaTime()</code> помогает отслеживать FPS: <code>1 / dt</code></li>
-  <li>Перезагружайте скрипты через <code>ReloadAllScripts</code> без перезапуска</li>
-</ul>
-<h3>Обработка ошибок</h3>
-<ul>
-  <li>Проверяйте <code>entity ~= 0</code> после создания — <code>0</code> означает ошибку</li>
-  <li>Проверяйте <code>loaded = IsScriptLoaded(name)</code> перед использованием</li>
-  <li>Звуки могут не загрузиться — проверяйте <code>soundId >= 0</code></li>
-</ul>
-
-<hr>
-
-<h2 id="project-structure" class="section-anchor">Структура проекта</h2>
-<pre><code>bin/versions/engine/
-├── .BlazeBoltProject         # Список загружаемых скриптов
-├── engine/
-│   ├── scripts/
-│   │   ├── main.lua          # Главный скрипт (обязательно)
-│   │   ├── player.lua        # Логика игрока
-│   │   └── enemy.lua         # Логика врагов
-│   ├── scenes/
-│   │   ├── menu.lua          # Сцена меню
-│   │   └── game.lua          # Сцена игры
-│   ├── assets/
-│   │   ├── textures/         # PNG-текстуры
-│   │   ├── fonts/            # TTF-шрифты
-│   │   ├── music/            # Фоновая музыка
-│   │   └── sfx/              # Звуковые эффекты
-│   └── icon.png              # Иконка окна</code></pre>
-
-<h3>.BlazeBoltProject — формат</h3>
-<pre><code># Комментарии начинаются с #
-# Скрипты: имя=путь
-main=engine/scripts/main.lua
-player=engine/scripts/player.lua
-
-# Сцены (префикс @):
-@menu=engine/scenes/menu.lua
-@game=engine/scenes/game.lua</code></pre>
-
-<hr>
-
-<h2 id="reference" class="section-anchor">Справочник всех функций</h2>
-
-<h3>Камера</h3>
-<div class="table-wrap"><table>
-  <tr><th>Функция</th><th>Параметры</th><th>Возврат</th></tr>
-  <tr><td><code>BlazeBolt.CreateCamera</code></td><td>—</td><td><code>entity</code></td></tr>
-  <tr><td><code>CameraSetPosition</code></td><td><code>entity, x, y</code></td><td>—</td></tr>
-  <tr><td><code>CameraGetPosition</code></td><td><code>entity</code></td><td><code>x, y</code></td></tr>
-  <tr><td><code>CameraSetZoom</code></td><td><code>entity, zoom</code></td><td>—</td></tr>
-  <tr><td><code>CameraGetZoom</code></td><td><code>entity</code></td><td><code>zoom</code></td></tr>
-  <tr><td><code>CameraSetRotation</code></td><td><code>entity, degrees</code></td><td>—</td></tr>
-  <tr><td><code>CameraGetRotation</code></td><td><code>entity</code></td><td><code>degrees</code></td></tr>
-</table></div>
-
-<h3>Частицы</h3>
-<div class="table-wrap"><table>
-  <tr><th>Функция</th><th>Параметры</th><th>Возврат</th></tr>
-  <tr><td><code>BlazeBolt.CreateParticleSystem</code></td><td>—</td><td><code>entity</code></td></tr>
-  <tr><td><code>ParticleSystemSetPosition</code></td><td><code>entity, x, y</code></td><td>—</td></tr>
-  <tr><td><code>ParticleSystemSetTexture</code></td><td><code>entity, path</code></td><td>—</td></tr>
-  <tr><td><code>ParticleSystemSetEmissionRate</code></td><td><code>entity, rate</code></td><td>—</td></tr>
-  <tr><td><code>ParticleSystemGetEmissionRate</code></td><td><code>entity</code></td><td><code>rate</code></td></tr>
-  <tr><td><code>ParticleSystemSetLifetime</code></td><td><code>entity, min, max</code></td><td>—</td></tr>
-  <tr><td><code>ParticleSystemSetSpeed</code></td><td><code>entity, min, max</code></td><td>—</td></tr>
-  <tr><td><code>ParticleSystemSetSize</code></td><td><code>entity, min, max</code></td><td>—</td></tr>
-  <tr><td><code>ParticleSystemSetEndSize</code></td><td><code>entity, min, max</code></td><td>—</td></tr>
-  <tr><td><code>ParticleSystemSetColor</code></td><td><code>entity, r1,g1,b1,a1, r2,g2,b2,a2</code></td><td>—</td></tr>
-  <tr><td><code>ParticleSystemSetDirection</code></td><td><code>entity, minAngle, maxAngle</code></td><td>—</td></tr>
-  <tr><td><code>ParticleSystemSetRotationSpeed</code></td><td><code>entity, degPerSec</code></td><td>—</td></tr>
-  <tr><td><code>ParticleSystemSetActive</code></td><td><code>entity, bool</code></td><td>—</td></tr>
-  <tr><td><code>ParticleSystemIsActive</code></td><td><code>entity</code></td><td><code>bool</code></td></tr>
-  <tr><td><code>ParticleSystemSetVisible</code></td><td><code>entity, bool</code></td><td>—</td></tr>
-  <tr><td><code>ParticleSystemIsVisible</code></td><td><code>entity</code></td><td><code>bool</code></td></tr>
-  <tr><td><code>ParticleSystemEmit</code></td><td><code>entity, count</code></td><td>—</td></tr>
-  <tr><td><code>ParticleSystemClear</code></td><td><code>entity</code></td><td>—</td></tr>
-  <tr><td><code>ParticleSystemGetCount</code></td><td><code>entity</code></td><td><code>count</code></td></tr>
-</table></div>
-
-<h3>Спрайты</h3>
-<div class="table-wrap"><table>
-  <tr><th>Функция</th><th>Параметры</th><th>Возврат</th></tr>
-  <tr><td><code>BlazeBolt.CreateSprite</code></td><td><code>path, x, y</code></td><td><code>entity</code></td></tr>
-  <tr><td><code>SpriteSetPosition</code></td><td><code>entity, x, y</code></td><td>—</td></tr>
-  <tr><td><code>SpriteGetPosition</code></td><td><code>entity</code></td><td><code>x, y</code></td></tr>
-  <tr><td><code>SpriteSetSize</code></td><td><code>entity, w, h</code></td><td>—</td></tr>
-  <tr><td><code>SpriteGetSize</code></td><td><code>entity</code></td><td><code>w, h</code></td></tr>
-  <tr><td><code>SpriteSetOrigin</code></td><td><code>entity, ox, oy</code></td><td>—</td></tr>
-  <tr><td><code>SpriteGetOrigin</code></td><td><code>entity</code></td><td><code>ox, oy</code></td></tr>
-  <tr><td><code>SpriteSetRotation</code></td><td><code>entity, degrees</code></td><td>—</td></tr>
-  <tr><td><code>SpriteGetRotation</code></td><td><code>entity</code></td><td><code>degrees</code></td></tr>
-  <tr><td><code>SpriteSetColor</code></td><td><code>entity, r, g, b, a</code></td><td>—</td></tr>
-  <tr><td><code>SpriteGetColor</code></td><td><code>entity</code></td><td><code>r, g, b, a</code></td></tr>
-  <tr><td><code>SpriteSetTexture</code></td><td><code>entity, path</code></td><td>—</td></tr>
-  <tr><td><code>SpriteSetTextureRect</code></td><td><code>entity, u, v, w, h</code></td><td>—</td></tr>
-  <tr><td><code>SpriteSetVisible</code></td><td><code>entity, bool</code></td><td>—</td></tr>
-  <tr><td><code>SpriteIsVisible</code></td><td><code>entity</code></td><td><code>bool</code></td></tr>
-</table></div>
-
-<h3>Спрайтовые батчи (SpriteBatch)</h3>
-<div class="table-wrap"><table>
-  <tr><th>Функция</th><th>Параметры</th><th>Возврат</th></tr>
-  <tr><td><code>BlazeBolt.CreateSpriteBatch</code></td><td><code>[maxSize]</code></td><td><code>batchEntity</code></td></tr>
-  <tr><td><code>SpriteBatchSetTexture</code></td><td><code>batchEntity, path</code></td><td>—</td></tr>
-  <tr><td><code>SpriteBatchAdd</code></td><td><code>batchEntity, spriteEntity</code></td><td><code>bool</code></td></tr>
-  <tr><td><code>SpriteBatchRemove</code></td><td><code>batchEntity, spriteEntity</code></td><td><code>bool</code></td></tr>
-  <tr><td><code>SpriteBatchClear</code></td><td><code>batchEntity</code></td><td>—</td></tr>
-  <tr><td><code>SpriteBatchSetMaxSize</code></td><td><code>batchEntity, maxSize</code></td><td>—</td></tr>
-  <tr><td><code>SpriteBatchGetMaxSize</code></td><td><code>batchEntity</code></td><td><code>maxSize</code></td></tr>
-  <tr><td><code>SpriteBatchGetCount</code></td><td><code>batchEntity</code></td><td><code>count</code></td></tr>
-  <tr><td><code>SpriteBatchDraw</code></td><td><code>batchEntity</code></td><td>—</td></tr>
-  <tr><td><code>DestroySpriteBatch</code></td><td><code>batchEntity</code></td><td>—</td></tr>
-</table></div>
-
-<h3>Анимации</h3>
-<div class="table-wrap"><table>
-  <tr><th>Функция</th><th>Параметры</th><th>Возврат</th></tr>
-  <tr><td><code>BlazeBolt.CreateAnimatedSprite</code></td><td><code>path, x, y</code></td><td><code>entity</code></td></tr>
-  <tr><td><code>AnimatedSpritePlay</code></td><td><code>entity</code></td><td>—</td></tr>
-  <tr><td><code>AnimatedSpritePause</code></td><td><code>entity</code></td><td>—</td></tr>
-  <tr><td><code>AnimatedSpriteStop</code></td><td><code>entity</code></td><td>—</td></tr>
-  <tr><td><code>AnimatedSpriteRestart</code></td><td><code>entity</code></td><td>—</td></tr>
-  <tr><td><code>AnimatedSpriteSetLooping</code></td><td><code>entity, bool</code></td><td>—</td></tr>
-  <tr><td><code>AnimatedSpriteIsLooping</code></td><td><code>entity</code></td><td><code>bool</code></td></tr>
-  <tr><td><code>AnimatedSpriteSetPlaybackSpeed</code></td><td><code>entity, speed</code></td><td>—</td></tr>
-  <tr><td><code>AnimatedSpriteGetPlaybackSpeed</code></td><td><code>entity</code></td><td><code>speed</code></td></tr>
-  <tr><td><code>AnimatedSpriteSetFrame</code></td><td><code>entity, frame</code></td><td>—</td></tr>
-  <tr><td><code>AnimatedSpriteGetCurrentFrame</code></td><td><code>entity</code></td><td><code>frame</code></td></tr>
-  <tr><td><code>AnimatedSpriteGetNumFrames</code></td><td><code>entity</code></td><td><code>count</code></td></tr>
-  <tr><td><code>AnimatedSpriteIsPlaying</code></td><td><code>entity</code></td><td><code>bool</code></td></tr>
-  <tr><td><code>AnimatedSpriteSetPosition</code></td><td><code>entity, x, y</code></td><td>—</td></tr>
-  <tr><td><code>AnimatedSpriteGetPosition</code></td><td><code>entity</code></td><td><code>x, y</code></td></tr>
-  <tr><td><code>AnimatedSpriteSetSize</code></td><td><code>entity, w, h</code></td><td>—</td></tr>
-  <tr><td><code>AnimatedSpriteGetSize</code></td><td><code>entity</code></td><td><code>w, h</code></td></tr>
-  <tr><td><code>AnimatedSpriteSetOrigin</code></td><td><code>entity, ox, oy</code></td><td>—</td></tr>
-  <tr><td><code>AnimatedSpriteGetOrigin</code></td><td><code>entity</code></td><td><code>ox, oy</code></td></tr>
-  <tr><td><code>AnimatedSpriteSetRotation</code></td><td><code>entity, degrees</code></td><td>—</td></tr>
-  <tr><td><code>AnimatedSpriteGetRotation</code></td><td><code>entity</code></td><td><code>degrees</code></td></tr>
-  <tr><td><code>AnimatedSpriteSetColor</code></td><td><code>entity, r, g, b, a</code></td><td>—</td></tr>
-  <tr><td><code>AnimatedSpriteGetColor</code></td><td><code>entity</code></td><td><code>r, g, b, a</code></td></tr>
-</table></div>
-
-<h3>Выравнивание текста</h3>
-<pre data-lang="lua"><code>${highlightLua(`TextAlignment.LEFT     -- По левому краю (по умолчанию)
-TextAlignment.CENTER   -- По центру
-TextAlignment.RIGHT    -- По правому краю`)}</code></pre>
-
-<h3>Текст</h3>
-<div class="table-wrap"><table>
-  <tr><th>Функция</th><th>Параметры</th><th>Возврат</th></tr>
-  <tr><td><code>BlazeBolt.CreateText</code></td><td><code>font, text, x, y</code></td><td><code>entity</code></td></tr>
-  <tr><td><code>TextSetString</code></td><td><code>entity, text</code></td><td>—</td></tr>
-  <tr><td><code>TextGetString</code></td><td><code>entity</code></td><td><code>text</code></td></tr>
-  <tr><td><code>TextSetPosition</code></td><td><code>entity, x, y</code></td><td>—</td></tr>
-  <tr><td><code>TextGetPosition</code></td><td><code>entity</code></td><td><code>x, y</code></td></tr>
-  <tr><td><code>TextSetColor</code></td><td><code>entity, r, g, b, a</code></td><td>—</td></tr>
-  <tr><td><code>TextGetColor</code></td><td><code>entity</code></td><td><code>r, g, b, a</code></td></tr>
-  <tr><td><code>TextSetScale</code></td><td><code>entity, sx, sy</code></td><td>—</td></tr>
-  <tr><td><code>TextGetScale</code></td><td><code>entity</code></td><td><code>sx, sy</code></td></tr>
-  <tr><td><code>TextSetOrigin</code></td><td><code>entity, ox, oy</code></td><td>—</td></tr>
-  <tr><td><code>TextGetOrigin</code></td><td><code>entity</code></td><td><code>ox, oy</code></td></tr>
-  <tr><td><code>TextSetRotation</code></td><td><code>entity, degrees</code></td><td>—</td></tr>
-  <tr><td><code>TextGetRotation</code></td><td><code>entity</code></td><td><code>degrees</code></td></tr>
-  <tr><td><code>TextSetAlignment</code></td><td><code>entity, alignment</code></td><td>—</td></tr>
-  <tr><td><code>TextGetAlignment</code></td><td><code>entity</code></td><td><code>alignment</code></td></tr>
-  <tr><td><code>TextSetVisible</code></td><td><code>entity, bool</code></td><td>—</td></tr>
-  <tr><td><code>TextIsVisible</code></td><td><code>entity</code></td><td><code>bool</code></td></tr>
-</table></div>
-
-<h3>Меши</h3>
-<div class="table-wrap"><table>
-  <tr><th>Функция</th><th>Параметры</th><th>Возврат</th></tr>
-  <tr><td><code>BlazeBolt.CreateMesh</code></td><td>—</td><td><code>entity</code></td></tr>
-  <tr><td><code>MeshSetData</code></td><td><code>entity, vertices, indices</code></td><td>—</td></tr>
-  <tr><td><code>MeshDraw</code></td><td><code>entity</code></td><td>—</td></tr>
-</table></div>
-
-<h3>Окно</h3>
-<div class="table-wrap"><table>
-  <tr><th>Функция</th><th>Параметры</th><th>Возврат</th></tr>
-  <tr><td><code>BlazeBolt.SetMainWindowTitle</code></td><td><code>title</code></td><td>—</td></tr>
-  <tr><td><code>BlazeBolt.GetMainWindowTitle</code></td><td>—</td><td><code>title</code></td></tr>
-  <tr><td><code>BlazeBolt.SetMainWindowSize</code></td><td><code>w, h</code></td><td>—</td></tr>
-  <tr><td><code>BlazeBolt.GetMainWindowWidth</code></td><td>—</td><td><code>width</code></td></tr>
-  <tr><td><code>BlazeBolt.GetMainWindowHeight</code></td><td>—</td><td><code>height</code></td></tr>
-  <tr><td><code>BlazeBolt.SetMainWindowPosition</code></td><td><code>x, y</code></td><td>—</td></tr>
-  <tr><td><code>BlazeBolt.GetMainWindowPosition</code></td><td>—</td><td><code>x, y</code></td></tr>
-  <tr><td><code>BlazeBolt.SetMainWindowIcon</code></td><td><code>path</code></td><td>—</td></tr>
-  <tr><td><code>BlazeBolt.SetMainWindowShouldClose</code></td><td><code>bool</code></td><td>—</td></tr>
-  <tr><td><code>BlazeBolt.IsMainWindowShouldClose</code></td><td>—</td><td><code>bool</code></td></tr>
-  <tr><td><code>BlazeBolt.CreateWindow</code></td><td><code>w, h, title</code></td><td><code>windowPtr</code></td></tr>
-  <tr><td><code>BlazeBolt.SetWindowTitle</code></td><td><code>ptr, title</code></td><td>—</td></tr>
-  <tr><td><code>BlazeBolt.SetWindowSize</code></td><td><code>ptr, w, h</code></td><td>—</td></tr>
-  <tr><td><code>BlazeBolt.SetWindowIcon</code></td><td><code>ptr, path</code></td><td>—</td></tr>
-  <tr><td><code>GetScreenWidth</code></td><td>—</td><td><code>width</code></td></tr>
-  <tr><td><code>GetScreenHeight</code></td><td>—</td><td><code>height</code></td></tr>
-</table></div>
-
-<h3>Ввод</h3>
-<div class="table-wrap"><table>
-  <tr><th>Функция</th><th>Параметры</th><th>Возврат</th></tr>
-  <tr><td><code>BlazeBolt.IsKeyPressed</code></td><td><code>key</code></td><td><code>bool</code></td></tr>
-  <tr><td><code>BlazeBolt.IsKeyJustPressed</code></td><td><code>key</code></td><td><code>bool</code></td></tr>
-  <tr><td><code>BlazeBolt.GetMouseX</code></td><td>—</td><td><code>x</code></td></tr>
-  <tr><td><code>BlazeBolt.GetMouseY</code></td><td>—</td><td><code>y</code></td></tr>
-  <tr><td><code>BlazeBolt.GetMouseDeltaX</code></td><td>—</td><td><code>dx</code></td></tr>
-  <tr><td><code>BlazeBolt.GetMouseDeltaY</code></td><td>—</td><td><code>dy</code></td></tr>
-  <tr><td><code>BlazeBolt.IsMouseButtonPressed</code></td><td><code>button</code></td><td><code>bool</code></td></tr>
-  <tr><td><code>BlazeBolt.IsMouseButtonJustPressed</code></td><td><code>button</code></td><td><code>bool</code></td></tr>
-  <tr><td><code>BlazeBolt.GetScrollY</code></td><td>—</td><td><code>scrollY</code></td></tr>
-</table></div>
-
-<h3>Звук</h3>
-<div class="table-wrap"><table>
-  <tr><th>Функция</th><th>Параметры</th><th>Возврат</th></tr>
-  <tr><td><code>BlazeBolt.LoadSound</code></td><td><code>file, name, loop</code></td><td><code>id</code></td></tr>
-  <tr><td><code>BlazeBolt.PlaySound</code></td><td><code>name</code></td><td>—</td></tr>
-  <tr><td><code>BlazeBolt.PlaySoundById</code></td><td><code>id</code></td><td>—</td></tr>
-  <tr><td><code>BlazeBolt.StopSound</code></td><td><code>name</code></td><td>—</td></tr>
-  <tr><td><code>BlazeBolt.StopAllSounds</code></td><td>—</td><td>—</td></tr>
-  <tr><td><code>BlazeBolt.SetSoundVolume</code></td><td><code>name, vol</code></td><td>—</td></tr>
-  <tr><td><code>BlazeBolt.IsSoundPlaying</code></td><td><code>name</code></td><td><code>bool</code></td></tr>
-</table></div>
-
-<h3>Управление объектами</h3>
-<div class="table-wrap"><table>
-  <tr><th>Функция</th><th>Параметры</th><th>Возврат</th></tr>
-  <tr><td><code>BlazeBolt.Destroy</code></td><td><code>entity</code></td><td>—</td></tr>
-  <tr><td><code>BlazeBolt.DestroyAll</code></td><td>—</td><td>—</td></tr>
-</table></div>
-
-<h3>Физика</h3>
-<div class="table-wrap"><table>
-  <tr><th>Функция</th><th>Параметры</th><th>Возврат</th></tr>
-  <tr><td><code>BlazeBolt.PhysicsInit</code></td><td><code>gravityX, gravityY</code></td><td>—</td></tr>
-  <tr><td><code>PhysicsSetGravity</code></td><td><code>x, y</code></td><td>—</td></tr>
-  <tr><td><code>PhysicsGetGravity</code></td><td>—</td><td><code>x, y</code></td></tr>
-  <tr><td><code>PhysicsCreateBody</code></td><td><code>type, x, y, mass, friction, restitution</code></td><td><code>entity</code></td></tr>
-  <tr><td><code>PhysicsAddCircle</code></td><td><code>body, radius, ox, oy</code></td><td>—</td></tr>
-  <tr><td><code>PhysicsAddRectangle</code></td><td><code>body, halfW, halfH</code></td><td>—</td></tr>
-  <tr><td><code>PhysicsSetLinearVelocity</code></td><td><code>body, vx, vy</code></td><td>—</td></tr>
-  <tr><td><code>PhysicsGetLinearVelocity</code></td><td><code>body</code></td><td><code>vx, vy</code></td></tr>
-  <tr><td><code>PhysicsSetAngularVelocity</code></td><td><code>body, av</code></td><td>—</td></tr>
-  <tr><td><code>PhysicsGetAngularVelocity</code></td><td><code>body</code></td><td><code>av</code></td></tr>
-  <tr><td><code>PhysicsApplyForce</code></td><td><code>body, fx, fy</code></td><td>—</td></tr>
-  <tr><td><code>PhysicsApplyForceAtPoint</code></td><td><code>body, fx, fy, px, py</code></td><td>—</td></tr>
-  <tr><td><code>PhysicsApplyImpulse</code></td><td><code>body, ix, iy</code></td><td>—</td></tr>
-  <tr><td><code>PhysicsApplyImpulseAtPoint</code></td><td><code>body, ix, iy, px, py</code></td><td>—</td></tr>
-  <tr><td><code>PhysicsApplyTorque</code></td><td><code>body, torque</code></td><td>—</td></tr>
-  <tr><td><code>PhysicsSetPosition</code></td><td><code>body, x, y</code></td><td>—</td></tr>
-  <tr><td><code>PhysicsGetPosition</code></td><td><code>body</code></td><td><code>x, y</code></td></tr>
-  <tr><td><code>PhysicsSetAngle</code></td><td><code>body, angle</code></td><td>—</td></tr>
-  <tr><td><code>PhysicsGetAngle</code></td><td><code>body</code></td><td><code>angle</code></td></tr>
-  <tr><td><code>PhysicsSetGravityScale</code></td><td><code>body, scale</code></td><td>—</td></tr>
-  <tr><td><code>PhysicsGetGravityScale</code></td><td><code>body</code></td><td><code>scale</code></td></tr>
-  <tr><td><code>PhysicsSetActive</code></td><td><code>body, active</code></td><td>—</td></tr>
-  <tr><td><code>PhysicsIsActive</code></td><td><code>body</code></td><td><code>bool</code></td></tr>
-  <tr><td><code>PhysicsSetFixedRotation</code></td><td><code>body, fixed</code></td><td>—</td></tr>
-  <tr><td><code>PhysicsIsFixedRotation</code></td><td><code>body</code></td><td><code>bool</code></td></tr>
-  <tr><td><code>PhysicsSetBullet</code></td><td><code>body, bullet</code></td><td>—</td></tr>
-  <tr><td><code>PhysicsIsBullet</code></td><td><code>body</code></td><td><code>bool</code></td></tr>
-  <tr><td><code>PhysicsDestroyBody</code></td><td><code>body</code></td><td>—</td></tr>
-  <tr><td><code>PhysicsGetMass</code></td><td><code>body</code></td><td><code>mass</code></td></tr>
-  <tr><td><code>PhysicsSetFriction</code></td><td><code>body, friction</code></td><td>—</td></tr>
-  <tr><td><code>PhysicsGetFriction</code></td><td><code>body</code></td><td><code>friction</code></td></tr>
-  <tr><td><code>PhysicsSetRestitution</code></td><td><code>body, restitution</code></td><td>—</td></tr>
-  <tr><td><code>PhysicsGetRestitution</code></td><td><code>body</code></td><td><code>restitution</code></td></tr>
-  <tr><td><code>PhysicsStep</code></td><td>—</td><td>—</td></tr>
-  <tr><td><code>PhysicsSyncSprite</code></td><td><code>body, sprite</code></td><td>—</td></tr>
-  <tr><td><code>PhysicsSyncAnimatedSprite</code></td><td><code>body, anim</code></td><td>—</td></tr>
-  <tr><td><code>PhysicsSyncText</code></td><td><code>body, text</code></td><td>—</td></tr>
-</table></div>
-
-<h3>Утилиты</h3>
-<div class="table-wrap"><table>
-  <tr><th>Функция</th><th>Параметры</th><th>Возврат</th></tr>
-  <tr><td><code>BlazeBolt.Print</code></td><td><code>...</code></td><td>—</td></tr>
-  <tr><td><code>BlazeBolt.GetDeltaTime</code></td><td>—</td><td><code>dt</code></td></tr>
-  <tr><td><code>GetTime</code></td><td>—</td><td><code>time</code></td></tr>
-  <tr><td><code>BlazeBolt.Random</code></td><td><code>min, max</code></td><td><code>float</code></td></tr>
-  <tr><td><code>BlazeBolt.RandomInt</code></td><td><code>min, max</code></td><td><code>int</code></td></tr>
-  <tr><td><code>BlazeBolt.SetRandomSeed</code></td><td><code>seed</code></td><td>—</td></tr>
-  <tr><td><code>BlazeBolt.Quit</code></td><td>—</td><td>—</td></tr>
-  <tr><td><code>BlazeBolt.AddConsoleMessage</code></td><td><code>msg, type</code></td><td>—</td></tr>
-</table></div>
-
-<h3>Шейдеры</h3>
-<div class="table-wrap"><table>
-  <tr><th>Функция</th><th>Параметры</th><th>Возврат</th></tr>
-  <tr><td><code>BlazeBolt.CreateShader</code></td><td><code>name, vertPath, fragPath</code></td><td><code>shaderId</code></td></tr>
-  <tr><td><code>BlazeBolt.DestroyShader</code></td><td><code>shaderId</code></td><td>—</td></tr>
-  <tr><td><code>BlazeBolt.SetEntityShader</code></td><td><code>entity, shaderId</code></td><td>—</td></tr>
-  <tr><td><code>BlazeBolt.GetEntityShader</code></td><td><code>entity</code></td><td><code>shaderId</code></td></tr>
-  <tr><td><code>BlazeBolt.UseShader</code></td><td><code>shaderId</code></td><td>—</td></tr>
-  <tr><td><code>BlazeBolt.SetShaderFloat</code></td><td><code>shaderId, name, value</code></td><td>—</td></tr>
-  <tr><td><code>BlazeBolt.SetShaderInt</code></td><td><code>shaderId, name, value</code></td><td>—</td></tr>
-  <tr><td><code>BlazeBolt.SetShaderVec2</code></td><td><code>shaderId, name, x, y</code></td><td>—</td></tr>
-  <tr><td><code>BlazeBolt.SetShaderVec3</code></td><td><code>shaderId, name, x, y, z</code></td><td>—</td></tr>
-  <tr><td><code>BlazeBolt.SetShaderVec4</code></td><td><code>shaderId, name, x, y, z, w</code></td><td>—</td></tr>
-</table></div>
-
-<h3>Сеть — Инициализация</h3>
-<div class="table-wrap"><table>
-  <tr><th>Функция</th><th>Параметры</th><th>Возврат</th></tr>
-  <tr><td><code>BlazeBolt.NetInit</code></td><td>—</td><td><code>bool</code></td></tr>
-  <tr><td><code>BlazeBolt.NetShutdown</code></td><td>—</td><td>—</td></tr>
-</table></div>
-
-<h3>Сеть — TCP Server</h3>
-<div class="table-wrap"><table>
-  <tr><th>Функция</th><th>Параметры</th><th>Возврат</th></tr>
-  <tr><td><code>CreateTCPServer</code></td><td><code>port</code></td><td><code>serverId</code></td></tr>
-  <tr><td><code>TCPServerStop</code></td><td><code>serverId</code></td><td>—</td></tr>
-  <tr><td><code>TCPServerIsRunning</code></td><td><code>serverId</code></td><td><code>bool</code></td></tr>
-  <tr><td><code>TCPServerPoll</code></td><td><code>serverId</code></td><td>—</td></tr>
-  <tr><td><code>TCPServerAccept</code></td><td><code>serverId</code></td><td><code>clientId, ip, port</code></td></tr>
-  <tr><td><code>TCPServerSend</code></td><td><code>serverId, clientId, data</code></td><td><code>bool</code></td></tr>
-  <tr><td><code>TCPServerBroadcast</code></td><td><code>serverId, data</code></td><td><code>bool</code></td></tr>
-  <tr><td><code>TCPServerReceive</code></td><td><code>serverId, clientId</code></td><td><code>data</code></td></tr>
-  <tr><td><code>TCPServerDisconnect</code></td><td><code>serverId, clientId</code></td><td>—</td></tr>
-  <tr><td><code>TCPServerGetClientCount</code></td><td><code>serverId</code></td><td><code>count</code></td></tr>
-  <tr><td><code>TCPServerIsClientConnected</code></td><td><code>serverId, clientId</code></td><td><code>bool</code></td></tr>
-</table></div>
-
-<h3>Сеть — TCP Client</h3>
-<div class="table-wrap"><table>
-  <tr><th>Функция</th><th>Параметры</th><th>Возврат</th></tr>
-  <tr><td><code>CreateTCPClient</code></td><td>—</td><td><code>clientId</code></td></tr>
-  <tr><td><code>TCPClientConnect</code></td><td><code>clientId, host, port</code></td><td><code>bool</code></td></tr>
-  <tr><td><code>TCPClientSend</code></td><td><code>clientId, data</code></td><td><code>bool</code></td></tr>
-  <tr><td><code>TCPClientReceive</code></td><td><code>clientId</code></td><td><code>data</code></td></tr>
-  <tr><td><code>TCPClientDisconnect</code></td><td><code>clientId</code></td><td>—</td></tr>
-  <tr><td><code>TCPClientIsConnected</code></td><td><code>clientId</code></td><td><code>bool</code></td></tr>
-</table></div>
-
-<h3>Сеть — UDP Server</h3>
-<div class="table-wrap"><table>
-  <tr><th>Функция</th><th>Параметры</th><th>Возврат</th></tr>
-  <tr><td><code>CreateUDPServer</code></td><td><code>port</code></td><td><code>serverId</code></td></tr>
-  <tr><td><code>UDPServerStop</code></td><td><code>serverId</code></td><td>—</td></tr>
-  <tr><td><code>UDPServerIsRunning</code></td><td><code>serverId</code></td><td><code>bool</code></td></tr>
-  <tr><td><code>UDPServerPoll</code></td><td><code>serverId</code></td><td>—</td></tr>
-  <tr><td><code>UDPServerSend</code></td><td><code>serverId, peerId, data</code></td><td><code>bool</code></td></tr>
-  <tr><td><code>UDPServerReceive</code></td><td><code>serverId, peerId</code></td><td><code>data</code></td></tr>
-  <tr><td><code>UDPServerReceiveAny</code></td><td><code>serverId</code></td><td><code>peerId, data</code></td></tr>
-  <tr><td><code>UDPServerRemovePeer</code></td><td><code>serverId, peerId</code></td><td>—</td></tr>
-  <tr><td><code>UDPServerGetPeerCount</code></td><td><code>serverId</code></td><td><code>count</code></td></tr>
-  <tr><td><code>UDPServerIsPeerKnown</code></td><td><code>serverId, peerId</code></td><td><code>bool</code></td></tr>
-</table></div>
-
-<h3>Сеть — UDP Client</h3>
-<div class="table-wrap"><table>
-  <tr><th>Функция</th><th>Параметры</th><th>Возврат</th></tr>
-  <tr><td><code>CreateUDPClient</code></td><td>—</td><td><code>clientId</code></td></tr>
-  <tr><td><code>UDPClientConnect</code></td><td><code>clientId, host, port</code></td><td><code>bool</code></td></tr>
-  <tr><td><code>UDPClientSend</code></td><td><code>clientId, data</code></td><td><code>bool</code></td></tr>
-  <tr><td><code>UDPClientReceive</code></td><td><code>clientId</code></td><td><code>data</code></td></tr>
-  <tr><td><code>UDPClientDisconnect</code></td><td><code>clientId</code></td><td>—</td></tr>
-  <tr><td><code>UDPClientIsConnected</code></td><td><code>clientId</code></td><td><code>bool</code></td></tr>
-</table></div>
-
-<h3>Скрипты и сцены</h3>
-<div class="table-wrap"><table>
-  <tr><th>Функция</th><th>Параметры</th><th>Возврат</th></tr>
-  <tr><td><code>BlazeBolt.LoadScript</code></td><td><code>path</code></td><td><code>bool</code></td></tr>
-  <tr><td><code>BlazeBolt.LoadScriptsFromList</code></td><td><code>path</code></td><td><code>bool</code></td></tr>
-  <tr><td><code>BlazeBolt.ReloadScript</code></td><td><code>path</code></td><td><code>bool</code></td></tr>
-  <tr><td><code>BlazeBolt.ReloadAllScripts</code></td><td>—</td><td><code>bool</code></td></tr>
-  <tr><td><code>BlazeBolt.EnableScript</code></td><td><code>name, bool</code></td><td>—</td></tr>
-  <tr><td><code>BlazeBolt.IsScriptLoaded</code></td><td><code>name</code></td><td><code>bool</code></td></tr>
-  <tr><td><code>BlazeBolt.GetLoadedScripts</code></td><td>—</td><td><code>table</code></td></tr>
-  <tr><td><code>BlazeBolt.LoadScene</code></td><td><code>sceneName</code></td><td><code>bool</code></td></tr>
-  <tr><td><code>BlazeBolt.GetCurrentScene</code></td><td>—</td><td><code>name</code></td></tr>
-</table></div>
 
   `;
   document.getElementById('mainContent').innerHTML = md;
