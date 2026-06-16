@@ -81,7 +81,6 @@ def compile_game():
         f"{COMMON_INCLUDES} "
         f"{COMMON_LIBS} "
         f"-o bin/game{EXT} "
-        f"-std=c++23 "
         f"{COMMON_STATIC}"
     )
     print("\nCompiling game...")

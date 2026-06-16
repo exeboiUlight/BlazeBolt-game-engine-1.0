@@ -9,7 +9,7 @@
 #include <debugTimer.h>
 
 const unsigned char logo_image_data[] = {
-    #embed "logo.png"
+    #embed "../logo.png"
 }
 
 static void showSplashScreen(Window &window) {
