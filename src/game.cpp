@@ -10,7 +10,7 @@
 
 const unsigned char logo_image_data[] = {
     #embed "../logo.png"
-}
+};
 
 static void showSplashScreen(Window &window) {
     int logoW = 0, logoH = 0, logoCh = 0;
