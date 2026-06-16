@@ -307,6 +307,10 @@ namespace LuaEngine {
         {"SetShaderVec3", _functions::SetShaderVec3},
         {"SetShaderVec4", _functions::SetShaderVec4},
 
+        // Render order
+        {"SetRenderOrder", _functions::SetRenderOrder},
+        {"GetRenderOrder", _functions::GetRenderOrder},
+
         // Main window functions
         {"SetMainWindowTitle", _functions::SetMainWindowTitle},
         {"GetMainWindowTitle", _functions::GetMainWindowTitle},
@@ -404,7 +408,8 @@ namespace LuaEngine {
         projectionViewMatrix2D(), quadVertexBufferObject(),
         spriteShader2D(), spriteBatchShader2D(), fontShader2D(), spriteMesh(),
         textureManager(), fontManager(),
-        shaders(), entityShaderMap(), nextShaderId(1)
+        shaders(), entityShaderMap(), nextShaderId(1),
+        renderOrder({"Tilesets", "Sprites", "AnimatedSprites", "Texts", "Meshes", "Particles"})
     {
         this->spriteMesh.setVertexBuffer(this->quadVertexBufferObject);
         this->sceneManager = std::make_unique<SceneManager>(this);
@@ -2150,12 +2155,14 @@ namespace LuaEngine {
         } else {
             this->projectionViewMatrix2D = Matrix3x3::identity();
         }
-        this->drawAllSprites();
-        this->drawAllAnimatedSprites();
-        this->drawAllTexts();
-        this->drawAllMeshes();
-        this->drawAllParticleSystems();
-        this->drawAllTilesets();
+        for (const auto& layer : renderOrder) {
+            if (layer == "Tilesets") this->drawAllTilesets();
+            else if (layer == "Sprites") this->drawAllSprites();
+            else if (layer == "AnimatedSprites") this->drawAllAnimatedSprites();
+            else if (layer == "Texts") this->drawAllTexts();
+            else if (layer == "Meshes") this->drawAllMeshes();
+            else if (layer == "Particles") this->drawAllParticleSystems();
+        }
     }
 
     void LuaEngine::updateAll(float deltaTime) {
@@ -2164,5 +2171,13 @@ namespace LuaEngine {
         this->updateAllParticleSystems(deltaTime);
         this->updateAudio();
         if (sceneManager != nullptr) { sceneManager->update(deltaTime); }
+    }
+
+    void LuaEngine::setRenderOrder(const std::vector<std::string>& order) {
+        renderOrder = order;
+    }
+
+    const std::vector<std::string>& LuaEngine::getRenderOrder() const {
+        return renderOrder;
     }
 }

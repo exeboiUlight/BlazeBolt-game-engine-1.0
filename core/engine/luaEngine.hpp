@@ -89,6 +89,9 @@ namespace LuaEngine {
         std::unordered_map<Entity, unsigned int> entityShaderMap;
         unsigned int nextShaderId;
 
+        // Render order
+        std::vector<std::string> renderOrder;
+
         void registerCFunctions();
         bool parseScriptsList(const std::string& listPath);
     public:
@@ -355,5 +358,9 @@ namespace LuaEngine {
         void updateAll(float deltaTime);
 
         void addConsoleMessage(const std::string& msg, int type = 0);
+
+        // Render order
+        void setRenderOrder(const std::vector<std::string>& order);
+        const std::vector<std::string>& getRenderOrder() const;
     };
 }

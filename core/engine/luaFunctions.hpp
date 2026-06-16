@@ -2254,5 +2254,35 @@ namespace LuaEngine {
             lua_pushnumber(state, getNoise().domainWarp2D(x, y, warpScale));
             return 1;
         }
+
+        // Render order functions
+        static int SetRenderOrder(lua_State* state) {
+            LuaEngine* engine = getEngine(state);
+            if (!engine) return 0;
+            std::vector<std::string> order;
+            if (lua_istable(state, 1)) {
+                int len = static_cast<int>(lua_rawlen(state, 1));
+                for (int i = 1; i <= len; i++) {
+                    lua_rawgeti(state, 1, i);
+                    const char* name = lua_tostring(state, -1);
+                    if (name) order.push_back(name);
+                    lua_pop(state, 1);
+                }
+            }
+            engine->setRenderOrder(order);
+            return 0;
+        }
+
+        static int GetRenderOrder(lua_State* state) {
+            LuaEngine* engine = getEngine(state);
+            if (!engine) { lua_newtable(state); return 1; }
+            const auto& order = engine->getRenderOrder();
+            lua_newtable(state);
+            for (size_t i = 0; i < order.size(); i++) {
+                lua_pushstring(state, order[i].c_str());
+                lua_rawseti(state, -2, static_cast<lua_Integer>(i + 1));
+            }
+            return 1;
+        }
     };
 }
