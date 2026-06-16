@@ -694,7 +694,6 @@ void Editor::RenderImageEditor(EditorTab& tab) {
                 light ? IM_COL32(200, 200, 200, 255) : IM_COL32(160, 160, 160, 255));
         }
     }
-    ImGui::Image(tab.image_texture, ImVec2(disp_w, disp_h));
 
     if (ImGui::IsWindowHovered()) {
         if (io.MouseWheel != 0.0f) {

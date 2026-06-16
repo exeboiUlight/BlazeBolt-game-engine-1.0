@@ -41,7 +41,7 @@ static void showSplashScreen(Window &window) {
         uniform vec2 uOffset;
         uniform vec2 uScale;
         void main() {
-            vUV = aPos;
+            vUV = vec2(aPos.x, 1.0 - aPos.y);
             gl_Position = vec4(aPos * uScale + uOffset, 0.0, 1.0);
         }
     )";
@@ -89,9 +89,17 @@ static void showSplashScreen(Window &window) {
     glEnableVertexAttribArray(0);
 
     float logoAspect = static_cast<float>(logoW) / static_cast<float>(logoH);
-    float scaleY = 0.35f;
-    float scaleX = scaleY * logoAspect;
-    if (scaleX > 0.5f) { scaleX = 0.5f; scaleY = scaleX / logoAspect; }
+    float winW = static_cast<float>(window.getWidth());
+    float winH = static_cast<float>(window.getHeight());
+    float winAspect = winW / winH;
+    float scaleX, scaleY;
+    if (logoAspect > winAspect) {
+        scaleX = 2.0f;
+        scaleY = scaleX / logoAspect;
+    } else {
+        scaleY = 2.0f;
+        scaleX = scaleY * logoAspect;
+    }
     float offX = -scaleX / 2.0f;
     float offY = -scaleY / 2.0f;
 
