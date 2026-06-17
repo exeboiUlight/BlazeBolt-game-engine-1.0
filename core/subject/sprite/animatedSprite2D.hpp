@@ -39,6 +39,7 @@ namespace BlazeBolt {
         bool isPlaying() const;
 
         void setTexture(const AnimatedTexture2D &texture);
+        void setTexture(const AnimatedTexture2D &texture, bool resetFrame);
         void setPosition(float x, float y);
         void setPosition(const Vector2 &position);
         const Vector2 &getPosition() const;

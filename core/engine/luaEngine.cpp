@@ -135,6 +135,7 @@ namespace LuaEngine {
         {"AnimatedSpritePause", _functions::AnimatedSpritePause},
         {"AnimatedSpriteStop", _functions::AnimatedSpriteStop},
         {"AnimatedSpriteRestart", _functions::AnimatedSpriteRestart},
+        {"AnimatedSpriteSetTexture", _functions::AnimatedSpriteSetTexture},
         {"AnimatedSpriteSetLooping", _functions::AnimatedSpriteSetLooping},
         {"AnimatedSpriteIsLooping", _functions::AnimatedSpriteIsLooping},
         {"AnimatedSpriteSetPlaybackSpeed", _functions::AnimatedSpriteSetPlaybackSpeed},
@@ -152,6 +153,25 @@ namespace LuaEngine {
         {"AnimatedSpriteGetRotation", _functions::AnimatedSpriteGetRotation},
         {"AnimatedSpriteSetColor", _functions::AnimatedSpriteSetColor},
         {"AnimatedSpriteGetColor", _functions::AnimatedSpriteGetColor},
+
+        // Animation wheel functions
+        {"CreateAnimationWheel", _functions::CreateAnimationWheel},
+        {"AnimationWheelAddState", _functions::AnimationWheelAddState},
+        {"AnimationWheelRemoveState", _functions::AnimationWheelRemoveState},
+        {"AnimationWheelHasState", _functions::AnimationWheelHasState},
+        {"AnimationWheelSetInitialState", _functions::AnimationWheelSetInitialState},
+        {"AnimationWheelGetInitialState", _functions::AnimationWheelGetInitialState},
+        {"AnimationWheelSetState", _functions::AnimationWheelSetState},
+        {"AnimationWheelGetState", _functions::AnimationWheelGetState},
+        {"AnimationWheelSetPlaybackSpeed", _functions::AnimationWheelSetPlaybackSpeed},
+        {"AnimationWheelGetPlaybackSpeed", _functions::AnimationWheelGetPlaybackSpeed},
+        {"AnimationWheelSetLooping", _functions::AnimationWheelSetLooping},
+        {"AnimationWheelIsLooping", _functions::AnimationWheelIsLooping},
+        {"AnimationWheelSetGifPath", _functions::AnimationWheelSetGifPath},
+        {"AnimationWheelGetGifPath", _functions::AnimationWheelGetGifPath},
+        {"AnimationWheelSetAutoAdvance", _functions::AnimationWheelSetAutoAdvance},
+        {"AnimationWheelGetAutoAdvance", _functions::AnimationWheelGetAutoAdvance},
+        {"AnimationWheelGetStateNames", _functions::AnimationWheelGetStateNames},
 
         // Text functions
         {"CreateText", _functions::CreateText},
@@ -175,6 +195,12 @@ namespace LuaEngine {
         // Mesh functions
         {"CreateMesh", _functions::CreateMesh},
         {"MeshSetData", _functions::MeshSetData},
+        {"MeshSetShader", _functions::MeshSetShader},
+        {"MeshSetUniformFloat", _functions::MeshSetUniformFloat},
+        {"MeshSetUniformInt", _functions::MeshSetUniformInt},
+        {"MeshSetUniformVec2", _functions::MeshSetUniformVec2},
+        {"MeshSetUniformVec3", _functions::MeshSetUniformVec3},
+        {"MeshSetUniformVec4", _functions::MeshSetUniformVec4},
         {"MeshDraw", _functions::MeshDraw},
 
         // Camera functions
@@ -295,18 +321,6 @@ namespace LuaEngine {
         {"SetWindowSize", _functions::SetWindowSize},
         {"SetWindowIcon", _functions::SetWindowIcon},
 
-        // Shader functions
-        {"CreateShader", _functions::CreateShader},
-        {"DestroyShader", _functions::DestroyShader},
-        {"SetEntityShader", _functions::SetEntityShader},
-        {"GetEntityShader", _functions::GetEntityShader},
-        {"UseShader", _functions::UseShader},
-        {"SetShaderFloat", _functions::SetShaderFloat},
-        {"SetShaderInt", _functions::SetShaderInt},
-        {"SetShaderVec2", _functions::SetShaderVec2},
-        {"SetShaderVec3", _functions::SetShaderVec3},
-        {"SetShaderVec4", _functions::SetShaderVec4},
-
         // Render order
         {"SetRenderOrder", _functions::SetRenderOrder},
         {"GetRenderOrder", _functions::GetRenderOrder},
@@ -322,6 +336,16 @@ namespace LuaEngine {
         {"SetMainWindowIcon", _functions::SetMainWindowIcon},
         {"SetMainWindowShouldClose", _functions::SetMainWindowShouldClose},
         {"IsMainWindowShouldClose", _functions::IsMainWindowShouldClose},
+
+        // Fullscreen functions
+        {"SetMainWindowFullscreen", _functions::SetMainWindowFullscreen},
+        {"IsMainWindowFullscreen", _functions::IsMainWindowFullscreen},
+        {"ToggleMainWindowFullscreen", _functions::ToggleMainWindowFullscreen},
+
+        // VSync functions
+        {"SetMainWindowVSync", _functions::SetMainWindowVSync},
+        {"IsMainWindowVSync", _functions::IsMainWindowVSync},
+        {"ToggleMainWindowVSync", _functions::ToggleMainWindowVSync},
 
         // Input functions
         {"IsKeyPressed", _functions::IsKeyPressed},
@@ -796,14 +820,6 @@ namespace LuaEngine {
         this->uploadLightDataToShader(this->spriteShader2D);
         for (const auto &pair : spriteWorld.getAllEntities()) {
             if (pair.first && !pair.second) {
-                // Check if entity has a custom shader
-                auto shaderIt = entityShaderMap.find(pair.second);
-                if (shaderIt != entityShaderMap.end()) {
-                    Shader *customShader = getShader(shaderIt->second);
-                    if (customShader) {
-                        customShader->use();
-                    }
-                }
                 pair.first->draw(this->textureManager.getDefault2D(), this->spriteShader2D, this->spriteMesh, this->projectionViewMatrix2D);
             }
         }
@@ -903,6 +919,12 @@ namespace LuaEngine {
         BlazeBolt::AnimatedSprite2D *sprite = animatedSpriteWorld.getEntity(entity);
         if (sprite != nullptr) { sprite->restart(); }
     }
+    void LuaEngine::animatedSpriteSetTexture(Entity entity, const std::string &texturePath) {
+        BlazeBolt::AnimatedSprite2D *sprite = animatedSpriteWorld.getEntity(entity);
+        if (sprite == nullptr) { return; }
+        const BlazeBolt::AnimatedTexture2D *texture = this->textureManager.loadFromFileAnimated2D(texturePath);
+        if (texture != nullptr) { sprite->setTexture(*texture, true); }
+    }
     void LuaEngine::animatedSpriteSetLooping(Entity entity, bool looping) {
         BlazeBolt::AnimatedSprite2D *sprite = animatedSpriteWorld.getEntity(entity);
         if (sprite != nullptr) { sprite->setLooping(looping); }
@@ -982,15 +1004,144 @@ namespace LuaEngine {
     void LuaEngine::drawAllAnimatedSprites() {
         for (const std::pair<BlazeBolt::AnimatedSprite2D*, bool> &pair : animatedSpriteWorld.getAllEntities()) {
             if (pair.first && !pair.second) {
-                auto shaderIt = entityShaderMap.find(pair.second);
-                if (shaderIt != entityShaderMap.end()) {
-                    Shader* customShader = getShader(shaderIt->second);
-                    if (customShader) {
-                        customShader->use();
-                    }
-                }
                 pair.first->draw(this->spriteShader2D, this->spriteMesh, this->projectionViewMatrix2D);
             }
+        }
+    }
+
+    // Animation wheel implementations
+    Entity LuaEngine::createAnimationWheel(Entity animatedSpriteEntity) {
+        BlazeBolt::AnimatedSprite2D *sprite = animatedSpriteWorld.getEntity(animatedSpriteEntity);
+        if (sprite == nullptr) { return 0; }
+
+        BlazeBolt::AnimationWheel *wheel = new BlazeBolt::AnimationWheel();
+        wheel->setSpriteEntity(animatedSpriteEntity);
+        Entity entity = animationWheelWorld.spawn(wheel);
+        objectMap[entity] = RegisteredObject(RegisteredObject::ANIMATION_WHEEL, wheel, entity);
+        return entity;
+    }
+
+    void LuaEngine::animationWheelAddState(Entity wheelEntity, const std::string &name, const std::string &gifPath, float playbackSpeed, bool looping) {
+        BlazeBolt::AnimationWheel *wheel = animationWheelWorld.getEntity(wheelEntity);
+        if (wheel != nullptr) {
+            wheel->addState(name, gifPath, playbackSpeed, looping);
+        }
+    }
+
+    void LuaEngine::animationWheelRemoveState(Entity wheelEntity, const std::string &name) {
+        BlazeBolt::AnimationWheel *wheel = animationWheelWorld.getEntity(wheelEntity);
+        if (wheel != nullptr) {
+            wheel->removeState(name);
+        }
+    }
+
+    bool LuaEngine::animationWheelHasState(Entity wheelEntity, const std::string &name) {
+        BlazeBolt::AnimationWheel *wheel = animationWheelWorld.getEntity(wheelEntity);
+        return wheel != nullptr && wheel->hasState(name);
+    }
+
+    void LuaEngine::animationWheelSetInitialState(Entity wheelEntity, const std::string &name) {
+        BlazeBolt::AnimationWheel *wheel = animationWheelWorld.getEntity(wheelEntity);
+        if (wheel != nullptr) {
+            wheel->setInitialState(name);
+        }
+    }
+
+    std::string LuaEngine::animationWheelGetInitialState(Entity wheelEntity) {
+        BlazeBolt::AnimationWheel *wheel = animationWheelWorld.getEntity(wheelEntity);
+        return wheel ? wheel->getInitialState() : "";
+    }
+
+    void LuaEngine::animationWheelSetState(Entity wheelEntity, const std::string &name) {
+        BlazeBolt::AnimationWheel *wheel = animationWheelWorld.getEntity(wheelEntity);
+        if (wheel == nullptr) { return; }
+
+        const BlazeBolt::AnimationState *animState = wheel->getState(name);
+        if (animState == nullptr) { return; }
+
+        BlazeBolt::AnimatedSprite2D *sprite = animatedSpriteWorld.getEntity(wheel->getSpriteEntity());
+        if (sprite == nullptr) { return; }
+
+        wheel->setCurrentState(name);
+
+        // Apply the state to the animated sprite
+        const BlazeBolt::AnimatedTexture2D *texture = this->textureManager.loadFromFileAnimated2D(animState->gifPath);
+        if (texture != nullptr) {
+            sprite->setTexture(*texture, true);
+        }
+        sprite->setPlaybackSpeed(animState->playbackSpeed);
+        sprite->setLooping(animState->looping);
+        sprite->restart();
+    }
+
+    std::string LuaEngine::animationWheelGetState(Entity wheelEntity) {
+        BlazeBolt::AnimationWheel *wheel = animationWheelWorld.getEntity(wheelEntity);
+        return wheel ? wheel->getCurrentState() : "";
+    }
+
+    void LuaEngine::animationWheelSetPlaybackSpeed(Entity wheelEntity, const std::string &stateName, float speed) {
+        BlazeBolt::AnimationWheel *wheel = animationWheelWorld.getEntity(wheelEntity);
+        if (wheel != nullptr) {
+            wheel->setPlaybackSpeed(stateName, speed);
+        }
+    }
+
+    float LuaEngine::animationWheelGetPlaybackSpeed(Entity wheelEntity, const std::string &stateName) {
+        BlazeBolt::AnimationWheel *wheel = animationWheelWorld.getEntity(wheelEntity);
+        return wheel ? wheel->getPlaybackSpeed(stateName) : 1.0f;
+    }
+
+    void LuaEngine::animationWheelSetLooping(Entity wheelEntity, const std::string &stateName, bool looping) {
+        BlazeBolt::AnimationWheel *wheel = animationWheelWorld.getEntity(wheelEntity);
+        if (wheel != nullptr) {
+            wheel->setLooping(stateName, looping);
+        }
+    }
+
+    bool LuaEngine::animationWheelIsLooping(Entity wheelEntity, const std::string &stateName) {
+        BlazeBolt::AnimationWheel *wheel = animationWheelWorld.getEntity(wheelEntity);
+        return wheel ? wheel->isLooping(stateName) : true;
+    }
+
+    void LuaEngine::animationWheelSetGifPath(Entity wheelEntity, const std::string &stateName, const std::string &gifPath) {
+        BlazeBolt::AnimationWheel *wheel = animationWheelWorld.getEntity(wheelEntity);
+        if (wheel != nullptr) {
+            wheel->setGifPath(stateName, gifPath);
+        }
+    }
+
+    std::string LuaEngine::animationWheelGetGifPath(Entity wheelEntity, const std::string &stateName) {
+        BlazeBolt::AnimationWheel *wheel = animationWheelWorld.getEntity(wheelEntity);
+        return wheel ? wheel->getGifPath(stateName) : "";
+    }
+
+    void LuaEngine::animationWheelSetAutoAdvance(Entity wheelEntity, bool autoAdvance) {
+        BlazeBolt::AnimationWheel *wheel = animationWheelWorld.getEntity(wheelEntity);
+        if (wheel != nullptr) {
+            wheel->setAutoAdvance(autoAdvance);
+        }
+    }
+
+    bool LuaEngine::animationWheelGetAutoAdvance(Entity wheelEntity) {
+        BlazeBolt::AnimationWheel *wheel = animationWheelWorld.getEntity(wheelEntity);
+        return wheel ? wheel->getAutoAdvance() : false;
+    }
+
+    std::vector<std::string> LuaEngine::animationWheelGetStateNames(Entity wheelEntity) {
+        BlazeBolt::AnimationWheel *wheel = animationWheelWorld.getEntity(wheelEntity);
+        return wheel ? wheel->getStateNames() : std::vector<std::string>();
+    }
+
+    void LuaEngine::updateAnimationWheels(float dt) {
+        // Auto-advance: when a non-looping animation finishes, transition to the next state
+        // For now this is a placeholder - auto-advance logic will be handled in Lua via the API
+    }
+
+    void LuaEngine::destroyAnimationWheel(Entity wheelEntity) {
+        BlazeBolt::AnimationWheel *wheel = animationWheelWorld.getEntity(wheelEntity);
+        if (wheel != nullptr) {
+            objectMap.erase(wheelEntity);
+            animationWheelWorld.destroy(wheelEntity);
         }
     }
 
@@ -1098,13 +1249,6 @@ namespace LuaEngine {
         this->fontShader2D.setAspectRatio(static_cast<float>(this->getScreenWidth()) / static_cast<float>(this->getScreenHeight()));
         for (const auto& pair : textWorld.getAllEntities()) {
             if (pair.first && !pair.second) {
-                auto shaderIt = entityShaderMap.find(pair.second);
-                if (shaderIt != entityShaderMap.end()) {
-                    Shader *customShader = getShader(shaderIt->second);
-                    if (customShader) {
-                        customShader->use();
-                    }
-                }
                 pair.first->draw(this->fontShader2D, this->projectionViewMatrix2D);
             }
         }
@@ -1133,7 +1277,7 @@ namespace LuaEngine {
             if (pair.first && !pair.second) {
                 auto shaderIt = entityShaderMap.find(pair.second);
                 if (shaderIt != entityShaderMap.end()) {
-                    Shader* customShader = getShader(shaderIt->second);
+                    Shader* customShader = getShaderInternal(shaderIt->second);
                     if (customShader) {
                         customShader->use();
                     }
@@ -1144,7 +1288,7 @@ namespace LuaEngine {
     }
 
     // Shader implementations
-    unsigned int LuaEngine::createShader(const std::string& name, const std::string& vertexPath, const std::string& fragmentPath) {
+    unsigned int LuaEngine::createShaderInternal(const std::string& name, const std::string& vertexPath, const std::string& fragmentPath) {
         unsigned int id = nextShaderId++;
         Shader* shader = new Shader(vertexPath, fragmentPath);
         shaders[id] = ShaderInfo(name, vertexPath, fragmentPath, id);
@@ -1152,7 +1296,7 @@ namespace LuaEngine {
         return id;
     }
 
-    void LuaEngine::destroyShader(unsigned int shaderId) {
+    void LuaEngine::destroyShaderInternal(unsigned int shaderId) {
         auto it = shaders.find(shaderId);
         if (it != shaders.end()) {
             delete it->second.shader;
@@ -1167,7 +1311,7 @@ namespace LuaEngine {
         }
     }
 
-    Shader* LuaEngine::getShader(unsigned int shaderId) const {
+    Shader* LuaEngine::getShaderInternal(unsigned int shaderId) const {
         auto it = shaders.find(shaderId);
         if (it != shaders.end()) {
             return it->second.shader;
@@ -1175,20 +1319,84 @@ namespace LuaEngine {
         return nullptr;
     }
 
-    void LuaEngine::setEntityShader(Entity entity, unsigned int shaderId) {
-        if (shaderId == 0) {
-            entityShaderMap.erase(entity);
+    // Mesh shader implementations
+    void LuaEngine::meshSetShader(Entity entity, const std::string& vertexPath, const std::string& fragmentPath) {
+        Mesh2D* mesh = meshWorld.getEntity(entity);
+        if (!mesh) return;
+
+        // Find existing shader for this mesh or create new one
+        auto it = entityShaderMap.find(entity);
+        unsigned int shaderId = 0;
+
+        if (it != entityShaderMap.end()) {
+            // Reuse existing shader slot
+            shaderId = it->second;
+            Shader* oldShader = getShaderInternal(shaderId);
+            if (oldShader) {
+                delete oldShader;
+            }
+            Shader* shader = new Shader(vertexPath, fragmentPath);
+            shaders[shaderId].shader = shader;
+            shaders[shaderId].vertexPath = vertexPath;
+            shaders[shaderId].fragmentPath = fragmentPath;
         } else {
+            // Create new shader
+            shaderId = nextShaderId++;
+            Shader* shader = new Shader(vertexPath, fragmentPath);
+            shaders[shaderId] = ShaderInfo("mesh_shader", vertexPath, fragmentPath, shaderId);
+            shaders[shaderId].shader = shader;
             entityShaderMap[entity] = shaderId;
         }
     }
 
-    unsigned int LuaEngine::getEntityShader(Entity entity) {
+    void LuaEngine::meshSetUniformFloat(Entity entity, const std::string& name, float value) {
         auto it = entityShaderMap.find(entity);
-        if (it != entityShaderMap.end()) {
-            return it->second;
+        if (it == entityShaderMap.end()) return;
+        Shader* shader = getShaderInternal(it->second);
+        if (shader) {
+            shader->use();
+            shader->setFloat(name, value);
         }
-        return 0;
+    }
+
+    void LuaEngine::meshSetUniformInt(Entity entity, const std::string& name, int value) {
+        auto it = entityShaderMap.find(entity);
+        if (it == entityShaderMap.end()) return;
+        Shader* shader = getShaderInternal(it->second);
+        if (shader) {
+            shader->use();
+            shader->setInt(name, value);
+        }
+    }
+
+    void LuaEngine::meshSetUniformVec2(Entity entity, const std::string& name, float x, float y) {
+        auto it = entityShaderMap.find(entity);
+        if (it == entityShaderMap.end()) return;
+        Shader* shader = getShaderInternal(it->second);
+        if (shader) {
+            shader->use();
+            shader->setVec2(name, x, y);
+        }
+    }
+
+    void LuaEngine::meshSetUniformVec3(Entity entity, const std::string& name, float x, float y, float z) {
+        auto it = entityShaderMap.find(entity);
+        if (it == entityShaderMap.end()) return;
+        Shader* shader = getShaderInternal(it->second);
+        if (shader) {
+            shader->use();
+            shader->setVec3(name, x, y, z);
+        }
+    }
+
+    void LuaEngine::meshSetUniformVec4(Entity entity, const std::string& name, float x, float y, float z, float w) {
+        auto it = entityShaderMap.find(entity);
+        if (it == entityShaderMap.end()) return;
+        Shader* shader = getShaderInternal(it->second);
+        if (shader) {
+            shader->use();
+            shader->setVec4(name, x, y, z, w);
+        }
     }
 
     // Audio implementations
@@ -1310,6 +1518,9 @@ namespace LuaEngine {
                 case RegisteredObject::LIGHT:
                     lightWorld.destroy(entity);
                     break;
+                case RegisteredObject::ANIMATION_WHEEL:
+                    animationWheelWorld.destroy(entity);
+                    break;
                 default: break;
             }
             objectMap.erase(it);
@@ -1328,6 +1539,7 @@ namespace LuaEngine {
         particleWorld.clear();
         tilesetWorld.clear();
         lightWorld.clear();
+        animationWheelWorld.clear();
         physicsWorld.clear();
         physicsBodyMap.clear();
         objectMap.clear();
@@ -2168,6 +2380,7 @@ namespace LuaEngine {
     void LuaEngine::updateAll(float deltaTime) {
         this->deltaTime = deltaTime;
         this->updateAllAnimatedSprites(deltaTime);
+        this->updateAnimationWheels(deltaTime);
         this->updateAllParticleSystems(deltaTime);
         this->updateAudio();
         if (sceneManager != nullptr) { sceneManager->update(deltaTime); }

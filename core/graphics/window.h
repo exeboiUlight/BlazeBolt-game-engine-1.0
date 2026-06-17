@@ -7,12 +7,17 @@
 class Window {
 private:
     int _width, _height;
+    int _windowedX, _windowedY, _windowedWidth, _windowedHeight;
+    bool _isFullscreen;
+    bool _isVSync;
     GLFWwindow* window;
     const char* _title;
 
 public:
     Window(int width, int height, const char* title) 
-        : _width(width), _height(height), _title(title), window(nullptr) {
+        : _width(width), _height(height), _title(title), window(nullptr),
+          _isFullscreen(false), _isVSync(false),
+          _windowedX(0), _windowedY(0), _windowedWidth(width), _windowedHeight(height) {
         
         if (!glfwInit()) {
             return;
@@ -147,5 +152,50 @@ public:
     
     void setShouldClose(bool flag) {
         glfwSetWindowShouldClose(window, flag);
+    }
+
+    bool isFullscreen() const {
+        return _isFullscreen;
+    }
+
+    void setFullscreen(bool fullscreen) {
+        if (_isFullscreen == fullscreen) return;
+
+        if (fullscreen) {
+            glfwGetWindowPos(window, &_windowedX, &_windowedY);
+            glfwGetWindowSize(window, &_windowedWidth, &_windowedHeight);
+
+            GLFWmonitor* monitor = glfwGetPrimaryMonitor();
+            if (!monitor) return;
+            const GLFWvidmode* mode = glfwGetVideoMode(monitor);
+            if (!mode) return;
+
+            glfwSetWindowMonitor(window, monitor, 0, 0, mode->width, mode->height, mode->refreshRate);
+            _width = mode->width;
+            _height = mode->height;
+        } else {
+            glfwSetWindowMonitor(window, nullptr, _windowedX, _windowedY, _windowedWidth, _windowedHeight, 0);
+            _width = _windowedWidth;
+            _height = _windowedHeight;
+        }
+
+        _isFullscreen = fullscreen;
+    }
+
+    void toggleFullscreen() {
+        setFullscreen(!_isFullscreen);
+    }
+
+    bool isVSync() const {
+        return _isVSync;
+    }
+
+    void setVSync(bool enabled) {
+        _isVSync = enabled;
+        glfwSwapInterval(enabled ? 1 : 0);
+    }
+
+    void toggleVSync() {
+        setVSync(!_isVSync);
     }
 };

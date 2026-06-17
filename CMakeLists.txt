@@ -23,6 +23,7 @@ add_executable(${PROJECT_NAME}
     core/physics/collision.cpp
     core/physics/world.cpp
     core/subject/sprite/animatedSprite2D.cpp
+    core/subject/sprite/animationWheel.cpp
     core/subject/sprite/generalSprite.cpp
     core/subject/sprite/staticSprite2D.cpp
     core/subject/camera2D.cpp

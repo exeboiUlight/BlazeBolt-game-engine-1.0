@@ -81,6 +81,13 @@ namespace BlazeBolt {
     void AnimatedSprite2D::setTexture(const AnimatedTexture2D &texture) {
         this->texture = &texture;
     }
+    void AnimatedSprite2D::setTexture(const AnimatedTexture2D &texture, bool resetFrame) {
+        this->texture = &texture;
+        if (resetFrame) {
+            this->currentFrame = 0;
+            this->elapsedTime = 0.0f;
+        }
+    }
     void AnimatedSprite2D::setPosition(float x, float y) {
         this->position.x = x;
         this->position.y = y;

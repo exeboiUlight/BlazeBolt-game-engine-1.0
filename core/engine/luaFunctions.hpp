@@ -660,6 +660,14 @@ namespace LuaEngine {
             engine->animatedSpriteRestart(entity);
             return 0;
         }
+        static int AnimatedSpriteSetTexture(lua_State *state) {
+            LuaEngine *engine = getEngine(state);
+            if (engine == nullptr) { return 0; }
+            Entity entity = luaL_checkinteger(state, 1);
+            const char *path = luaL_checkstring(state, 2);
+            engine->animatedSpriteSetTexture(entity, path);
+            return 0;
+        }
         static int AnimatedSpriteSetLooping(lua_State *state) {
             LuaEngine *engine = getEngine(state);
             if (engine == nullptr) { return 0; }
@@ -838,6 +846,152 @@ namespace LuaEngine {
             return 4;
         }
 
+        // Animation wheel functions
+        static int CreateAnimationWheel(lua_State *state) {
+            LuaEngine *engine = getEngine(state);
+            if (engine == nullptr) { lua_pushnil(state); return 1; }
+            Entity spriteEntity = luaL_checkinteger(state, 1);
+            Entity entity = engine->createAnimationWheel(spriteEntity);
+            lua_pushinteger(state, entity);
+            return 1;
+        }
+        static int AnimationWheelAddState(lua_State *state) {
+            LuaEngine *engine = getEngine(state);
+            if (engine == nullptr) { return 0; }
+            Entity wheelEntity = luaL_checkinteger(state, 1);
+            const char *name = luaL_checkstring(state, 2);
+            const char *gifPath = luaL_checkstring(state, 3);
+            float playbackSpeed = static_cast<float>(luaL_optnumber(state, 4, 1.0));
+            bool looping = lua_toboolean(state, 5);
+            if (lua_gettop(state) < 5) looping = true;
+            engine->animationWheelAddState(wheelEntity, name, gifPath, playbackSpeed, looping);
+            return 0;
+        }
+        static int AnimationWheelRemoveState(lua_State *state) {
+            LuaEngine *engine = getEngine(state);
+            if (engine == nullptr) { return 0; }
+            Entity wheelEntity = luaL_checkinteger(state, 1);
+            const char *name = luaL_checkstring(state, 2);
+            engine->animationWheelRemoveState(wheelEntity, name);
+            return 0;
+        }
+        static int AnimationWheelHasState(lua_State *state) {
+            LuaEngine *engine = getEngine(state);
+            if (engine == nullptr) { lua_pushboolean(state, false); return 1; }
+            Entity wheelEntity = luaL_checkinteger(state, 1);
+            const char *name = luaL_checkstring(state, 2);
+            lua_pushboolean(state, engine->animationWheelHasState(wheelEntity, name));
+            return 1;
+        }
+        static int AnimationWheelSetInitialState(lua_State *state) {
+            LuaEngine *engine = getEngine(state);
+            if (engine == nullptr) { return 0; }
+            Entity wheelEntity = luaL_checkinteger(state, 1);
+            const char *name = luaL_checkstring(state, 2);
+            engine->animationWheelSetInitialState(wheelEntity, name);
+            return 0;
+        }
+        static int AnimationWheelGetInitialState(lua_State *state) {
+            LuaEngine *engine = getEngine(state);
+            if (engine == nullptr) { lua_pushstring(state, ""); return 1; }
+            Entity wheelEntity = luaL_checkinteger(state, 1);
+            lua_pushstring(state, engine->animationWheelGetInitialState(wheelEntity).c_str());
+            return 1;
+        }
+        static int AnimationWheelSetState(lua_State *state) {
+            LuaEngine *engine = getEngine(state);
+            if (engine == nullptr) { return 0; }
+            Entity wheelEntity = luaL_checkinteger(state, 1);
+            const char *name = luaL_checkstring(state, 2);
+            engine->animationWheelSetState(wheelEntity, name);
+            return 0;
+        }
+        static int AnimationWheelGetState(lua_State *state) {
+            LuaEngine *engine = getEngine(state);
+            if (engine == nullptr) { lua_pushstring(state, ""); return 1; }
+            Entity wheelEntity = luaL_checkinteger(state, 1);
+            lua_pushstring(state, engine->animationWheelGetState(wheelEntity).c_str());
+            return 1;
+        }
+        static int AnimationWheelSetPlaybackSpeed(lua_State *state) {
+            LuaEngine *engine = getEngine(state);
+            if (engine == nullptr) { return 0; }
+            Entity wheelEntity = luaL_checkinteger(state, 1);
+            const char *stateName = luaL_checkstring(state, 2);
+            float speed = static_cast<float>(luaL_checknumber(state, 3));
+            engine->animationWheelSetPlaybackSpeed(wheelEntity, stateName, speed);
+            return 0;
+        }
+        static int AnimationWheelGetPlaybackSpeed(lua_State *state) {
+            LuaEngine *engine = getEngine(state);
+            if (engine == nullptr) { lua_pushnumber(state, 1.0); return 1; }
+            Entity wheelEntity = luaL_checkinteger(state, 1);
+            const char *stateName = luaL_checkstring(state, 2);
+            lua_pushnumber(state, engine->animationWheelGetPlaybackSpeed(wheelEntity, stateName));
+            return 1;
+        }
+        static int AnimationWheelSetLooping(lua_State *state) {
+            LuaEngine *engine = getEngine(state);
+            if (engine == nullptr) { return 0; }
+            Entity wheelEntity = luaL_checkinteger(state, 1);
+            const char *stateName = luaL_checkstring(state, 2);
+            bool looping = lua_toboolean(state, 3);
+            engine->animationWheelSetLooping(wheelEntity, stateName, looping);
+            return 0;
+        }
+        static int AnimationWheelIsLooping(lua_State *state) {
+            LuaEngine *engine = getEngine(state);
+            if (engine == nullptr) { lua_pushboolean(state, true); return 1; }
+            Entity wheelEntity = luaL_checkinteger(state, 1);
+            const char *stateName = luaL_checkstring(state, 2);
+            lua_pushboolean(state, engine->animationWheelIsLooping(wheelEntity, stateName));
+            return 1;
+        }
+        static int AnimationWheelSetGifPath(lua_State *state) {
+            LuaEngine *engine = getEngine(state);
+            if (engine == nullptr) { return 0; }
+            Entity wheelEntity = luaL_checkinteger(state, 1);
+            const char *stateName = luaL_checkstring(state, 2);
+            const char *gifPath = luaL_checkstring(state, 3);
+            engine->animationWheelSetGifPath(wheelEntity, stateName, gifPath);
+            return 0;
+        }
+        static int AnimationWheelGetGifPath(lua_State *state) {
+            LuaEngine *engine = getEngine(state);
+            if (engine == nullptr) { lua_pushstring(state, ""); return 1; }
+            Entity wheelEntity = luaL_checkinteger(state, 1);
+            const char *stateName = luaL_checkstring(state, 2);
+            lua_pushstring(state, engine->animationWheelGetGifPath(wheelEntity, stateName).c_str());
+            return 1;
+        }
+        static int AnimationWheelSetAutoAdvance(lua_State *state) {
+            LuaEngine *engine = getEngine(state);
+            if (engine == nullptr) { return 0; }
+            Entity wheelEntity = luaL_checkinteger(state, 1);
+            bool autoAdvance = lua_toboolean(state, 2);
+            engine->animationWheelSetAutoAdvance(wheelEntity, autoAdvance);
+            return 0;
+        }
+        static int AnimationWheelGetAutoAdvance(lua_State *state) {
+            LuaEngine *engine = getEngine(state);
+            if (engine == nullptr) { lua_pushboolean(state, false); return 1; }
+            Entity wheelEntity = luaL_checkinteger(state, 1);
+            lua_pushboolean(state, engine->animationWheelGetAutoAdvance(wheelEntity));
+            return 1;
+        }
+        static int AnimationWheelGetStateNames(lua_State *state) {
+            LuaEngine *engine = getEngine(state);
+            if (engine == nullptr) { lua_newtable(state); return 1; }
+            Entity wheelEntity = luaL_checkinteger(state, 1);
+            std::vector<std::string> names = engine->animationWheelGetStateNames(wheelEntity);
+            lua_newtable(state);
+            for (size_t i = 0; i < names.size(); i++) {
+                lua_pushstring(state, names[i].c_str());
+                lua_rawseti(state, -2, static_cast<lua_Integer>(i + 1));
+            }
+            return 1;
+        }
+
         // Mesh functions
         static int CreateMesh(lua_State* state) {
             LuaEngine* engine = getEngine(state);
@@ -875,6 +1029,72 @@ namespace LuaEngine {
             LuaEngine* engine = getEngine(state);
             if (!engine) return 0;
             engine->meshSetData(entity, vertices, indices);
+            return 0;
+        }
+
+        static int MeshSetShader(lua_State* state) {
+            LuaEngine* engine = getEngine(state);
+            if (!engine) return 0;
+            Entity entity = luaL_checkinteger(state, 1);
+            const char* vertexPath = luaL_checkstring(state, 2);
+            const char* fragmentPath = luaL_checkstring(state, 3);
+            engine->meshSetShader(entity, vertexPath, fragmentPath);
+            return 0;
+        }
+
+        static int MeshSetUniformFloat(lua_State* state) {
+            LuaEngine* engine = getEngine(state);
+            if (!engine) return 0;
+            Entity entity = luaL_checkinteger(state, 1);
+            const char* name = luaL_checkstring(state, 2);
+            float value = luaL_checknumber(state, 3);
+            engine->meshSetUniformFloat(entity, name, value);
+            return 0;
+        }
+
+        static int MeshSetUniformInt(lua_State* state) {
+            LuaEngine* engine = getEngine(state);
+            if (!engine) return 0;
+            Entity entity = luaL_checkinteger(state, 1);
+            const char* name = luaL_checkstring(state, 2);
+            int value = luaL_checkinteger(state, 3);
+            engine->meshSetUniformInt(entity, name, value);
+            return 0;
+        }
+
+        static int MeshSetUniformVec2(lua_State* state) {
+            LuaEngine* engine = getEngine(state);
+            if (!engine) return 0;
+            Entity entity = luaL_checkinteger(state, 1);
+            const char* name = luaL_checkstring(state, 2);
+            float x = luaL_checknumber(state, 3);
+            float y = luaL_checknumber(state, 4);
+            engine->meshSetUniformVec2(entity, name, x, y);
+            return 0;
+        }
+
+        static int MeshSetUniformVec3(lua_State* state) {
+            LuaEngine* engine = getEngine(state);
+            if (!engine) return 0;
+            Entity entity = luaL_checkinteger(state, 1);
+            const char* name = luaL_checkstring(state, 2);
+            float x = luaL_checknumber(state, 3);
+            float y = luaL_checknumber(state, 4);
+            float z = luaL_checknumber(state, 5);
+            engine->meshSetUniformVec3(entity, name, x, y, z);
+            return 0;
+        }
+
+        static int MeshSetUniformVec4(lua_State* state) {
+            LuaEngine* engine = getEngine(state);
+            if (!engine) return 0;
+            Entity entity = luaL_checkinteger(state, 1);
+            const char* name = luaL_checkstring(state, 2);
+            float x = luaL_checknumber(state, 3);
+            float y = luaL_checknumber(state, 4);
+            float z = luaL_checknumber(state, 5);
+            float w = luaL_checknumber(state, 6);
+            engine->meshSetUniformVec4(entity, name, x, y, z, w);
             return 0;
         }
 
@@ -1834,157 +2054,6 @@ namespace LuaEngine {
             return 1;
         }
 
-        // Shader functions
-        static int CreateShader(lua_State* state) {
-            const char* name = luaL_checkstring(state, 1);
-            const char* vertexPath = luaL_checkstring(state, 2);
-            const char* fragmentPath = luaL_checkstring(state, 3);
-            LuaEngine* engine = getEngine(state);
-            if (!engine) { lua_pushinteger(state, 0); return 1; }
-            unsigned int shaderId = engine->createShader(name, vertexPath, fragmentPath);
-            lua_pushinteger(state, shaderId);
-            return 1;
-        }
-
-        static int DestroyShader(lua_State* state) {
-            unsigned int shaderId = luaL_checkinteger(state, 1);
-            LuaEngine* engine = getEngine(state);
-            if (!engine) return 0;
-            engine->destroyShader(shaderId);
-            return 0;
-        }
-
-        static int SetEntityShader(lua_State* state) {
-            Entity entity = luaL_checkinteger(state, 1);
-            unsigned int shaderId = luaL_checkinteger(state, 2);
-            LuaEngine* engine = getEngine(state);
-            if (!engine) return 0;
-            engine->setEntityShader(entity, shaderId);
-            return 0;
-        }
-
-        static int GetEntityShader(lua_State* state) {
-            Entity entity = luaL_checkinteger(state, 1);
-            LuaEngine* engine = getEngine(state);
-            if (!engine) { lua_pushinteger(state, 0); return 1; }
-            unsigned int shaderId = engine->getEntityShader(entity);
-            lua_pushinteger(state, shaderId);
-            return 1;
-        }
-
-        static int UseShader(lua_State* state) {
-            unsigned int shaderId = luaL_checkinteger(state, 1);
-            LuaEngine* engine = getEngine(state);
-            if (!engine) return 0;
-            Shader* shader = engine->getShader(shaderId);
-            if (shader) {
-                shader->use();
-            }
-            return 0;
-        }
-
-        static int SetShaderFloat(lua_State* state) {
-            unsigned int shaderId = luaL_checkinteger(state, 1);
-            const char* name = luaL_checkstring(state, 2);
-            float value = luaL_checknumber(state, 3);
-            LuaEngine* engine = getEngine(state);
-            if (!engine) return 0;
-            Shader* shader = engine->getShader(shaderId);
-            if (shader) {
-                shader->setFloat(name, value);
-            }
-            return 0;
-        }
-
-        static int SetShaderInt(lua_State* state) {
-            unsigned int shaderId = luaL_checkinteger(state, 1);
-            const char* name = luaL_checkstring(state, 2);
-            int value = luaL_checkinteger(state, 3);
-            LuaEngine* engine = getEngine(state);
-            if (!engine) return 0;
-            Shader* shader = engine->getShader(shaderId);
-            if (shader) {
-                shader->setInt(name, value);
-            }
-            return 0;
-        }
-
-        static int SetShaderVec2(lua_State* state) {
-            unsigned int shaderId = luaL_checkinteger(state, 1);
-            const char* name = luaL_checkstring(state, 2);
-            float x = luaL_checknumber(state, 3);
-            float y = luaL_checknumber(state, 4);
-            LuaEngine* engine = getEngine(state);
-            if (!engine) return 0;
-            Shader* shader = engine->getShader(shaderId);
-            if (shader) {
-                shader->setVec2(name, x, y);
-            }
-            return 0;
-        }
-
-        static int SetShaderVec3(lua_State* state) {
-            unsigned int shaderId = luaL_checkinteger(state, 1);
-            const char* name = luaL_checkstring(state, 2);
-            float x = luaL_checknumber(state, 3);
-            float y = luaL_checknumber(state, 4);
-            float z = luaL_checknumber(state, 5);
-            LuaEngine* engine = getEngine(state);
-            if (!engine) return 0;
-            Shader* shader = engine->getShader(shaderId);
-            if (shader) {
-                shader->setVec3(name, x, y, z);
-            }
-            return 0;
-        }
-
-        static int SetShaderVec4(lua_State* state) {
-            unsigned int shaderId = luaL_checkinteger(state, 1);
-            const char* name = luaL_checkstring(state, 2);
-            float x = luaL_checknumber(state, 3);
-            float y = luaL_checknumber(state, 4);
-            float z = luaL_checknumber(state, 5);
-            float w = luaL_checknumber(state, 6);
-            LuaEngine* engine = getEngine(state);
-            if (!engine) return 0;
-            Shader* shader = engine->getShader(shaderId);
-            if (shader) {
-                shader->setVec4(name, x, y, z, w);
-            }
-            return 0;
-        }
-
-        static int SetWindowTitle(lua_State* state) {
-            void* windowPtr = lua_touserdata(state, 1);
-            const char* title = luaL_checkstring(state, 2);
-            LuaEngine* engine = getEngine(state);
-            if (!engine) return 0;
-            auto window = std::shared_ptr<Window>(static_cast<Window*>(windowPtr), [](Window*){});
-            engine->setWindowTitle(window, title);
-            return 0;
-        }
-
-        static int SetWindowSize(lua_State* state) {
-            void* windowPtr = lua_touserdata(state, 1);
-            int width = luaL_checkinteger(state, 2);
-            int height = luaL_checkinteger(state, 3);
-            LuaEngine* engine = getEngine(state);
-            if (!engine) return 0;
-            auto window = std::shared_ptr<Window>(static_cast<Window*>(windowPtr), [](Window*){});
-            engine->setWindowSize(window, width, height);
-            return 0;
-        }
-
-        static int SetWindowIcon(lua_State* state) {
-            void* windowPtr = lua_touserdata(state, 1);
-            const char* iconPath = luaL_checkstring(state, 2);
-            LuaEngine* engine = getEngine(state);
-            if (!engine) return 0;
-            auto window = std::shared_ptr<Window>(static_cast<Window*>(windowPtr), [](Window*){});
-            engine->setWindowIcon(window, iconPath);
-            return 0;
-        }
-
         // Main window functions (no pointer needed)
         static int SetMainWindowTitle(lua_State* state) {
             const char* title = luaL_checkstring(state, 1);
@@ -2064,6 +2133,52 @@ namespace LuaEngine {
             if (!engine || !engine->getMainWindow()) { lua_pushboolean(state, true); return 1; }
             lua_pushboolean(state, engine->getMainWindow()->shouldClose());
             return 1;
+        }
+
+        // Fullscreen functions
+        static int SetMainWindowFullscreen(lua_State* state) {
+            bool fullscreen = lua_toboolean(state, 1);
+            LuaEngine* engine = getEngine(state);
+            if (!engine || !engine->getMainWindow()) return 0;
+            engine->getMainWindow()->setFullscreen(fullscreen);
+            return 0;
+        }
+
+        static int IsMainWindowFullscreen(lua_State* state) {
+            LuaEngine* engine = getEngine(state);
+            if (!engine || !engine->getMainWindow()) { lua_pushboolean(state, false); return 1; }
+            lua_pushboolean(state, engine->getMainWindow()->isFullscreen());
+            return 1;
+        }
+
+        static int ToggleMainWindowFullscreen(lua_State* state) {
+            LuaEngine* engine = getEngine(state);
+            if (!engine || !engine->getMainWindow()) return 0;
+            engine->getMainWindow()->toggleFullscreen();
+            return 0;
+        }
+
+        // VSync functions
+        static int SetMainWindowVSync(lua_State* state) {
+            bool enabled = lua_toboolean(state, 1);
+            LuaEngine* engine = getEngine(state);
+            if (!engine || !engine->getMainWindow()) return 0;
+            engine->getMainWindow()->setVSync(enabled);
+            return 0;
+        }
+
+        static int IsMainWindowVSync(lua_State* state) {
+            LuaEngine* engine = getEngine(state);
+            if (!engine || !engine->getMainWindow()) { lua_pushboolean(state, false); return 1; }
+            lua_pushboolean(state, engine->getMainWindow()->isVSync());
+            return 1;
+        }
+
+        static int ToggleMainWindowVSync(lua_State* state) {
+            LuaEngine* engine = getEngine(state);
+            if (!engine || !engine->getMainWindow()) return 0;
+            engine->getMainWindow()->toggleVSync();
+            return 0;
         }
 
         // Input functions

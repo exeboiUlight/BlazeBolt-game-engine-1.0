@@ -8,6 +8,7 @@
 #include <graphics/window.h>
 #include <subject/sprite/staticSprite2D.hpp>
 #include <subject/sprite/animatedSprite2D.hpp>
+#include <subject/sprite/animationWheel.hpp>
 #include <graphics/spriteBatch2D.hpp>
 #include <subject/text2D.hpp>
 #include <subject/audio.h>
@@ -46,6 +47,7 @@ namespace LuaEngine {
         World<ParticleSystem2D> particleWorld;
         World<BlazeBolt::Tileset2D> tilesetWorld;
         World<BlazeBolt::Light2D> lightWorld;
+        World<BlazeBolt::AnimationWheel> animationWheelWorld;
 
         Audio audioEngine;
 
@@ -84,10 +86,13 @@ namespace LuaEngine {
         BlazeBolt::TextureManager textureManager;
         BlazeBolt::FontManager fontManager;
 
-        // Shader management
+        // Shader management (internal)
         std::unordered_map<unsigned int, ShaderInfo> shaders;
         std::unordered_map<Entity, unsigned int> entityShaderMap;
         unsigned int nextShaderId;
+        unsigned int createShaderInternal(const std::string& name, const std::string& vertexPath, const std::string& fragmentPath);
+        void destroyShaderInternal(unsigned int shaderId);
+        Shader* getShaderInternal(unsigned int shaderId) const;
 
         // Render order
         std::vector<std::string> renderOrder;
@@ -166,6 +171,7 @@ namespace LuaEngine {
         void animatedSpritePause(Entity entity);
         void animatedSpriteStop(Entity entity);
         void animatedSpriteRestart(Entity entity);
+        void animatedSpriteSetTexture(Entity entity, const std::string &texturePath);
         void animatedSpriteSetLooping(Entity entity, bool looping);
         bool animatedSpriteIsLooping(Entity entity);
         void animatedSpriteSetPlaybackSpeed(Entity entity, float playbackSpeed);
@@ -185,6 +191,27 @@ namespace LuaEngine {
         Vector4 animatedSpriteGetColor(Entity entity);
         void updateAllAnimatedSprites(float dt);
         void drawAllAnimatedSprites();
+
+        // Animation wheel management
+        Entity createAnimationWheel(Entity animatedSpriteEntity);
+        void animationWheelAddState(Entity wheelEntity, const std::string &name, const std::string &gifPath, float playbackSpeed, bool looping);
+        void animationWheelRemoveState(Entity wheelEntity, const std::string &name);
+        bool animationWheelHasState(Entity wheelEntity, const std::string &name);
+        void animationWheelSetInitialState(Entity wheelEntity, const std::string &name);
+        std::string animationWheelGetInitialState(Entity wheelEntity);
+        void animationWheelSetState(Entity wheelEntity, const std::string &name);
+        std::string animationWheelGetState(Entity wheelEntity);
+        void animationWheelSetPlaybackSpeed(Entity wheelEntity, const std::string &stateName, float speed);
+        float animationWheelGetPlaybackSpeed(Entity wheelEntity, const std::string &stateName);
+        void animationWheelSetLooping(Entity wheelEntity, const std::string &stateName, bool looping);
+        bool animationWheelIsLooping(Entity wheelEntity, const std::string &stateName);
+        void animationWheelSetGifPath(Entity wheelEntity, const std::string &stateName, const std::string &gifPath);
+        std::string animationWheelGetGifPath(Entity wheelEntity, const std::string &stateName);
+        void animationWheelSetAutoAdvance(Entity wheelEntity, bool autoAdvance);
+        bool animationWheelGetAutoAdvance(Entity wheelEntity);
+        std::vector<std::string> animationWheelGetStateNames(Entity wheelEntity);
+        void updateAnimationWheels(float dt);
+        void destroyAnimationWheel(Entity wheelEntity);
 
         // Text management
         Entity createText(const std::string &fontPath, const std::string &text, const Vector2 &position);
@@ -209,6 +236,12 @@ namespace LuaEngine {
         // Mesh management
         Entity createMesh();
         void meshSetData(Entity entity, const std::vector<Mesh2D::Vertex>& vertices, const std::vector<GLuint>& indices);
+        void meshSetShader(Entity entity, const std::string& vertexPath, const std::string& fragmentPath);
+        void meshSetUniformFloat(Entity entity, const std::string& name, float value);
+        void meshSetUniformInt(Entity entity, const std::string& name, int value);
+        void meshSetUniformVec2(Entity entity, const std::string& name, float x, float y);
+        void meshSetUniformVec3(Entity entity, const std::string& name, float x, float y, float z);
+        void meshSetUniformVec4(Entity entity, const std::string& name, float x, float y, float z, float w);
         void meshDraw(Entity entity);
         void drawAllMeshes();
 
@@ -235,13 +268,6 @@ namespace LuaEngine {
         // Object deletion
         void destroyEntity(Entity entity);
         void destroyAllEntities();
-
-        // Shader management
-        unsigned int createShader(const std::string& name, const std::string& vertexPath, const std::string& fragmentPath);
-        void destroyShader(unsigned int shaderId);
-        Shader* getShader(unsigned int shaderId) const;
-        void setEntityShader(Entity entity, unsigned int shaderId);
-        unsigned int getEntityShader(Entity entity);
 
         // Physics
         void physicsInit(float gravityX, float gravityY);
