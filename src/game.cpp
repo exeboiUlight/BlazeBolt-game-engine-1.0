@@ -94,11 +94,11 @@ static void showSplashScreen(Window &window) {
     float winAspect = winW / winH;
     float scaleX, scaleY;
     if (logoAspect > winAspect) {
-        scaleX = 2.0f;
+        scaleX = 0.5f;
         scaleY = scaleX / logoAspect;
     } else {
         scaleY = 2.0f;
-        scaleX = scaleY * logoAspect;
+        scaleX = 2.0f;
     }
     float offX = -scaleX / 2.0f;
     float offY = -scaleY / 2.0f;
