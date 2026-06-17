@@ -2054,6 +2054,28 @@ namespace LuaEngine {
             return 1;
         }
 
+        static int SetWindowTitle(lua_State* state) {
+            Window* window = static_cast<Window*>(lua_touserdata(state, 1));
+            const char* title = luaL_checkstring(state, 2);
+            if (window) window->setTitle(title);
+            return 0;
+        }
+
+        static int SetWindowSize(lua_State* state) {
+            Window* window = static_cast<Window*>(lua_touserdata(state, 1));
+            int width = luaL_checkinteger(state, 2);
+            int height = luaL_checkinteger(state, 3);
+            if (window) window->setSize(width, height);
+            return 0;
+        }
+
+        static int SetWindowIcon(lua_State* state) {
+            Window* window = static_cast<Window*>(lua_touserdata(state, 1));
+            const char* iconPath = luaL_checkstring(state, 2);
+            if (window) window->setIcon(iconPath);
+            return 0;
+        }
+
         // Main window functions (no pointer needed)
         static int SetMainWindowTitle(lua_State* state) {
             const char* title = luaL_checkstring(state, 1);

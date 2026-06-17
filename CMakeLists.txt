@@ -1,6 +1,10 @@
 cmake_minimum_required(VERSION 3.10)
 project(BlazeBolt)
 
+if(NOT CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type" FORCE)
+endif()
+
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED true)
 
@@ -10,7 +14,11 @@ add_subdirectory(libs/freetype)
 add_subdirectory(libs/lua)
 add_subdirectory(libs/openal)
 
-add_executable(${PROJECT_NAME}
+if(TARGET OpenAL)
+    target_compile_options(OpenAL PRIVATE -w)
+endif()
+
+set(BLAZEBOLT_SOURCES
     src/game.cpp
     src/stb_image_impl.cpp
     core/engine/luaEngine.cpp
@@ -37,7 +45,8 @@ add_executable(${PROJECT_NAME}
     core/utils/input.cpp
     core/scene.cpp
 )
-target_include_directories(${PROJECT_NAME} PRIVATE
+
+set(BLAZEBOLT_INCLUDES
     core
     libs/headeronly/include
     libs/glfw/include
@@ -45,14 +54,41 @@ target_include_directories(${PROJECT_NAME} PRIVATE
     libs/freetype/include
     libs/openal/include
 )
-target_link_libraries(${PROJECT_NAME} PRIVATE
+
+set(BLAZEBOLT_LIBS
     glfw
     glad
     freetype
-    lua
-    openal
+    lua_static
+    OpenAL
+)
+
+add_library(BlazeBoltLib STATIC ${BLAZEBOLT_SOURCES})
+target_include_directories(BlazeBoltLib PRIVATE ${BLAZEBOLT_INCLUDES})
+target_link_libraries(BlazeBoltLib PRIVATE ${BLAZEBOLT_LIBS})
+if(WIN32)
+    target_link_libraries(BlazeBoltLib PRIVATE ws2_32)
+endif()
+
+add_executable(BlazeBolt ${BLAZEBOLT_SOURCES})
+target_include_directories(BlazeBolt PRIVATE ${BLAZEBOLT_INCLUDES})
+target_link_libraries(BlazeBolt PRIVATE ${BLAZEBOLT_LIBS})
+if(WIN32)
+    target_link_libraries(BlazeBolt PRIVATE ws2_32)
+endif()
+add_custom_command(TARGET BlazeBolt POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+        ${CMAKE_SOURCE_DIR}/assets $<TARGET_FILE_DIR:BlazeBolt>/assets
 )
 
 if(WIN32)
-    target_link_libraries(${PROJECT_NAME} PRIVATE ws2_32)
+    add_executable(BlazeBoltWin ${BLAZEBOLT_SOURCES})
+    set_target_properties(BlazeBoltWin PROPERTIES WIN32_EXECUTABLE TRUE)
+    target_include_directories(BlazeBoltWin PRIVATE ${BLAZEBOLT_INCLUDES})
+    target_link_libraries(BlazeBoltWin PRIVATE ${BLAZEBOLT_LIBS})
+    target_link_libraries(BlazeBoltWin PRIVATE ws2_32)
+    add_custom_command(TARGET BlazeBoltWin POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_directory
+            ${CMAKE_SOURCE_DIR}/assets $<TARGET_FILE_DIR:BlazeBoltWin>/assets
+    )
 endif()
