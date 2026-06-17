@@ -97,5 +97,11 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE
 
 set_target_properties(${PROJECT_NAME} PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/bin
-    CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2"
+)
+
+add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        ${CMAKE_SOURCE_DIR}/arial.ttf $<TARGET_FILE_DIR:${PROJECT_NAME}>/arial.ttf
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        ${CMAKE_SOURCE_DIR}/void.zip $<TARGET_FILE_DIR:${PROJECT_NAME}>/void.zip
 )

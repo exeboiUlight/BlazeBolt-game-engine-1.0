@@ -78,7 +78,7 @@ if(WIN32)
 endif()
 add_custom_command(TARGET BlazeBolt POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory
-        ${CMAKE_SOURCE_DIR}/assets $<TARGET_FILE_DIR:BlazeBolt>/assets
+        ${CMAKE_SOURCE_DIR}/assets/ $<TARGET_FILE_DIR:BlazeBolt>
 )
 
 if(WIN32)
@@ -89,6 +89,6 @@ if(WIN32)
     target_link_libraries(BlazeBoltWin PRIVATE ws2_32)
     add_custom_command(TARGET BlazeBoltWin POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_directory
-            ${CMAKE_SOURCE_DIR}/assets $<TARGET_FILE_DIR:BlazeBoltWin>/assets
+            ${CMAKE_SOURCE_DIR}/assets/ $<TARGET_FILE_DIR:BlazeBoltWin>
     )
 endif()
