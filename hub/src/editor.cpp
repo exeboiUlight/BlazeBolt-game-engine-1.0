@@ -247,12 +247,12 @@ void Editor::SaveTab(EditorTab& tab) {
 
 void Editor::RunGame() {
 #ifdef PLATFORM_WINDOWS
-    fs::path exe = m_project_path / "game.exe";
+    fs::path exe = m_project_path / "BlazeBolt.exe";
     if (!fs::exists(exe)) {
         system(("explorer \"" + m_project_path.string() + "\"").c_str());
         return;
     }
-    std::string bat = "@echo off\ncd /d \"" + m_project_path.string() + "\"\nstart \"\" game.exe\n";
+    std::string bat = "@echo off\ncd /d \"" + m_project_path.string() + "\"\nstart \"\" BlazeBolt.exe\n";
     fs::path bat_path = m_project_path / "_run_temp.bat";
     {
         std::ofstream f(bat_path);
@@ -261,12 +261,12 @@ void Editor::RunGame() {
     system(("cmd /c \"" + bat_path.string() + "\"").c_str());
     fs::remove(bat_path);
 #else
-    fs::path exe = m_project_path / "linux_release";
+    fs::path exe = m_project_path / "BlazeBolt";
     if (!fs::exists(exe)) {
         system(("xdg-open \"" + m_project_path.string() + "\"").c_str());
         return;
     }
-    system(("cd \"" + m_project_path.string() + "\" && ./linux_release &").c_str());
+    system(("cd \"" + m_project_path.string() + "\" && ./BlazeBolt &").c_str());
 #endif
 }
 
