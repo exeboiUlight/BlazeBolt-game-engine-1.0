@@ -7,6 +7,8 @@
 
 namespace fs = std::filesystem;
 
+enum class ProjectType { Code, NodeGraph };
+
 class Hub {
 public:
     Hub(fs::path engine_root);
@@ -36,12 +38,13 @@ private:
     char m_new_path[1024] = "";
     char m_error_msg[512] = "";
     bool m_show_error = false;
+    ProjectType m_new_project_type = ProjectType::Code;
 
     int m_current_theme = 2;
 
     void LoadProjects();
     void SaveProjects();
-    void CreateProject(const std::string& name, const std::string& path);
+    void CreateProject(const std::string& name, const std::string& path, ProjectType type);
     void LoadIcon(Project& proj);
     void UnloadIcon(Project& proj);
     bool ExtractZip(const fs::path& zip, const fs::path& dest);

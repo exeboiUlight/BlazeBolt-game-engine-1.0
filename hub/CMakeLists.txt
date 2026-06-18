@@ -34,6 +34,7 @@ set(ENGINE_SOURCES
     ${CMAKE_SOURCE_DIR}/src/main.cpp
     ${CMAKE_SOURCE_DIR}/src/hub.cpp
     ${CMAKE_SOURCE_DIR}/src/editor.cpp
+    ${CMAKE_SOURCE_DIR}/src/node_editor.cpp
     ${GLAD_DIR}/glad.c
 )
 

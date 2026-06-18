@@ -1,4 +1,5 @@
 #include "editor.hpp"
+#include "node_editor.hpp"
 #include "stb_image.h"
 #include "stb_image_write.h"
 #include <glad/glad.h>
@@ -149,6 +150,10 @@ bool Editor::IsCodeFile(const std::string& ext) {
            ext == ".md" || ext == ".cmake" || ext == ".toml";
 }
 
+bool Editor::IsNodeGraphFile(const std::string& ext) {
+    return ext == ".nodemap";
+}
+
 void Editor::OpenFileInTab(const std::string& path) {
     for (int i = 0; i < (int)m_tabs.size(); i++) {
         if (m_tabs[i].file_path == path) {
@@ -186,6 +191,11 @@ void Editor::OpenFileInTab(const std::string& path) {
             glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
             tab.image_texture = (ImTextureID)(intptr_t)tex;
         }
+    } else if (IsNodeGraphFile(ext)) {
+        tab.type = EditorTabType::NodeGraph;
+        tab.node_editor = std::make_unique<NodeEditor>();
+        tab.node_editor->LoadFromFile(path);
+        tab.title = p.filename().string();
     } else {
         tab.type = EditorTabType::Code;
         tab.code_editor = std::make_unique<TextEditor>();
@@ -226,6 +236,10 @@ void Editor::SaveTab(EditorTab& tab) {
         std::ofstream f(tab.file_path, std::ios::binary);
         if (f.is_open()) {
             f.write(text.data(), text.size());
+            tab.modified = false;
+        }
+    } else if (tab.type == EditorTabType::NodeGraph && tab.node_editor) {
+        if (tab.node_editor->SaveToFile(tab.file_path)) {
             tab.modified = false;
         }
     } else if (tab.type == EditorTabType::Image) {
@@ -477,6 +491,15 @@ void Editor::RenderMenuBar() {
                 FMCreateFile(name);
                 OpenFileInTab((m_fm_current_dir / name).string());
             }
+            if (ImGui::MenuItem("New Node Graph")) {
+                int idx = 1;
+                std::string name;
+                do { name = "script_" + std::to_string(idx++) + ".nodemap"; }
+                while (fs::exists(m_fm_current_dir / name));
+                std::string full_path = (m_fm_current_dir / name).string();
+                CreateNewNodeGraph(full_path);
+                RefreshFM();
+            }
             ImGui::Separator();
             if (ImGui::MenuItem("Save", "Ctrl+S", false, m_active_tab >= 0)) SaveTab(m_tabs[m_active_tab]);
             if (ImGui::MenuItem("Save All")) { for (auto& t : m_tabs) SaveTab(t); }
@@ -568,6 +591,7 @@ void Editor::RenderSidePanel() {
         ImGui::PushID(i);
         if (is_dir) ImGui::TextColored(ImVec4(0.9f, 0.75f, 0.3f, 1.0f), "%s", ">>");
         else if (IsImageFile(ext)) ImGui::TextColored(ImVec4(0.4f, 0.8f, 0.4f, 1.0f), "%s", "[]");
+        else if (IsNodeGraphFile(ext)) ImGui::TextColored(ImVec4(0.6f, 0.4f, 0.9f, 1.0f), "%s", "<>");
         else if (IsCodeFile(ext)) ImGui::TextColored(ImVec4(0.4f, 0.6f, 1.0f, 1.0f), "%s", "{}");
         else ImGui::TextColored(ImVec4(0.6f, 0.6f, 0.6f, 1.0f), "%s", "--");
         ImGui::SameLine(30.0f);
@@ -633,6 +657,7 @@ void Editor::RenderTabContent() {
     auto& tab = m_tabs[m_active_tab];
     if (tab.type == EditorTabType::Code) RenderCodeEditor(tab);
     else if (tab.type == EditorTabType::Image) RenderImageEditor(tab);
+    else if (tab.type == EditorTabType::NodeGraph) RenderNodeEditor(tab);
 }
 
 // ======================== CODE EDITOR (TextEditor) ========================
@@ -710,6 +735,87 @@ void Editor::RenderImageEditor(EditorTab& tab) {
         }
     }
     ImGui::EndChild();
+}
+
+// ======================== NODE EDITOR ========================
+
+void Editor::RenderNodeEditor(EditorTab& tab) {
+    if (!tab.node_editor) return;
+
+    ImGuiIO& io = ImGui::GetIO();
+    if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_S)) SaveTab(tab);
+
+    ImVec2 avail = ImGui::GetContentRegionAvail();
+
+    // Toolbar for node editor
+    if (ImGui::Button("Save")) SaveTab(tab);
+    ImGui::SameLine();
+    if (ImGui::Button("Export Lua")) ExportNodeGraphToLua(tab);
+    ImGui::SameLine();
+    if (ImGui::Button("Clear")) {
+        tab.node_editor->Clear();
+        tab.modified = true;
+    }
+    ImGui::SameLine();
+    ImGui::SeparatorEx(ImGuiSeparatorFlags_Vertical);
+    ImGui::SameLine();
+    ImGui::TextColored(ImVec4(0.5f, 0.5f, 0.55f, 1.0f), "Node Graph Editor");
+    ImGui::Separator();
+
+    tab.node_editor->Render(tab);
+    if (tab.node_editor->IsModified()) tab.modified = true;
+}
+
+void Editor::OpenNodeGraph(const std::string& path) {
+    for (int i = 0; i < (int)m_tabs.size(); i++) {
+        if (m_tabs[i].file_path == path) {
+            m_active_tab = i;
+            return;
+        }
+    }
+
+    EditorTab tab;
+    tab.file_path = path;
+    tab.title = fs::path(path).filename().string();
+    tab.type = EditorTabType::NodeGraph;
+    tab.node_editor = std::make_unique<NodeEditor>();
+    tab.node_editor->LoadFromFile(path);
+
+    m_tabs.push_back(std::move(tab));
+    m_active_tab = (int)m_tabs.size() - 1;
+}
+
+void Editor::CreateNewNodeGraph(const std::string& path) {
+    EditorTab tab;
+    tab.file_path = path;
+    tab.title = fs::path(path).filename().string();
+    tab.type = EditorTabType::NodeGraph;
+    tab.node_editor = std::make_unique<NodeEditor>();
+    tab.modified = true;
+
+    m_tabs.push_back(std::move(tab));
+    m_active_tab = (int)m_tabs.size() - 1;
+}
+
+void Editor::ExportNodeGraphToLua(EditorTab& tab) {
+    if (!tab.node_editor) return;
+
+    std::string lua_code = tab.node_editor->GenerateLua();
+
+    // Save as .lua file next to the .nodemap
+    std::string lua_path = tab.file_path;
+    auto dot_pos = lua_path.rfind('.');
+    if (dot_pos != std::string::npos) lua_path = lua_path.substr(0, dot_pos);
+    lua_path += ".lua";
+
+    std::ofstream f(lua_path, std::ios::binary);
+    if (f.is_open()) {
+        f.write(lua_code.data(), lua_code.size());
+        f.close();
+    }
+
+    // Also open in a code tab for review
+    OpenFileInTab(lua_path);
 }
 
 bool Editor::ShouldReturnToHub() const { return m_return_to_hub; }

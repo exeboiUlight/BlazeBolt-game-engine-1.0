@@ -12,9 +12,11 @@
 #include <cstdint>
 typedef unsigned int GLuint;
 
+class NodeEditor;
+
 namespace fs = std::filesystem;
 
-enum class EditorTabType { Code, Image, None };
+enum class EditorTabType { Code, Image, NodeGraph, None };
 
 struct EditorTab {
     EditorTabType type = EditorTabType::None;
@@ -23,6 +25,7 @@ struct EditorTab {
     bool modified = false;
 
     std::unique_ptr<TextEditor> code_editor;
+    std::unique_ptr<NodeEditor> node_editor;
 
     unsigned char* image_data = nullptr;
     int img_w = 0, img_h = 0, img_channels = 0;
@@ -72,6 +75,11 @@ private:
 
     void RenderCodeEditor(EditorTab& tab);
     void RenderImageEditor(EditorTab& tab);
+    void RenderNodeEditor(EditorTab& tab);
+
+    void OpenNodeGraph(const std::string& path);
+    void CreateNewNodeGraph(const std::string& path);
+    void ExportNodeGraphToLua(EditorTab& tab);
 
     void RefreshFM();
     void FMNavigateUp();
@@ -99,4 +107,5 @@ private:
 
     bool IsImageFile(const std::string& ext);
     bool IsCodeFile(const std::string& ext);
+    bool IsNodeGraphFile(const std::string& ext);
 };

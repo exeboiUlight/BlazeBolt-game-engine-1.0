@@ -54,7 +54,7 @@ void Hub::SaveProjects() {
     }
 }
 
-void Hub::CreateProject(const std::string& name, const std::string& path) {
+void Hub::CreateProject(const std::string& name, const std::string& path, ProjectType type) {
     fs::path project_dir = fs::path(path) / name;
     fs::path zip_path = m_engine_root / "void.zip";
 
@@ -77,6 +77,24 @@ void Hub::CreateProject(const std::string& name, const std::string& path) {
         m_show_error = true;
         fs::remove_all(project_dir);
         return;
+    }
+
+    if (type == ProjectType::NodeGraph) {
+        fs::path engine_dir = project_dir / "engine";
+        if (!fs::exists(engine_dir)) {
+            fs::create_directories(engine_dir);
+        }
+
+        std::ofstream main_script(engine_dir / "main.nodemap");
+        if (main_script.is_open()) {
+            main_script << "[NODEMAP]\n";
+            main_script << "VERSION=1\n";
+            main_script << "[NODES]\n";
+            main_script << "ID=0;TYPE=1000;X=200;Y=200\n";
+            main_script << "ID=1;TYPE=1001;X=200;Y=400\n";
+            main_script << "[CONNECTIONS]\n";
+            main_script.close();
+        }
     }
 
     Project proj;
@@ -428,6 +446,7 @@ void Hub::Render() {
 
     if (ImGui::Button("New Project", ImVec2(button_width, 0))) {
         m_show_create_popup = true;
+        m_new_project_type = ProjectType::Code;
         memset(m_new_name, 0, sizeof(m_new_name));
         memset(m_new_path, 0, sizeof(m_new_path));
         fs::path default_path = m_engine_root / "projects";
@@ -515,11 +534,62 @@ void Hub::Render() {
         }
 
         ImGui::Spacing();
+        ImGui::Text("Project Type:");
+        ImGui::Spacing();
+
+        float radio_w = (popup_w - ImGui::GetStyle().ItemSpacing.x * 2 - ImGui::GetStyle().FramePadding.x * 2) * 0.5f;
+
+        bool is_code = (m_new_project_type == ProjectType::Code);
+        bool is_nodes = (m_new_project_type == ProjectType::NodeGraph);
+
+        ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 6.0f);
+        ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(12.0f, 8.0f));
+
+        if (is_code) {
+            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.20f, 0.50f, 0.80f, 0.80f));
+            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.24f, 0.56f, 0.88f, 0.90f));
+            ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.16f, 0.42f, 0.72f, 1.00f));
+        } else {
+            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.18f, 0.18f, 0.22f, 1.0f));
+            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.24f, 0.24f, 0.28f, 1.0f));
+            ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.14f, 0.14f, 0.18f, 1.0f));
+        }
+        if (ImGui::Button("Code Editor", ImVec2(radio_w, 40))) {
+            m_new_project_type = ProjectType::Code;
+        }
+        ImGui::PopStyleColor(3);
+
+        ImGui::SameLine();
+
+        if (is_nodes) {
+            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.20f, 0.50f, 0.80f, 0.80f));
+            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.24f, 0.56f, 0.88f, 0.90f));
+            ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.16f, 0.42f, 0.72f, 1.00f));
+        } else {
+            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.18f, 0.18f, 0.22f, 1.0f));
+            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.24f, 0.24f, 0.28f, 1.0f));
+            ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.14f, 0.14f, 0.18f, 1.0f));
+        }
+        if (ImGui::Button("Node Graph", ImVec2(radio_w, 40))) {
+            m_new_project_type = ProjectType::NodeGraph;
+        }
+        ImGui::PopStyleColor(3);
+
+        ImGui::PopStyleVar(2);
+
+        ImGui::Spacing();
+        if (m_new_project_type == ProjectType::Code) {
+            ImGui::TextColored(ImVec4(0.5f, 0.5f, 0.55f, 1.0f), "Create a Lua code project with text editor");
+        } else {
+            ImGui::TextColored(ImVec4(0.5f, 0.5f, 0.55f, 1.0f), "Create a visual node-based scripting project");
+        }
+
+        ImGui::Spacing();
 
         bool can_create = m_new_name[0] != '\0' && m_new_path[0] != '\0';
         if (!can_create) ImGui::BeginDisabled();
         if (ImGui::Button("Create", ImVec2(120, 0))) {
-            CreateProject(m_new_name, m_new_path);
+            CreateProject(m_new_name, m_new_path, m_new_project_type);
             if (!m_show_error) {
                 ImGui::CloseCurrentPopup();
                 m_show_create_popup = false;
