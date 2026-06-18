@@ -4,15 +4,18 @@ project(BlazeBolt LANGUAGES C CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+if(MINGW OR (CMAKE_CXX_COMPILER_ID STREQUAL "GNU"))
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static-libgcc -static-libstdc++ -static")
+endif()
+
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type" FORCE)
 endif()
 
 set(IMGUI_DIR ${CMAKE_SOURCE_DIR}/include/imgui)
 set(GLAD_DIR ${CMAKE_SOURCE_DIR}/include/glad)
-set(FREETYPE_DIR ${CMAKE_SOURCE_DIR}/include/freetype)
 set(STB_DIR ${CMAKE_SOURCE_DIR}/include/stb_image)
-set(GLFW_DIR ${CMAKE_SOURCE_DIR}/lib)
+set(LIBS_DIR ${CMAKE_SOURCE_DIR}/../libs)
 
 set(IMGUI_SOURCES
     ${IMGUI_DIR}/imgui.cpp
@@ -32,24 +35,26 @@ set(ENGINE_SOURCES
     ${GLAD_DIR}/glad.c
 )
 
+add_subdirectory(${LIBS_DIR}/glfw glfw_build)
+add_subdirectory(${LIBS_DIR}/freetype freetype_build)
+
 add_executable(${PROJECT_NAME} ${ENGINE_SOURCES} ${IMGUI_SOURCES})
 
 target_include_directories(${PROJECT_NAME} PRIVATE
+    ${LIBS_DIR}/glfw/include
+    ${LIBS_DIR}/freetype/include
     ${CMAKE_SOURCE_DIR}/include
     ${IMGUI_DIR}
     ${IMGUI_DIR}/backends
     ${IMGUI_DIR}/misc/freetype
     ${IMGUI_DIR}/texteditor
     ${GLAD_DIR}
-    ${FREETYPE_DIR}
     ${STB_DIR}
 )
 
 if(WIN32)
-    target_link_directories(${PROJECT_NAME} PRIVATE ${GLFW_DIR})
-
     target_link_libraries(${PROJECT_NAME} PRIVATE
-        glfw3
+        glfw
         freetype
         opengl32
         gdi32
@@ -66,17 +71,11 @@ if(WIN32)
         GLFW_INCLUDE_NONE
     )
 else()
-    find_package(glfw3 REQUIRED)
-    find_package(Freetype REQUIRED)
     find_package(OpenGL REQUIRED)
-
-    target_include_directories(${PROJECT_NAME} PRIVATE
-        ${FREETYPE_INCLUDE_DIRS}
-    )
 
     target_link_libraries(${PROJECT_NAME} PRIVATE
         glfw
-        Freetype::Freetype
+        freetype
         OpenGL::GL
         dl
         pthread

@@ -8,6 +8,11 @@ endif()
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED true)
 
+if(MINGW OR (CMAKE_CXX_COMPILER_ID STREQUAL "GNU"))
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static-libgcc -static-libstdc++ -static")
+    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -static-libgcc -static-libstdc++")
+endif()
+
 add_subdirectory(libs/glfw)
 add_subdirectory(libs/glad)
 add_subdirectory(libs/freetype)
