@@ -325,7 +325,8 @@ void Hub::Render() {
 
         ImGui::PushID((int)i);
 
-        ImGui::BeginChild(("project_card_" + std::to_string(i)).c_str(), ImVec2(card_width, 72.0f), ImGuiChildFlags_Borders | ImGuiChildFlags_AlwaysAutoResize);
+        // FIXME: I've added ImGuiChildFlags_AutoResizeY out of context, idk what it related to, I just wanted to fix this error: "Must use ImGuiChildFlags_AutoResizeX or ImGuiChildFlags_AutoResizeY with ImGuiChildFlags_AlwaysAutoResize!"
+        ImGui::BeginChild(("project_card_" + std::to_string(i)).c_str(), ImVec2(card_width, 72.0f), ImGuiChildFlags_Borders | ImGuiChildFlags_AlwaysAutoResize | ImGuiChildFlags_AutoResizeY);
 
         float card_h = ImGui::GetContentRegionAvail().y;
         float icon_size = 48.0f;
@@ -374,7 +375,7 @@ void Hub::Render() {
             m_open_editor = true;
         }
 
-        if (ImGui::BeginPopupContextItem()) {
+        if (ImGui::BeginPopupContextItem(("ProjectContextMenu_" + std::to_string(i)).c_str())) {
             if (ImGui::MenuItem("Open")) {
                 m_selected_path = proj.path;
                 m_open_editor = true;
