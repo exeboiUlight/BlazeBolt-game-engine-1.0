@@ -3664,6 +3664,280 @@ BlazeBolt.IsSoundPlaying(soundName) → playing
 
 ---
 
+### Sound Pitch & Looping
+
+#### SetSoundPitch
+
+```
+BlazeBolt.SetSoundPitch(soundId, pitch)
+```
+
+| Аргумент | Тип | Описание |
+|---|---|---|
+| `soundId` | integer | Идентификатор звука |
+| `pitch` | number | Высота тона (1.0 = нормальная) |
+
+#### SetSoundLoopingById
+
+```
+BlazeBolt.SetSoundLoopingById(soundId, loop)
+```
+
+| Аргумент | Тип | Описание |
+|---|---|---|
+| `soundId` | integer | Идентификатор звука |
+| `loop` | boolean | Зацикливание |
+
+---
+
+### 3D позиционный звук
+
+#### SetSoundPosition
+
+```
+BlazeBolt.SetSoundPosition(soundId, x, y, z)
+```
+
+| Аргумент | Тип | Описание |
+|---|---|---|
+| `soundId` | integer | Идентификатор звука |
+| `x` | number | Позиция X |
+| `y` | number | Позиция Y |
+| `z` | number | Позиция Z |
+
+#### SetSoundPositionByName
+
+```
+BlazeBolt.SetSoundPositionByName(soundName, x, y, z)
+```
+
+| Аргумент | Тип | Описание |
+|---|---|---|
+| `soundName` | string | Имя звука |
+| `x` | number | Позиция X |
+| `y` | number | Позиция Y |
+| `z` | number | Позиция Z |
+
+#### GetSoundPosition
+
+```
+BlazeBolt.GetSoundPosition(soundId) → x, y, z
+```
+
+#### SetSoundVelocity
+
+```
+BlazeBolt.SetSoundVelocity(soundId, x, y, z)
+```
+
+#### SetSoundRolloff
+
+```
+BlazeBolt.SetSoundRolloff(soundId, rolloff)
+```
+
+#### SetSoundReferenceDistance
+
+```
+BlazeBolt.SetSoundReferenceDistance(soundId, distance)
+```
+
+#### SetSoundMaxDistance
+
+```
+BlazeBolt.SetSoundMaxDistance(soundId, distance)
+```
+
+#### SetSoundSpatial
+
+```
+BlazeBolt.SetSoundSpatial(soundId, spatial)
+```
+
+#### SetSoundCone
+
+```
+BlazeBolt.SetSoundCone(soundId, innerAngle, outerAngle, outerGain)
+```
+
+#### SetSoundDirection
+
+```
+BlazeBolt.SetSoundDirection(soundId, x, y, z)
+```
+
+---
+
+### Позиционный слушатель (Listener)
+
+#### SetListenerPosition
+
+```
+BlazeBolt.SetListenerPosition(x, y, z)
+```
+
+#### GetListenerPosition
+
+```
+BlazeBolt.GetListenerPosition() → x, y, z
+```
+
+#### SetListenerVelocity
+
+```
+BlazeBolt.SetListenerVelocity(x, y, z)
+```
+
+#### SetListenerOrientation
+
+```
+BlazeBolt.SetListenerOrientation(fx, fy, fz, ux, uy, uz)
+```
+
+#### SetListenerGain
+
+```
+BlazeBolt.SetListenerGain(gain)
+```
+
+---
+
+### Аудио-эффекты (EFX)
+
+#### CreateAudioEffect
+
+```
+BlazeBolt.CreateAudioEffect() → effectId
+```
+
+#### DestroyAudioEffect
+
+```
+BlazeBolt.DestroyAudioEffect(effectId)
+```
+
+#### SetAudioEffectType
+
+```
+BlazeBolt.SetAudioEffectType(effectId, type) → success
+```
+
+#### SetAudioEffectf
+
+```
+BlazeBolt.SetAudioEffectf(effectId, param, value) → success
+```
+
+#### SetAudioEffecti
+
+```
+BlazeBolt.SetAudioEffecti(effectId, param, value) → success
+```
+
+#### GetAudioEffectf
+
+```
+BlazeBolt.GetAudioEffectf(effectId, param) → value
+```
+
+#### GetAudioEffecti
+
+```
+BlazeBolt.GetAudioEffecti(effectId, param) → value
+```
+
+#### GetAudioEfxSupported
+
+```
+BlazeBolt.GetAudioEfxSupported() → supported
+```
+
+---
+
+### Аудио-фильтры
+
+#### CreateAudioFilter
+
+```
+BlazeBolt.CreateAudioFilter() → filterId
+```
+
+#### DestroyAudioFilter
+
+```
+BlazeBolt.DestroyAudioFilter(filterId)
+```
+
+#### SetAudioFilterType
+
+```
+BlazeBolt.SetAudioFilterType(filterId, type) → success
+```
+
+#### SetAudioFilterf
+
+```
+BlazeBolt.SetAudioFilterf(filterId, param, value) → success
+```
+
+---
+
+### Слоты эффектов
+
+#### CreateAudioEffectSlot
+
+```
+BlazeBolt.CreateAudioEffectSlot() → slotId
+```
+
+#### DestroyAudioEffectSlot
+
+```
+BlazeBolt.DestroyAudioEffectSlot(slotId)
+```
+
+#### SetAudioEffectSlotEffect
+
+```
+BlazeBolt.SetAudioEffectSlotEffect(slotId, effectId) → success
+```
+
+#### ClearAudioEffectSlotEffect
+
+```
+BlazeBolt.ClearAudioEffectSlotEffect(slotId) → success
+```
+
+#### SetAudioEffectSlotGain
+
+```
+BlazeBolt.SetAudioEffectSlotGain(slotId, gain) → success
+```
+
+---
+
+### Привязка эффектов и фильтров
+
+#### AttachAudioEffect
+
+```
+BlazeBolt.AttachAudioEffect(soundId, slotId) → success
+```
+
+#### DetachAudioEffect
+
+```
+BlazeBolt.DetachAudioEffect(soundId) → success
+```
+
+#### AttachAudioFilter
+
+```
+BlazeBolt.AttachAudioFilter(soundId, filterId) → success
+```
+
+---
+
 ### Пример: Аудио
 
 ```lua

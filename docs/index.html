@@ -1,0 +1,1070 @@
+﻿<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BlazeBolt Engine — Lua API Reference</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0d1117;--sidebar-bg:#161b22;--card-bg:#1a1e24;--border:#30363d;--accent:#ff6b35;--accent2:#ffa500;--text:#e6edf3;--muted:#8b949e;--link:#58a6ff;--code-bg:#1a1e24;--table-row-alt:#161b22;--sidebar-w:300px}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);line-height:1.7}
+a{color:var(--link);text-decoration:none}
+a:hover{text-decoration:underline}
+code,pre{font-family:'JetBrains Mono','Fira Code',monospace}
+#sidebar{position:fixed;top:0;left:0;width:var(--sidebar-w);height:100vh;background:var(--sidebar-bg);border-right:1px solid var(--border);display:flex;flex-direction:column;z-index:100;overflow:hidden;transition:transform .3s ease}
+#sidebar-header{padding:20px 16px 12px;border-bottom:1px solid var(--border);flex-shrink:0}
+#sidebar-header .logo{font-size:1.3rem;font-weight:700;display:flex;align-items:center;gap:8px;background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+#sidebar-header .logo .fire{-webkit-text-fill-color:var(--accent);font-size:1.4rem}
+#sidebar-header .version{font-size:.75rem;color:var(--muted);margin-top:2px}
+#search-box{width:100%;margin-top:10px;padding:8px 12px;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:.85rem;outline:none}
+#search-box:focus{border-color:var(--accent)}
+#sidebar-nav{flex:1;overflow-y:auto;padding:8px 0}
+#sidebar-nav::-webkit-scrollbar{width:6px}
+#sidebar-nav::-webkit-scrollbar-track{background:transparent}
+#sidebar-nav::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+.nav-item{display:block;padding:6px 16px 6px 20px;font-size:.82rem;color:var(--muted);cursor:pointer;border-left:3px solid transparent;transition:all .15s;text-decoration:none}
+.nav-item:hover{color:var(--text);background:rgba(255,107,53,.06);text-decoration:none}
+.nav-item.active{color:var(--accent);border-left-color:var(--accent);background:rgba(255,107,53,.08)}
+.nav-item.sub{padding-left:32px;font-size:.78rem}
+.nav-divider{height:1px;background:var(--border);margin:6px 16px}
+#hamburger{display:none;position:fixed;top:12px;left:12px;z-index:200;background:var(--sidebar-bg);border:1px solid var(--border);border-radius:6px;padding:8px 10px;cursor:pointer;color:var(--text);font-size:1.2rem}
+#overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:90}
+#main{margin-left:var(--sidebar-w);min-height:100vh}
+.content{max-width:960px;margin:0 auto;padding:40px 32px 120px}
+.hero{text-align:center;padding:60px 20px 50px;margin-bottom:40px;background:linear-gradient(135deg,rgba(255,107,53,.08),rgba(255,165,0,.05));border-radius:12px;border:1px solid var(--border)}
+.hero h1{font-size:2.6rem;font-weight:700;margin-bottom:8px;background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.hero .subtitle{font-size:1.1rem;color:var(--muted)}
+.hero .version-badge{display:inline-block;margin-top:12px;padding:4px 14px;background:rgba(255,107,53,.15);border:1px solid var(--accent);border-radius:20px;font-size:.85rem;color:var(--accent);font-weight:600}
+.doc-section{margin-bottom:56px}
+.doc-section>h2{font-size:1.6rem;font-weight:700;margin-bottom:20px;padding-bottom:10px;border-bottom:2px solid var(--border);border-left:4px solid var(--accent);padding-left:14px;background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.doc-section>h3{font-size:1.15rem;font-weight:600;margin:32px 0 12px;color:var(--text);padding-left:4px}
+.doc-section>p,.doc-section>ul,.doc-section>ol{margin-bottom:12px}
+.func-card{background:var(--card-bg);border:1px solid var(--border);border-radius:8px;padding:20px 24px;margin-bottom:20px}
+.func-card h4{font-size:1rem;font-weight:600;color:var(--accent);margin-bottom:10px;font-family:'JetBrains Mono',monospace}
+.func-sig{background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:10px 14px;margin-bottom:14px;font-family:'JetBrains Mono',monospace;font-size:.88rem;color:var(--accent2);overflow-x:auto;white-space:pre}
+.func-desc{margin-bottom:14px;color:var(--muted);font-size:.92rem}
+table{width:100%;border-collapse:collapse;margin:12px 0 16px;font-size:.88rem}
+thead th{background:rgba(255,107,53,.1);color:var(--accent);text-align:left;padding:8px 12px;border-bottom:2px solid var(--border);font-weight:600}
+tbody td{padding:7px 12px;border-bottom:1px solid var(--border)}
+tbody tr:nth-child(even){background:var(--table-row-alt)}
+tbody tr:hover{background:rgba(255,107,53,.04)}
+td code,th code{background:rgba(255,107,53,.12);color:var(--accent);padding:2px 6px;border-radius:4px;font-size:.82rem}
+.code-wrap{position:relative;margin:14px 0 16px}
+.code-block{background:var(--code-bg);border:1px solid var(--border);border-radius:8px;padding:16px 18px;overflow-x:auto;font-size:.84rem;line-height:1.6;color:var(--text)}
+.code-block::-webkit-scrollbar{height:6px}
+.code-block::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+.copy-btn{position:absolute;top:8px;right:8px;background:var(--border);border:none;border-radius:4px;padding:4px 10px;font-size:.72rem;color:var(--muted);cursor:pointer;transition:all .15s;z-index:5}
+.copy-btn:hover{background:var(--accent);color:#fff}
+.copy-btn.copied{background:#238636;color:#fff}
+p code,li code,td code{background:rgba(255,107,53,.1);color:var(--accent);padding:2px 6px;border-radius:4px;font-size:.84em}
+.kw{color:#ff7b72}.fn{color:#d2a8ff}.str{color:#a5d6ff}.cm{color:#8b949e;font-style:italic}.num{color:#79c0ff}.bi{color:#ffa657}.var{color:#e6edf3}
+#back-to-top{position:fixed;bottom:30px;right:30px;width:44px;height:44px;border-radius:50%;background:var(--accent);color:#fff;border:none;font-size:1.3rem;cursor:pointer;opacity:0;transition:all .3s;z-index:50;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(255,107,53,.3)}
+#back-to-top.visible{opacity:1}
+#back-to-top:hover{background:var(--accent2);transform:translateY(-2px)}
+@media(max-width:860px){#sidebar{transform:translateX(-100%)}#sidebar.open{transform:translateX(0)}#hamburger{display:block}#overlay.active{display:block}#main{margin-left:0}.content{padding:60px 16px 80px}.hero h1{font-size:1.8rem}.func-card{padding:14px 16px}}
+::-webkit-scrollbar{width:8px}::-webkit-scrollbar-track{background:var(--bg)}::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px}
+.doc-section{scroll-margin-top:24px}
+</style>
+</head>
+<body>
+<button id="hamburger" aria-label="Menu">&#9776;</button>
+<div id="overlay"></div>
+<aside id="sidebar">
+<div id="sidebar-header">
+<div class="logo"><span class="fire">&#128293;</span> BlazeBolt</div>
+<div class="version">Lua API Reference v1.1</div>
+<input type="text" id="search-box" placeholder="Search API..." autocomplete="off">
+</div>
+<nav id="sidebar-nav">
+<a class="nav-item" href="#overview">Overview</a>
+<a class="nav-item" href="#callbacks">Lifecycle (Callbacks)</a>
+<a class="nav-item" href="#sprites">Sprites</a>
+<a class="nav-item sub" href="#sprites-create">CreateSprite</a>
+<a class="nav-item sub" href="#sprites-set-texture">SpriteSetTexture</a>
+<a class="nav-item sub" href="#sprites-set-pos">SpriteSetPosition</a>
+<a class="nav-item sub" href="#sprites-get-pos">SpriteGetPosition</a>
+<a class="nav-item sub" href="#sprites-rect">SpriteSetTextureRect</a>
+<a class="nav-item sub" href="#sprites-size">SetSize / GetSize</a>
+<a class="nav-item sub" href="#sprites-origin">SetOrigin / GetOrigin</a>
+<a class="nav-item sub" href="#sprites-rotation">SetRotation / GetRotation</a>
+<a class="nav-item sub" href="#sprites-color">SetColor / GetColor</a>
+<a class="nav-item sub" href="#sprites-visible">SetVisible / IsVisible</a>
+<div class="nav-divider"></div>
+<a class="nav-item" href="#spritebatch">SpriteBatch</a>
+<div class="nav-divider"></div>
+<a class="nav-item" href="#animatedsprite">AnimatedSprite</a>
+<div class="nav-divider"></div>
+<a class="nav-item" href="#animationwheel">AnimationWheel</a>
+<div class="nav-divider"></div>
+<a class="nav-item" href="#text">Text</a>
+<div class="nav-divider"></div>
+<a class="nav-item" href="#mesh">Mesh</a>
+<div class="nav-divider"></div>
+<a class="nav-item" href="#camera">Camera</a>
+<div class="nav-divider"></div>
+<a class="nav-item" href="#particlesystem">ParticleSystem</a>
+<div class="nav-divider"></div>
+<a class="nav-item" href="#tileset">Tileset</a>
+<div class="nav-divider"></div>
+<a class="nav-item" href="#light">Light</a>
+<div class="nav-divider"></div>
+<a class="nav-item" href="#physics">Physics</a>
+<div class="nav-divider"></div>
+<a class="nav-item" href="#audio">Audio</a>
+<div class="nav-divider"></div>
+<a class="nav-item" href="#window">Window</a>
+<div class="nav-divider"></div>
+<a class="nav-item" href="#scripts">Script Management</a>
+<div class="nav-divider"></div>
+<a class="nav-item" href="#scenes">Scene Management</a>
+<div class="nav-divider"></div>
+<a class="nav-item" href="#input">Input</a>
+<div class="nav-divider"></div>
+<a class="nav-item" href="#mathtypes">Math Types</a>
+<a class="nav-item sub" href="#vector2">Vector2</a>
+<a class="nav-item sub" href="#vector3">Vector3</a>
+<a class="nav-item sub" href="#vector4">Vector4</a>
+<a class="nav-item sub" href="#matrix3x3">Matrix3x3</a>
+<div class="nav-divider"></div>
+<a class="nav-item" href="#noise">Noise</a>
+<div class="nav-divider"></div>
+<a class="nav-item" href="#utility">Utility</a>
+<div class="nav-divider"></div>
+<a class="nav-item" href="#networking">Networking</a>
+<a class="nav-item sub" href="#tcp-server">TCP Server</a>
+<a class="nav-item sub" href="#tcp-client">TCP Client</a>
+<a class="nav-item sub" href="#udp-server">UDP Server</a>
+<a class="nav-item sub" href="#udp-client">UDP Client</a>
+<div class="nav-divider"></div>
+<a class="nav-item" href="#renderorder">Render Order</a>
+<div class="nav-divider"></div>
+<a class="nav-item" href="#destroy">Entity Destruction</a>
+<div class="nav-divider"></div>
+<a class="nav-item" href="#globalfuncs">Global Functions</a>
+<div class="nav-divider"></div>
+<a class="nav-item" href="#constants">Constants</a>
+</nav>
+</aside>
+<button id="back-to-top" title="Back to top">&#8593;</button>
+<main id="main">
+<div class="content">
+<section class="hero">
+<h1>&#128293; BlazeBolt Engine</h1>
+<p class="subtitle">Lua API Reference &mdash; Complete Documentation</p>
+<span class="version-badge">Version 1.1 &middot; Lua 5.4 &middot; OpenGL 3.3</span>
+</section>
+<!-- OVERVIEW -->
+<section class="doc-section" id="overview">
+<h2>Overview</h2>
+<p><strong>BlazeBolt Engine</strong> &mdash; 2D engine with Lua 5.4 scripting, OpenGL 3.3 rendering, Box2D physics, audio, networking functions and procedural noise generation.</p>
+<p>All engine functions are available through the global table <code>BlazeBolt</code>:</p>
+<div class="code-wrap"><pre class="code-block"><span class="kw">local</span> <span class="var">sprite</span> = <span class="bi">BlazeBolt</span>.<span class="fn">CreateSprite</span>(<span class="str">"texture.png"</span>, <span class="num">100</span>, <span class="num">200</span>)
+<span class="bi">BlazeBolt</span>.<span class="fn">SpriteSetPosition</span>(<span class="var">sprite</span>, <span class="num">300</span>, <span class="num">400</span>)</pre><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+<p>Some functions are registered as globals (without the <code>BlazeBolt</code> table):</p>
+<div class="code-wrap"><pre class="code-block"><span class="kw">local</span> <span class="var">w</span> = <span class="fn">GetScreenWidth</span>()
+<span class="kw">local</span> <span class="var">h</span> = <span class="fn">GetScreenHeight</span>()
+<span class="kw">local</span> <span class="var">n</span> = <span class="fn">PerlinNoise2D</span>(<span class="var">x</span>, <span class="var">y</span>)</pre><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+<p><strong>Entity type</strong> &mdash; is an integer identifier returned by entity creation functions.</p>
+<p><strong>Lifecycle</strong> calls Lua functions <code>Start()</code>, <code>Update(dt)</code>, <code>Draw()</code>, <code>End()</code> automatically.</p>
+<p><strong>Data types:</strong> <code>number</code> (float), <code>integer</code>, <code>string</code>, <code>boolean</code>, <code>nil</code>, <code>table</code>, <code>Entity</code> (integer), <code>Vector2</code>, <code>Vector3</code>, <code>Vector4</code>, <code>Matrix3x3</code>.</p>
+</section>
+<!-- CALLBACKS -->
+<section class="doc-section" id="callbacks">
+<h2>Lifecycle (Callbacks)</h2>
+<p>The engine automatically calls certain Lua functions at different stages:</p>
+<table><thead><tr><th>Callback</th><th>Description</th></tr></thead>
+<tbody>
+<tr><td><code>Start()</code></td><td>Called once at launch</td></tr>
+<tr><td><code>Update(dt)</code></td><td>Called every frame. <code>dt</code> &mdash; time since last frame (seconds)</td></tr>
+<tr><td><code>Draw()</code></td><td>Called every frame for rendering</td></tr>
+<tr><td><code>End()</code></td><td>Called on shutdown</td></tr>
+<tr><td><code>On&lt;SceneName&gt;Load()</code></td><td>Called when scene is loaded</td></tr>
+<tr><td><code>On&lt;SceneName&gt;Unload()</code></td><td>Called when scene is unloaded</td></tr>
+</tbody></table>
+<div class="code-wrap"><pre class="code-block"><span class="kw">local</span> <span class="var">player</span>
+<span class="kw">function</span> <span class="fn">Start</span>()
+    <span class="var">player</span> = <span class="bi">BlazeBolt</span>.<span class="fn">CreateSprite</span>(<span class="str">"player.png"</span>, <span class="num">100</span>, <span class="num">100</span>)
+<span class="kw">end</span>
+<span class="kw">function</span> <span class="fn">Update</span>(<span class="var">dt</span>)
+    <span class="kw">local</span> <span class="var">x</span>, <span class="var">y</span> = <span class="bi">BlazeBolt</span>.<span class="fn">SpriteGetPosition</span>(<span class="var">player</span>)
+    <span class="bi">BlazeBolt</span>.<span class="fn">SpriteSetPosition</span>(<span class="var">player</span>, <span class="var">x</span> + <span class="num">100</span> * <span class="var">dt</span>, <span class="var">y</span>)
+<span class="kw">end</span>
+<span class="kw">function</span> <span class="fn">Draw</span>() <span class="cm">-- rendering happens automatically</span> <span class="kw">end</span></pre><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+</section>
+<!-- SPRITES -->
+<section class="doc-section" id="sprites">
+<h2>Sprites</h2>
+<div class="func-card" id="sprites-create"><h4>CreateSprite</h4><p class="func-desc">Creates a new sprite with a texture.</p>
+<div class="func-sig">BlazeBolt.CreateSprite(texturePath, [x], [y]) &#8594; entity</div>
+<table><thead><tr><th>Argument</th><th>Type</th><th>Description</th><th>Default</th></tr></thead><tbody>
+<tr><td><code>texturePath</code></td><td>string</td><td>Path to texture file</td><td>&mdash;</td></tr>
+<tr><td><code>x</code></td><td>number</td><td>Initial X position</td><td><code>0</code></td></tr>
+<tr><td><code>y</code></td><td>number</td><td>Initial Y position</td><td><code>0</code></td></tr>
+</tbody></table><p><strong>Returns:</strong> <code>entity</code> (integer)</p></div>
+<div class="func-card" id="sprites-set-texture"><h4>SpriteSetTexture</h4><div class="func-sig">BlazeBolt.SpriteSetTexture(entity, texturePath)</div>
+<table><thead><tr><th>Argument</th><th>Type</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>entity</code></td><td>integer</td><td>Sprite identifier</td></tr>
+<tr><td><code>texturePath</code></td><td>string</td><td>Path to new texture</td></tr>
+</tbody></table></div>
+<div class="func-card" id="sprites-set-pos"><h4>SpriteSetPosition</h4><div class="func-sig">BlazeBolt.SpriteSetPosition(entity, x, y)</div>
+<table><thead><tr><th>Argument</th><th>Type</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>entity</code></td><td>integer</td><td>Sprite identifier</td></tr>
+<tr><td><code>x</code></td><td>number</td><td>Position X</td></tr>
+<tr><td><code>y</code></td><td>number</td><td>Position Y</td></tr>
+</tbody></table></div>
+<div class="func-card" id="sprites-get-pos"><h4>SpriteGetPosition</h4><div class="func-sig">BlazeBolt.SpriteGetPosition(entity) &#8594; x, y</div>
+<table><thead><tr><th>Argument</th><th>Type</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>entity</code></td><td>integer</td><td>Sprite identifier</td></tr>
+</tbody></table><p><strong>Returns:</strong> <code>x</code> (number), <code>y</code> (number)</p></div>
+<div class="func-card" id="sprites-rect"><h4>SpriteSetTextureRect</h4><div class="func-sig">BlazeBolt.SpriteSetTextureRect(entity, u, v, w, h)</div>
+<p class="func-desc">Sets the texture region (spritesheet).</p>
+<table><thead><tr><th>Argument</th><th>Type</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>entity</code></td><td>integer</td><td>Sprite identifier</td></tr>
+<tr><td><code>u</code></td><td>number</td><td>Region start X</td></tr>
+<tr><td><code>v</code></td><td>number</td><td>Region start Y</td></tr>
+<tr><td><code>w</code></td><td>number</td><td>Region width</td></tr>
+<tr><td><code>h</code></td><td>number</td><td>Region height</td></tr>
+</tbody></table></div>
+<div class="func-card" id="sprites-size"><h4>SpriteSetSize / SpriteGetSize</h4>
+<div class="func-sig">BlazeBolt.SpriteSetSize(entity, width, height)
+BlazeBolt.SpriteGetSize(entity) &#8594; width, height</div></div>
+<div class="func-card" id="sprites-origin"><h4>SpriteSetOrigin / SpriteGetOrigin</h4>
+<div class="func-sig">BlazeBolt.SpriteSetOrigin(entity, x, y)
+BlazeBolt.SpriteGetOrigin(entity) &#8594; x, y</div>
+<p class="func-desc">Sets or gets the origin point (rotation/scale center).</p></div>
+<div class="func-card" id="sprites-rotation"><h4>SpriteSetRotation / SpriteGetRotation</h4>
+<div class="func-sig">BlazeBolt.SpriteSetRotation(entity, rotation)
+BlazeBolt.SpriteGetRotation(entity) &#8594; rotation</div>
+<p class="func-desc">Angle in degrees.</p></div>
+<div class="func-card" id="sprites-color"><h4>SpriteSetColor / SpriteGetColor</h4>
+<div class="func-sig">BlazeBolt.SpriteSetColor(entity, r, g, b, [a])
+BlazeBolt.SpriteGetColor(entity) &#8594; r, g, b, a</div>
+<table><thead><tr><th>Argument</th><th>Type</th><th>Description</th><th>Default</th></tr></thead><tbody>
+<tr><td><code>r</code>, <code>g</code>, <code>b</code></td><td>number</td><td>RGB components (0&ndash;1)</td><td>&mdash;</td></tr>
+<tr><td><code>a</code></td><td>number</td><td>Alpha (0&ndash;1)</td><td><code>1.0</code></td></tr>
+</tbody></table></div>
+<div class="func-card" id="sprites-visible"><h4>SpriteSetVisible / SpriteIsVisible</h4>
+<div class="func-sig">BlazeBolt.SpriteSetVisible(entity, visible)
+BlazeBolt.SpriteIsVisible(entity) &#8594; visible</div></div>
+<h3>Example: Sprites</h3>
+<div class="code-wrap"><pre class="code-block"><span class="kw">local</span> <span class="var">player</span>
+<span class="kw">function</span> <span class="fn">Start</span>()
+    <span class="var">player</span> = <span class="bi">BlazeBolt</span>.<span class="fn">CreateSprite</span>(<span class="str">"assets/player.png"</span>, <span class="num">100</span>, <span class="num">200</span>)
+    <span class="bi">BlazeBolt</span>.<span class="fn">SpriteSetOrigin</span>(<span class="var">player</span>, <span class="num">0.5</span>, <span class="num">0.5</span>)
+    <span class="bi">BlazeBolt</span>.<span class="fn">SpriteSetSize</span>(<span class="var">player</span>, <span class="num">64</span>, <span class="num">64</span>)
+    <span class="bi">BlazeBolt</span>.<span class="fn">SpriteSetRotation</span>(<span class="var">player</span>, <span class="num">45</span>)
+    <span class="bi">BlazeBolt</span>.<span class="fn">SpriteSetColor</span>(<span class="var">player</span>, <span class="num">1.0</span>, <span class="num">1.0</span>, <span class="num">1.0</span>, <span class="num">0.8</span>)
+<span class="kw">end</span>
+<span class="kw">function</span> <span class="fn">Update</span>(<span class="var">dt</span>)
+    <span class="kw">local</span> <span class="var">x</span>, <span class="var">y</span> = <span class="bi">BlazeBolt</span>.<span class="fn">SpriteGetPosition</span>(<span class="var">player</span>)
+    <span class="kw">if</span> <span class="bi">BlazeBolt</span>.<span class="fn">IsKeyPressed</span>(<span class="bi">Keys</span>.RIGHT) <span class="kw">then</span> <span class="var">x</span> = <span class="var">x</span> + <span class="num">200</span> * <span class="var">dt</span> <span class="kw">end</span>
+    <span class="kw">if</span> <span class="bi">BlazeBolt</span>.<span class="fn">IsKeyPressed</span>(<span class="bi">Keys</span>.LEFT) <span class="kw">then</span> <span class="var">x</span> = <span class="var">x</span> - <span class="num">200</span> * <span class="var">dt</span> <span class="kw">end</span>
+    <span class="bi">BlazeBolt</span>.<span class="fn">SpriteSetPosition</span>(<span class="var">player</span>, <span class="var">x</span>, <span class="var">y</span>)
+    <span class="kw">local</span> <span class="var">r</span> = <span class="bi">BlazeBolt</span>.<span class="fn">SpriteGetRotation</span>(<span class="var">player</span>)
+    <span class="bi">BlazeBolt</span>.<span class="fn">SpriteSetRotation</span>(<span class="var">player</span>, <span class="var">r</span> + <span class="num">90</span> * <span class="var">dt</span>)
+<span class="kw">end</span>
+<span class="kw">function</span> <span class="fn">Draw</span>()
+    <span class="kw">if</span> <span class="bi">BlazeBolt</span>.<span class="fn">IsKeyPressed</span>(<span class="bi">Keys</span>.H) <span class="kw">then</span> <span class="bi">BlazeBolt</span>.<span class="fn">SpriteSetVisible</span>(<span class="var">player</span>, <span class="kw">false</span>) <span class="kw">end</span>
+<span class="kw">end</span></pre><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+</section>
+<!-- SPRITEBATCH -->
+<section class="doc-section" id="spritebatch">
+<h2>SpriteBatch</h2>
+<p>Batch rendering of multiple sprites with one texture for performance.</p>
+<div class="func-card"><h4>CreateSpriteBatch</h4><div class="func-sig">BlazeBolt.CreateSpriteBatch([maxSize]) &#8594; entity</div>
+<table><thead><tr><th>Argument</th><th>Type</th><th>Default</th></tr></thead><tbody>
+<tr><td><code>maxSize</code></td><td>integer</td><td><code>25</code></td></tr></tbody></table></div>
+<div class="func-card"><h4>SpriteBatchSetTexture</h4><div class="func-sig">BlazeBolt.SpriteBatchSetTexture(batchEntity, texturePath)</div></div>
+<div class="func-card"><h4>SpriteBatchAdd / SpriteBatchRemove</h4><div class="func-sig">BlazeBolt.SpriteBatchAdd(batchEntity, spriteEntity) &#8594; success
+BlazeBolt.SpriteBatchRemove(batchEntity, spriteEntity) &#8594; success</div></div>
+<div class="func-card"><h4>SpriteBatchClear</h4><div class="func-sig">BlazeBolt.SpriteBatchClear(batchEntity)</div></div>
+<div class="func-card"><h4>SpriteBatchSetMaxSize / SpriteBatchGetMaxSize / SpriteBatchGetCount</h4>
+<div class="func-sig">BlazeBolt.SpriteBatchSetMaxSize(batchEntity, maxSize)
+BlazeBolt.SpriteBatchGetMaxSize(batchEntity) &#8594; maxSize
+BlazeBolt.SpriteBatchGetCount(batchEntity) &#8594; count</div></div>
+<div class="func-card"><h4>SpriteBatchDraw / DestroySpriteBatch</h4><div class="func-sig">BlazeBolt.SpriteBatchDraw(batchEntity)
+BlazeBolt.DestroySpriteBatch(batchEntity)</div></div>
+<h3>Example: SpriteBatch</h3>
+<div class="code-wrap"><pre class="code-block"><span class="kw">local</span> <span class="var">batch</span>
+<span class="kw">function</span> <span class="fn">Start</span>()
+    <span class="var">batch</span> = <span class="bi">BlazeBolt</span>.<span class="fn">CreateSpriteBatch</span>(<span class="num">100</span>)
+    <span class="bi">BlazeBolt</span>.<span class="fn">SpriteBatchSetTexture</span>(<span class="var">batch</span>, <span class="str">"assets/grass.png"</span>)
+    <span class="kw">for</span> <span class="var">i</span> = <span class="num">0</span>, <span class="num">99</span> <span class="kw">do</span>
+        <span class="kw">local</span> <span class="var">s</span> = <span class="bi">BlazeBolt</span>.<span class="fn">CreateSprite</span>(<span class="str">"assets/grass.png"</span>, (<span class="var">i</span> % <span class="num">10</span>) * <span class="num">32</span>, <span class="bi">math</span>.<span class="fn">floor</span>(<span class="var">i</span> / <span class="num">10</span>) * <span class="num">32</span>)
+        <span class="bi">BlazeBolt</span>.<span class="fn">SpriteBatchAdd</span>(<span class="var">batch</span>, <span class="var">s</span>)
+    <span class="kw">end</span>
+<span class="kw">end</span>
+<span class="kw">function</span> <span class="fn">Draw</span>() <span class="bi">BlazeBolt</span>.<span class="fn">SpriteBatchDraw</span>(<span class="var">batch</span>) <span class="kw">end</span></pre><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+</section>
+<!-- ANIMATED SPRITE -->
+<section class="doc-section" id="animatedsprite">
+<h2>AnimatedSprite</h2>
+<div class="func-card"><h4>CreateAnimatedSprite</h4><div class="func-sig">BlazeBolt.CreateAnimatedSprite(path, [x], [y]) &#8594; entity</div></div>
+<div class="func-card"><h4>Play / Pause / Stop / Restart</h4><div class="func-sig">BlazeBolt.AnimatedSpritePlay(entity)
+BlazeBolt.AnimatedSpritePause(entity)
+BlazeBolt.AnimatedSpriteStop(entity)
+BlazeBolt.AnimatedSpriteRestart(entity)</div></div>
+<div class="func-card"><h4>IsPlaying</h4><div class="func-sig">BlazeBolt.AnimatedSpriteIsPlaying(entity) &#8594; playing</div></div>
+<div class="func-card"><h4>SetTexture / SetLooping / IsLooping</h4><div class="func-sig">BlazeBolt.AnimatedSpriteSetTexture(entity, path)
+BlazeBolt.AnimatedSpriteSetLooping(entity, looping)
+BlazeBolt.AnimatedSpriteIsLooping(entity) &#8594; looping</div></div>
+<div class="func-card"><h4>SetPlaybackSpeed / GetPlaybackSpeed</h4><div class="func-sig">BlazeBolt.AnimatedSpriteSetPlaybackSpeed(entity, speed)
+BlazeBolt.AnimatedSpriteGetPlaybackSpeed(entity) &#8594; speed</div></div>
+<div class="func-card"><h4>SetFrame / GetCurrentFrame / GetNumFrames</h4><div class="func-sig">BlazeBolt.AnimatedSpriteSetFrame(entity, frame)
+BlazeBolt.AnimatedSpriteGetCurrentFrame(entity) &#8594; frame
+BlazeBolt.AnimatedSpriteGetNumFrames(entity) &#8594; count</div></div>
+<div class="func-card"><h4>Position / Size / Origin / Rotation / Color</h4><div class="func-sig">BlazeBolt.AnimatedSpriteSetPosition(entity, x, y)
+BlazeBolt.AnimatedSpriteGetPosition(entity) &#8594; x, y
+BlazeBolt.AnimatedSpriteSetSize(entity, width, height)
+BlazeBolt.AnimatedSpriteGetSize(entity) &#8594; width, height
+BlazeBolt.AnimatedSpriteSetOrigin(entity, x, y)
+BlazeBolt.AnimatedSpriteGetOrigin(entity) &#8594; x, y
+BlazeBolt.AnimatedSpriteSetRotation(entity, rotation)
+BlazeBolt.AnimatedSpriteGetRotation(entity) &#8594; rotation
+BlazeBolt.AnimatedSpriteSetColor(entity, r, g, b, [a])
+BlazeBolt.AnimatedSpriteGetColor(entity) &#8594; r, g, b, a</div></div>
+<h3>Example: AnimatedSprite</h3>
+<div class="code-wrap"><pre class="code-block"><span class="kw">local</span> <span class="var">anim</span>
+<span class="kw">function</span> <span class="fn">Start</span>()
+    <span class="var">anim</span> = <span class="bi">BlazeBolt</span>.<span class="fn">CreateAnimatedSprite</span>(<span class="str">"assets/player.json"</span>, <span class="num">400</span>, <span class="num">300</span>)
+    <span class="bi">BlazeBolt</span>.<span class="fn">AnimatedSpriteSetLooping</span>(<span class="var">anim</span>, <span class="kw">true</span>)
+    <span class="bi">BlazeBolt</span>.<span class="fn">AnimatedSpriteSetPlaybackSpeed</span>(<span class="var">anim</span>, <span class="num">1.0</span>)
+    <span class="bi">BlazeBolt</span>.<span class="fn">AnimatedSpritePlay</span>(<span class="var">anim</span>)
+<span class="kw">end</span>
+<span class="kw">function</span> <span class="fn">Update</span>(<span class="var">dt</span>)
+    <span class="kw">if</span> <span class="bi">BlazeBolt</span>.<span class="fn">IsKeyJustPressed</span>(<span class="bi">Keys</span>.SPACE) <span class="kw">then</span>
+        <span class="kw">if</span> <span class="bi">BlazeBolt</span>.<span class="fn">AnimatedSpriteIsPlaying</span>(<span class="var">anim</span>) <span class="kw">then</span> <span class="bi">BlazeBolt</span>.<span class="fn">AnimatedSpritePause</span>(<span class="var">anim</span>)
+        <span class="kw">else</span> <span class="bi">BlazeBolt</span>.<span class="fn">AnimatedSpritePlay</span>(<span class="var">anim</span>) <span class="kw">end</span>
+    <span class="kw">end</span>
+    <span class="kw">if</span> <span class="bi">BlazeBolt</span>.<span class="fn">IsKeyJustPressed</span>(<span class="bi">Keys</span>.R) <span class="kw">then</span> <span class="bi">BlazeBolt</span>.<span class="fn">AnimatedSpriteRestart</span>(<span class="var">anim</span>) <span class="kw">end</span>
+<span class="kw">end</span></pre><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+</section>
+<!-- ANIMATION WHEEL -->
+<section class="doc-section" id="animationwheel">
+<h2>AnimationWheel</h2>
+<p>Manages a set of animations for one animated sprite. Each state = name + GIF + settings.</p>
+<div class="func-card"><h4>CreateAnimationWheel</h4><div class="func-sig">BlazeBolt.CreateAnimationWheel(animatedSpriteEntity) &#8594; entity</div></div>
+<div class="func-card"><h4>AddState</h4><div class="func-sig">BlazeBolt.AnimationWheelAddState(wheel, name, gifPath, [speed], [looping])</div></div>
+<div class="func-card"><h4>RemoveState / HasState</h4><div class="func-sig">BlazeBolt.AnimationWheelRemoveState(wheel, name)
+BlazeBolt.AnimationWheelHasState(wheel, name) &#8594; exists</div></div>
+<div class="func-card"><h4>SetInitialState / GetInitialState / SetState / GetState</h4><div class="func-sig">BlazeBolt.AnimationWheelSetInitialState(wheel, name)
+BlazeBolt.AnimationWheelGetInitialState(wheel) &#8594; name
+BlazeBolt.AnimationWheelSetState(wheel, name)
+BlazeBolt.AnimationWheelGetState(wheel) &#8594; name</div></div>
+<div class="func-card"><h4>Playback / Looping / GifPath / AutoAdvance</h4><div class="func-sig">BlazeBolt.AnimationWheelSetPlaybackSpeed(wheel, stateName, speed)
+BlazeBolt.AnimationWheelGetPlaybackSpeed(wheel, stateName) &#8594; speed
+BlazeBolt.AnimationWheelSetLooping(wheel, stateName, looping)
+BlazeBolt.AnimationWheelIsLooping(wheel, stateName) &#8594; looping
+BlazeBolt.AnimationWheelSetGifPath(wheel, stateName, gifPath)
+BlazeBolt.AnimationWheelGetGifPath(wheel, stateName) &#8594; gifPath
+BlazeBolt.AnimationWheelSetAutoAdvance(wheel, autoAdvance)
+BlazeBolt.AnimationWheelGetAutoAdvance(wheel) &#8594; autoAdvance
+BlazeBolt.AnimationWheelGetStateNames(wheel) &#8594; names</div></div>
+<h3>Example: AnimationWheel</h3>
+<div class="code-wrap"><pre class="code-block"><span class="kw">local</span> <span class="var">sprite</span>, <span class="var">wheel</span>
+<span class="kw">function</span> <span class="fn">Start</span>()
+    <span class="var">sprite</span> = <span class="bi">BlazeBolt</span>.<span class="fn">CreateAnimatedSprite</span>(<span class="str">"idle.gif"</span>, <span class="num">400</span>, <span class="num">300</span>)
+    <span class="var">wheel</span> = <span class="bi">BlazeBolt</span>.<span class="fn">CreateAnimationWheel</span>(<span class="var">sprite</span>)
+    <span class="bi">BlazeBolt</span>.<span class="fn">AnimationWheelAddState</span>(<span class="var">wheel</span>, <span class="str">"idle"</span>, <span class="str">"idle.gif"</span>, <span class="num">1.0</span>, <span class="kw">true</span>)
+    <span class="bi">BlazeBolt</span>.<span class="fn">AnimationWheelAddState</span>(<span class="var">wheel</span>, <span class="str">"run"</span>, <span class="str">"run.gif"</span>, <span class="num">1.5</span>, <span class="kw">true</span>)
+    <span class="bi">BlazeBolt</span>.<span class="fn">AnimationWheelAddState</span>(<span class="var">wheel</span>, <span class="str">"jump"</span>, <span class="str">"jump.gif"</span>, <span class="num">1.0</span>, <span class="kw">false</span>)
+    <span class="bi">BlazeBolt</span>.<span class="fn">AnimationWheelSetInitialState</span>(<span class="var">wheel</span>, <span class="str">"idle"</span>)
+    <span class="bi">BlazeBolt</span>.<span class="fn">AnimationWheelSetState</span>(<span class="var">wheel</span>, <span class="str">"idle"</span>)
+<span class="kw">end</span>
+<span class="kw">function</span> <span class="fn">Update</span>(<span class="var">dt</span>)
+    <span class="kw">if</span> <span class="bi">BlazeBolt</span>.<span class="fn">IsKeyJustPressed</span>(<span class="bi">Keys</span>.ONE) <span class="kw">then</span> <span class="bi">BlazeBolt</span>.<span class="fn">AnimationWheelSetState</span>(<span class="var">wheel</span>, <span class="str">"idle"</span>)
+    <span class="kw">elseif</span> <span class="bi">BlazeBolt</span>.<span class="fn">IsKeyJustPressed</span>(<span class="bi">Keys</span>.TWO) <span class="kw">then</span> <span class="bi">BlazeBolt</span>.<span class="fn">AnimationWheelSetState</span>(<span class="var">wheel</span>, <span class="str">"run"</span>)
+    <span class="kw">elseif</span> <span class="bi">BlazeBolt</span>.<span class="fn">IsKeyJustPressed</span>(<span class="bi">Keys</span>.THREE) <span class="kw">then</span> <span class="bi">BlazeBolt</span>.<span class="fn">AnimationWheelSetState</span>(<span class="var">wheel</span>, <span class="str">"jump"</span>) <span class="kw">end</span>
+<span class="kw">end</span></pre><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+</section>
+<!-- TEXT -->
+<section class="doc-section" id="text">
+<h2>Text</h2>
+<div class="func-card"><h4>CreateText</h4><div class="func-sig">BlazeBolt.CreateText(fontPath, text, [x], [y]) &#8594; entity</div></div>
+<div class="func-card"><h4>SetString / GetString / SetPosition / GetPosition</h4><div class="func-sig">BlazeBolt.TextSetString(entity, text)
+BlazeBolt.TextGetString(entity) &#8594; text
+BlazeBolt.TextSetPosition(entity, x, y)
+BlazeBolt.TextGetPosition(entity) &#8594; x, y</div></div>
+<div class="func-card"><h4>SetColor / GetColor / SetScale / GetScale</h4><div class="func-sig">BlazeBolt.TextSetColor(entity, r, g, b, [a])
+BlazeBolt.TextGetColor(entity) &#8594; r, g, b, a
+BlazeBolt.TextSetScale(entity, width, height)
+BlazeBolt.TextGetScale(entity) &#8594; width, height</div></div>
+<div class="func-card"><h4>SetOrigin / GetOrigin / SetRotation / GetRotation</h4><div class="func-sig">BlazeBolt.TextSetOrigin(entity, x, y)
+BlazeBolt.TextGetOrigin(entity) &#8594; x, y
+BlazeBolt.TextSetRotation(entity, rotation)
+BlazeBolt.TextGetRotation(entity) &#8594; rotation</div></div>
+<div class="func-card"><h4>SetAlignment / GetAlignment</h4><div class="func-sig">BlazeBolt.TextSetAlignment(entity, alignment)
+BlazeBolt.TextGetAlignment(entity) &#8594; alignment</div>
+<p class="func-desc">Values: <code>TextAlignment.LEFT=0</code>, <code>CENTER=1</code>, <code>RIGHT=2</code></p></div>
+<div class="func-card"><h4>SetVisible / IsVisible</h4><div class="func-sig">BlazeBolt.TextSetVisible(entity, visible)
+BlazeBolt.TextIsVisible(entity) &#8594; visible</div></div>
+<h3>Example: Text</h3>
+<div class="code-wrap"><pre class="code-block"><span class="kw">local</span> <span class="var">label</span>, <span class="var">score</span> = <span class="kw">nil</span>, <span class="num">0</span>
+<span class="kw">function</span> <span class="fn">Start</span>()
+    <span class="var">label</span> = <span class="bi">BlazeBolt</span>.<span class="fn">CreateText</span>(<span class="str">"assets/font.ttf"</span>, <span class="str">"Score: 0"</span>, <span class="num">10</span>, <span class="num">10</span>)
+    <span class="bi">BlazeBolt</span>.<span class="fn">TextSetColor</span>(<span class="var">label</span>, <span class="num">1.0</span>, <span class="num">1.0</span>, <span class="num">0.0</span>, <span class="num">1.0</span>)
+    <span class="bi">BlazeBolt</span>.<span class="fn">TextSetScale</span>(<span class="var">label</span>, <span class="num">1.5</span>, <span class="num">1.5</span>)
+<span class="kw">end</span>
+<span class="kw">function</span> <span class="fn">Update</span>(<span class="var">dt</span>)
+    <span class="kw">if</span> <span class="bi">BlazeBolt</span>.<span class="fn">IsKeyJustPressed</span>(<span class="bi">Keys</span>.SPACE) <span class="kw">then</span>
+        <span class="var">score</span> = <span class="var">score</span> + <span class="num">1</span>
+        <span class="bi">BlazeBolt</span>.<span class="fn">TextSetString</span>(<span class="var">label</span>, <span class="str">"Score: "</span> .. <span class="bi">tostring</span>(<span class="var">score</span>))
+    <span class="kw">end</span>
+<span class="kw">end</span></pre><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+</section>
+<!-- MESH -->
+<section class="doc-section" id="mesh">
+<h2>Mesh</h2>
+<p>Special object with arbitrary geometry that can have custom shaders. Ideal for post-effects and visual shaders.</p>
+<div class="func-card"><h4>CreateMesh</h4><div class="func-sig">BlazeBolt.CreateMesh() &#8594; entity</div></div>
+<div class="func-card"><h4>MeshSetData</h4><div class="func-sig">BlazeBolt.MeshSetData(entity, vertices, indices)</div>
+<table><thead><tr><th>Argument</th><th>Type</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>vertices</code></td><td>table</td><td><code>{ {x=0,y=0,u=0,v=0}, ... }</code></td></tr>
+<tr><td><code>indices</code></td><td>table</td><td><code>{ 0, 1, 2, ... }</code></td></tr>
+</tbody></table></div>
+<div class="func-card"><h4>MeshSetShader</h4><div class="func-sig">BlazeBolt.MeshSetShader(entity, vertexPath, fragmentPath)</div></div>
+<div class="func-card"><h4>Uniform Setters</h4><div class="func-sig">BlazeBolt.MeshSetUniformFloat(entity, name, value)
+BlazeBolt.MeshSetUniformInt(entity, name, value)
+BlazeBolt.MeshSetUniformVec2(entity, name, x, y)
+BlazeBolt.MeshSetUniformVec3(entity, name, x, y, z)
+BlazeBolt.MeshSetUniformVec4(entity, name, x, y, z, w)</div></div>
+<div class="func-card"><h4>MeshDraw</h4><div class="func-sig">BlazeBolt.MeshDraw(entity)</div></div>
+<h3>Example: Mesh with Shader</h3>
+<div class="code-wrap"><pre class="code-block"><span class="kw">function</span> <span class="fn">Start</span>()
+    <span class="kw">local</span> <span class="var">w</span> = <span class="fn">GetScreenWidth</span>(), <span class="var">h</span> = <span class="fn">GetScreenHeight</span>()
+    <span class="kw">local</span> <span class="var">mesh</span> = <span class="bi">BlazeBolt</span>.<span class="fn">CreateMesh</span>()
+    <span class="kw">local</span> <span class="var">vertices</span> = {
+        { <span class="var">x</span>=<span class="num">0</span>, <span class="var">y</span>=<span class="num">0</span>, <span class="var">u</span>=<span class="num">0</span>, <span class="var">v</span>=<span class="num">0</span> }, { <span class="var">x</span>=<span class="var">w</span>, <span class="var">y</span>=<span class="num">0</span>, <span class="var">u</span>=<span class="num">1</span>, <span class="var">v</span>=<span class="num">0</span> },
+        { <span class="var">x</span>=<span class="var">w</span>, <span class="var">y</span>=<span class="var">h</span>, <span class="var">u</span>=<span class="num">1</span>, <span class="var">v</span>=<span class="num">1</span> }, { <span class="var">x</span>=<span class="num">0</span>, <span class="var">y</span>=<span class="var">h</span>, <span class="var">u</span>=<span class="num">0</span>, <span class="var">v</span>=<span class="num">1</span> },
+    }
+    <span class="bi">BlazeBolt</span>.<span class="fn">MeshSetData</span>(<span class="var">mesh</span>, <span class="var">vertices</span>, { <span class="num">0</span>, <span class="num">1</span>, <span class="num">2</span>, <span class="num">0</span>, <span class="num">2</span>, <span class="num">3</span> })
+    <span class="bi">BlazeBolt</span>.<span class="fn">MeshSetShader</span>(<span class="var">mesh</span>, <span class="str">"shaders/post.vert"</span>, <span class="str">"shaders/post.frag"</span>)
+    <span class="bi">BlazeBolt</span>.<span class="fn">MeshSetUniformFloat</span>(<span class="var">mesh</span>, <span class="str">"u_time"</span>, <span class="num">0.0</span>)
+<span class="kw">end</span></pre><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+</section>
+<!-- CAMERA -->
+<section class="doc-section" id="camera">
+<h2>Camera</h2>
+<div class="func-card"><h4>CreateCamera</h4><div class="func-sig">BlazeBolt.CreateCamera() &#8594; entity</div></div>
+<div class="func-card"><h4>Position / Zoom / Rotation</h4><div class="func-sig">BlazeBolt.CameraSetPosition(entity, x, y)
+BlazeBolt.CameraGetPosition(entity) &#8594; x, y
+BlazeBolt.CameraSetZoom(entity, zoom)
+BlazeBolt.CameraGetZoom(entity) &#8594; zoom
+BlazeBolt.CameraSetRotation(entity, rotation)
+BlazeBolt.CameraGetRotation(entity) &#8594; rotation</div></div>
+<h3>Example: Camera</h3>
+<div class="code-wrap"><pre class="code-block"><span class="kw">local</span> <span class="var">camera</span>
+<span class="kw">function</span> <span class="fn">Start</span>() <span class="var">camera</span> = <span class="bi">BlazeBolt</span>.<span class="fn">CreateCamera</span>() <span class="kw">end</span>
+<span class="kw">function</span> <span class="fn">Update</span>(<span class="var">dt</span>)
+    <span class="kw">local</span> <span class="var">x</span>, <span class="var">y</span> = <span class="num">400</span>, <span class="num">300</span>
+    <span class="kw">if</span> <span class="bi">BlazeBolt</span>.<span class="fn">IsKeyPressed</span>(<span class="bi">Keys</span>.W) <span class="kw">then</span> <span class="var">y</span> = <span class="var">y</span> - <span class="num">200</span> * <span class="var">dt</span> <span class="kw">end</span>
+    <span class="kw">if</span> <span class="bi">BlazeBolt</span>.<span class="fn">IsKeyPressed</span>(<span class="bi">Keys</span>.S) <span class="kw">then</span> <span class="var">y</span> = <span class="var">y</span> + <span class="num">200</span> * <span class="var">dt</span> <span class="kw">end</span>
+    <span class="bi">BlazeBolt</span>.<span class="fn">CameraSetPosition</span>(<span class="var">camera</span>, <span class="var">x</span>, <span class="var">y</span>)
+<span class="kw">end</span></pre><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+</section>
+<!-- PARTICLE SYSTEM -->
+<section class="doc-section" id="particlesystem">
+<h2>ParticleSystem</h2>
+<div class="func-card"><h4>CreateParticleSystem</h4><div class="func-sig">BlazeBolt.CreateParticleSystem() &#8594; entity</div></div>
+<div class="func-card"><h4>Configuration</h4><div class="func-sig">BlazeBolt.ParticleSystemSetPosition(entity, x, y)
+BlazeBolt.ParticleSystemSetTexture(entity, path)
+BlazeBolt.ParticleSystemSetEmissionRate(entity, rate)
+BlazeBolt.ParticleSystemGetEmissionRate(entity) &#8594; rate
+BlazeBolt.ParticleSystemSetLifetime(entity, min, max)
+BlazeBolt.ParticleSystemSetSpeed(entity, min, max)
+BlazeBolt.ParticleSystemSetSize(entity, min, max)
+BlazeBolt.ParticleSystemSetEndSize(entity, min, max)
+BlazeBolt.ParticleSystemSetColor(entity, r1,g1,b1,[a1], r2,g2,b2,[a2])
+BlazeBolt.ParticleSystemSetDirection(entity, minAngle, maxAngle)
+BlazeBolt.ParticleSystemSetRotationSpeed(entity, speed)
+BlazeBolt.ParticleSystemSetActive(entity, active)
+BlazeBolt.ParticleSystemIsActive(entity) &#8594; active
+BlazeBolt.ParticleSystemSetVisible(entity, visible)
+BlazeBolt.ParticleSystemIsVisible(entity) &#8594; visible
+BlazeBolt.ParticleSystemEmit(entity, count)
+BlazeBolt.ParticleSystemClear(entity)
+BlazeBolt.ParticleSystemGetCount(entity) &#8594; count</div></div>
+<h3>Example: ParticleSystem</h3>
+<div class="code-wrap"><pre class="code-block"><span class="kw">local</span> <span class="var">fire</span>
+<span class="kw">function</span> <span class="fn">Start</span>()
+    <span class="var">fire</span> = <span class="bi">BlazeBolt</span>.<span class="fn">CreateParticleSystem</span>()
+    <span class="bi">BlazeBolt</span>.<span class="fn">ParticleSystemSetPosition</span>(<span class="var">fire</span>, <span class="num">400</span>, <span class="num">300</span>)
+    <span class="bi">BlazeBolt</span>.<span class="fn">ParticleSystemSetTexture</span>(<span class="var">fire</span>, <span class="str">"assets/spark.png"</span>)
+    <span class="bi">BlazeBolt</span>.<span class="fn">ParticleSystemSetEmissionRate</span>(<span class="var">fire</span>, <span class="num">50</span>)
+    <span class="bi">BlazeBolt</span>.<span class="fn">ParticleSystemSetLifetime</span>(<span class="var">fire</span>, <span class="num">0.5</span>, <span class="num">1.5</span>)
+    <span class="bi">BlazeBolt</span>.<span class="fn">ParticleSystemSetActive</span>(<span class="var">fire</span>, <span class="kw">true</span>)
+<span class="kw">end</span></pre><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+</section>
+<!-- TILESET -->
+<section class="doc-section" id="tileset">
+<h2>Tileset</h2>
+<div class="func-card"><h4>CreateTileset</h4><div class="func-sig">BlazeBolt.CreateTileset(texturePath, tileW, tileH, atlasCols, atlasRows) &#8594; entity</div></div>
+<div class="func-card"><h4>Tileset Functions</h4><div class="func-sig">BlazeBolt.TilesetSetMap(entity, map)
+BlazeBolt.TilesetGetTile(entity, col, row) &#8594; tileIndex
+BlazeBolt.TilesetSetTile(entity, col, row, tileIndex)
+BlazeBolt.TilesetSetTileSize(entity, w, h)
+BlazeBolt.TilesetGetTileSize(entity) &#8594; w, h
+BlazeBolt.TilesetSetPosition(entity, x, y)
+BlazeBolt.TilesetGetPosition(entity) &#8594; x, y
+BlazeBolt.TilesetGetMapWidth(entity) &#8594; width
+BlazeBolt.TilesetGetMapHeight(entity) &#8594; height
+BlazeBolt.TilesetGetTileCount(entity) &#8594; count
+BlazeBolt.TilesetDraw(entity)
+BlazeBolt.DestroyTileset(entity)</div></div>
+<h3>Example: Tileset</h3>
+<div class="code-wrap"><pre class="code-block"><span class="kw">function</span> <span class="fn">Start</span>()
+    <span class="kw">local</span> <span class="var">tileset</span> = <span class="bi">BlazeBolt</span>.<span class="fn">CreateTileset</span>(<span class="str">"assets/tileset.png"</span>, <span class="num">32</span>, <span class="num">32</span>, <span class="num">8</span>, <span class="num">8</span>)
+    <span class="kw">local</span> <span class="var">map</span> = {}
+    <span class="kw">for</span> <span class="var">row</span> = <span class="num">0</span>, <span class="num">9</span> <span class="kw">do</span> <span class="var">map</span>[<span class="var">row</span>] = {} <span class="kw">for</span> <span class="var">col</span> = <span class="num">0</span>, <span class="num">14</span> <span class="kw">do</span> <span class="var">map</span>[<span class="var">row</span>][<span class="var">col</span>] = <span class="bi">math</span>.<span class="fn">random</span>(<span class="num">0</span>, <span class="num">5</span>) <span class="kw">end</span> <span class="kw">end</span>
+    <span class="bi">BlazeBolt</span>.<span class="fn">TilesetSetMap</span>(<span class="var">tileset</span>, <span class="var">map</span>)
+    <span class="bi">BlazeBolt</span>.<span class="fn">TilesetDraw</span>(<span class="var">tileset</span>)
+<span class="kw">end</span></pre><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+</section>
+<!-- LIGHT -->
+<section class="doc-section" id="light">
+<h2>Light</h2>
+<div class="func-card"><h4>CreatePointLight / CreateAmbientLight</h4><div class="func-sig">BlazeBolt.CreatePointLight([x],[y],[r],[g],[b],[intensity],[radius]) &#8594; entity
+BlazeBolt.CreateAmbientLight([r],[g],[b],[intensity]) &#8594; entity</div></div>
+<div class="func-card"><h4>Light Functions</h4><div class="func-sig">BlazeBolt.LightSetPosition(entity, x, y)
+BlazeBolt.LightGetPosition(entity) &#8594; x, y
+BlazeBolt.LightSetColor(entity, r, g, b)
+BlazeBolt.LightGetColor(entity) &#8594; r, g, b
+BlazeBolt.LightSetIntensity(entity, intensity)
+BlazeBolt.LightGetIntensity(entity) &#8594; intensity
+BlazeBolt.LightSetRadius(entity, radius)
+BlazeBolt.LightGetRadius(entity) &#8594; radius
+BlazeBolt.LightSetEnabled(entity, enabled)
+BlazeBolt.LightGetEnabled(entity) &#8594; enabled
+BlazeBolt.DestroyLight(entity)</div></div>
+<h3>Example: Lighting</h3>
+<div class="code-wrap"><pre class="code-block"><span class="kw">local</span> <span class="var">playerLight</span>
+<span class="kw">function</span> <span class="fn">Start</span>()
+    <span class="bi">BlazeBolt</span>.<span class="fn">CreateAmbientLight</span>(<span class="num">0.2</span>, <span class="num">0.2</span>, <span class="num">0.3</span>, <span class="num">0.3</span>)
+    <span class="var">playerLight</span> = <span class="bi">BlazeBolt</span>.<span class="fn">CreatePointLight</span>(<span class="num">400</span>, <span class="num">300</span>, <span class="num">1.0</span>, <span class="num">0.8</span>, <span class="num">0.6</span>, <span class="num">1.5</span>, <span class="num">250.0</span>)
+<span class="kw">end</span>
+<span class="kw">function</span> <span class="fn">Update</span>(<span class="var">dt</span>)
+    <span class="kw">if</span> <span class="bi">BlazeBolt</span>.<span class="fn">IsKeyJustPressed</span>(<span class="bi">Keys</span>.SPACE) <span class="kw">then</span>
+        <span class="bi">BlazeBolt</span>.<span class="fn">LightSetColor</span>(<span class="var">playerLight</span>, <span class="bi">BlazeBolt</span>.<span class="fn">Random</span>(<span class="num">0</span>,<span class="num">1</span>), <span class="bi">BlazeBolt</span>.<span class="fn">Random</span>(<span class="num">0</span>,<span class="num">1</span>), <span class="bi">BlazeBolt</span>.<span class="fn">Random</span>(<span class="num">0</span>,<span class="num">1</span>))
+    <span class="kw">end</span>
+<span class="kw">end</span></pre><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+</section>
+<!-- PHYSICS -->
+<section class="doc-section" id="physics">
+<h2>Physics</h2>
+<p>Based on Box2D. Body types: <code>0</code>=Static, <code>1</code>=Kinematic, <code>2</code>=Dynamic.</p>
+<div class="func-card"><h4>PhysicsInit / SetGravity / GetGravity</h4><div class="func-sig">BlazeBolt.PhysicsInit([gx], [gy])
+BlazeBolt.PhysicsSetGravity(x, y)
+BlazeBolt.PhysicsGetGravity() &#8594; x, y</div></div>
+<div class="func-card"><h4>PhysicsCreateBody</h4><div class="func-sig">BlazeBolt.PhysicsCreateBody(bodyType, [x], [y], [mass], [friction], [restitution]) &#8594; entity</div></div>
+<div class="func-card"><h4>Shapes</h4><div class="func-sig">BlazeBolt.PhysicsAddCircle(entity, radius, [ox], [oy])
+BlazeBolt.PhysicsAddRectangle(entity, halfWidth, halfHeight)</div></div>
+<div class="func-card"><h4>Velocity / Forces</h4><div class="func-sig">BlazeBolt.PhysicsSetLinearVelocity(entity, vx, vy)
+BlazeBolt.PhysicsGetLinearVelocity(entity) &#8594; vx, vy
+BlazeBolt.PhysicsSetAngularVelocity(entity, angularVelocity)
+BlazeBolt.PhysicsGetAngularVelocity(entity) &#8594; angularVelocity
+BlazeBolt.PhysicsApplyForce(entity, fx, fy)
+BlazeBolt.PhysicsApplyForceAtPoint(entity, fx, fy, px, py)
+BlazeBolt.PhysicsApplyImpulse(entity, ix, iy)
+BlazeBolt.PhysicsApplyImpulseAtPoint(entity, ix, iy, px, py)
+BlazeBolt.PhysicsApplyTorque(entity, torque)</div></div>
+<div class="func-card"><h4>Transform</h4><div class="func-sig">BlazeBolt.PhysicsSetPosition(entity, x, y)
+BlazeBolt.PhysicsGetPosition(entity) &#8594; x, y
+BlazeBolt.PhysicsSetAngle(entity, angle)
+BlazeBolt.PhysicsGetAngle(entity) &#8594; angle</div></div>
+<div class="func-card"><h4>Properties</h4><div class="func-sig">BlazeBolt.PhysicsSetGravityScale(entity, scale)
+BlazeBolt.PhysicsGetGravityScale(entity) &#8594; scale
+BlazeBolt.PhysicsSetActive(entity, active)
+BlazeBolt.PhysicsIsActive(entity) &#8594; active
+BlazeBolt.PhysicsSetFixedRotation(entity, fixed)
+BlazeBolt.PhysicsIsFixedRotation(entity) &#8594; fixed
+BlazeBolt.PhysicsSetBullet(entity, bullet)
+BlazeBolt.PhysicsIsBullet(entity) &#8594; bullet
+BlazeBolt.PhysicsGetMass(entity) &#8594; mass
+BlazeBolt.PhysicsSetFriction(entity, friction)
+BlazeBolt.PhysicsGetFriction(entity) &#8594; friction
+BlazeBolt.PhysicsSetRestitution(entity, restitution)
+BlazeBolt.PhysicsGetRestitution(entity) &#8594; restitution
+BlazeBolt.PhysicsStep()
+BlazeBolt.PhysicsDestroyBody(entity)</div></div>
+<div class="func-card"><h4>Sync Functions</h4><div class="func-sig">BlazeBolt.PhysicsSyncSprite(bodyEntity, spriteEntity)
+BlazeBolt.PhysicsSyncText(bodyEntity, textEntity)
+BlazeBolt.PhysicsSyncAnimatedSprite(bodyEntity, animEntity)</div></div>
+<h3>Example: Physics</h3>
+<div class="code-wrap"><pre class="code-block"><span class="kw">local</span> <span class="var">ground</span>, <span class="var">ball</span>, <span class="var">ballSprite</span>
+<span class="kw">function</span> <span class="fn">Start</span>()
+    <span class="bi">BlazeBolt</span>.<span class="fn">PhysicsInit</span>(<span class="num">0</span>, -<span class="num">9.81</span>)
+    <span class="var">ground</span> = <span class="bi">BlazeBolt</span>.<span class="fn">PhysicsCreateBody</span>(<span class="num">0</span>, <span class="num">400</span>, <span class="num">550</span>)
+    <span class="bi">BlazeBolt</span>.<span class="fn">PhysicsAddRectangle</span>(<span class="var">ground</span>, <span class="num">400</span>, <span class="num">10</span>)
+    <span class="var">ball</span> = <span class="bi">BlazeBolt</span>.<span class="fn">PhysicsCreateBody</span>(<span class="num">2</span>, <span class="num">400</span>, <span class="num">100</span>, <span class="num">1.0</span>, <span class="num">0.3</span>, <span class="num">0.7</span>)
+    <span class="bi">BlazeBolt</span>.<span class="fn">PhysicsAddCircle</span>(<span class="var">ball</span>, <span class="num">20</span>)
+    <span class="var">ballSprite</span> = <span class="bi">BlazeBolt</span>.<span class="fn">CreateSprite</span>(<span class="str">"assets/ball.png"</span>, <span class="num">400</span>, <span class="num">100</span>)
+<span class="kw">end</span>
+<span class="kw">function</span> <span class="fn">Update</span>(<span class="var">dt</span>)
+    <span class="bi">BlazeBolt</span>.<span class="fn">PhysicsSyncSprite</span>(<span class="var">ball</span>, <span class="var">ballSprite</span>)
+    <span class="kw">if</span> <span class="bi">BlazeBolt</span>.<span class="fn">IsKeyJustPressed</span>(<span class="bi">Keys</span>.SPACE) <span class="kw">then</span>
+        <span class="bi">BlazeBolt</span>.<span class="fn">PhysicsApplyImpulse</span>(<span class="var">ball</span>, <span class="num">0</span>, <span class="num">500</span>)
+    <span class="kw">end</span>
+<span class="kw">end</span></pre><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+</section>
+<!-- AUDIO -->
+<section class="doc-section" id="audio">
+<h2>Audio</h2>
+<div class="func-card"><h4>Load / Play / Stop</h4><div class="func-sig">BlazeBolt.LoadSound(filename, soundName, [loop]) &#8594; soundId
+BlazeBolt.PlaySound(soundName)
+BlazeBolt.PlaySoundById(soundId)
+BlazeBolt.StopSound(soundName)
+BlazeBolt.StopAllSounds()
+BlazeBolt.SetSoundVolume(soundName, volume)
+BlazeBolt.IsSoundPlaying(soundName) &#8594; playing
+BlazeBolt.SetSoundPitch(soundId, pitch)
+BlazeBolt.SetSoundLoopingById(soundId, loop)</div></div>
+<div class="func-card"><h4>3D Positional Sound</h4><div class="func-sig">BlazeBolt.SetSoundPosition(soundId, x, y, z)
+BlazeBolt.SetSoundPositionByName(soundName, x, y, z)
+BlazeBolt.GetSoundPosition(soundId) &#8594; x, y, z
+BlazeBolt.SetSoundVelocity(soundId, x, y, z)
+BlazeBolt.SetSoundRolloff(soundId, rolloff)
+BlazeBolt.SetSoundReferenceDistance(soundId, distance)
+BlazeBolt.SetSoundMaxDistance(soundId, distance)
+BlazeBolt.SetSoundSpatial(soundId, spatial)
+BlazeBolt.SetSoundCone(soundId, innerAngle, outerAngle, outerGain)
+BlazeBolt.SetSoundDirection(soundId, x, y, z)</div></div>
+<div class="func-card"><h4>Listener</h4><div class="func-sig">BlazeBolt.SetListenerPosition(x, y, z)
+BlazeBolt.GetListenerPosition() &#8594; x, y, z
+BlazeBolt.SetListenerVelocity(x, y, z)
+BlazeBolt.SetListenerOrientation(fx, fy, fz, ux, uy, uz)
+BlazeBolt.SetListenerGain(gain)</div></div>
+<div class="func-card"><h4>EFX Effects</h4><div class="func-sig">BlazeBolt.CreateAudioEffect() &#8594; effectId
+BlazeBolt.DestroyAudioEffect(effectId)
+BlazeBolt.SetAudioEffectType(effectId, type) &#8594; success
+BlazeBolt.SetAudioEffectf(effectId, param, value) &#8594; success
+BlazeBolt.SetAudioEffecti(effectId, param, value) &#8594; success
+BlazeBolt.GetAudioEffectf(effectId, param) &#8594; value
+BlazeBolt.GetAudioEffecti(effectId, param) &#8594; value
+BlazeBolt.GetAudioEfxSupported() &#8594; supported</div></div>
+<div class="func-card"><h4>Filters</h4><div class="func-sig">BlazeBolt.CreateAudioFilter() &#8594; filterId
+BlazeBolt.DestroyAudioFilter(filterId)
+BlazeBolt.SetAudioFilterType(filterId, type) &#8594; success
+BlazeBolt.SetAudioFilterf(filterId, param, value) &#8594; success</div></div>
+<div class="func-card"><h4>Effect Slots</h4><div class="func-sig">BlazeBolt.CreateAudioEffectSlot() &#8594; slotId
+BlazeBolt.DestroyAudioEffectSlot(slotId)
+BlazeBolt.SetAudioEffectSlotEffect(slotId, effectId) &#8594; success
+BlazeBolt.ClearAudioEffectSlotEffect(slotId) &#8594; success
+BlazeBolt.SetAudioEffectSlotGain(slotId, gain) &#8594; success</div></div>
+<div class="func-card"><h4>Attaching</h4><div class="func-sig">BlazeBolt.AttachAudioEffect(soundId, slotId) &#8594; success
+BlazeBolt.DetachAudioEffect(soundId) &#8594; success
+BlazeBolt.AttachAudioFilter(soundId, filterId) &#8594; success</div></div>
+<h3>Example: Audio</h3>
+<div class="code-wrap"><pre class="code-block"><span class="kw">function</span> <span class="fn">Start</span>()
+    <span class="bi">BlazeBolt</span>.<span class="fn">LoadSound</span>(<span class="str">"assets/background.ogg"</span>, <span class="str">"bgm"</span>, <span class="kw">true</span>)
+    <span class="bi">BlazeBolt</span>.<span class="fn">SetSoundVolume</span>(<span class="str">"bgm"</span>, <span class="num">0.3</span>)
+    <span class="bi">BlazeBolt</span>.<span class="fn">PlaySound</span>(<span class="str">"bgm"</span>)
+<span class="kw">end</span>
+<span class="kw">function</span> <span class="fn">Update</span>(<span class="var">dt</span>)
+    <span class="kw">if</span> <span class="bi">BlazeBolt</span>.<span class="fn">IsKeyJustPressed</span>(<span class="bi">Keys</span>.SPACE) <span class="kw">then</span> <span class="bi">BlazeBolt</span>.<span class="fn">PlaySound</span>(<span class="str">"jump"</span>) <span class="kw">end</span>
+<span class="kw">end</span></pre><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+</section>
+<!-- WINDOW -->
+<section class="doc-section" id="window">
+<h2>Window</h2>
+<div class="func-card"><h4>CreateWindow</h4><div class="func-sig">BlazeBolt.CreateWindow(width, height, title) &#8594; windowPtr</div></div>
+<div class="func-card"><h4>Main Window</h4><div class="func-sig">BlazeBolt.SetMainWindowTitle(title)
+BlazeBolt.GetMainWindowTitle() &#8594; title
+BlazeBolt.SetMainWindowSize(width, height)
+BlazeBolt.GetMainWindowWidth() &#8594; width
+BlazeBolt.GetMainWindowHeight() &#8594; height
+BlazeBolt.SetMainWindowPosition(x, y)
+BlazeBolt.GetMainWindowPosition() &#8594; x, y
+BlazeBolt.SetMainWindowIcon(iconPath)
+BlazeBolt.SetMainWindowShouldClose(flag)
+BlazeBolt.IsMainWindowShouldClose() &#8594; shouldClose
+BlazeBolt.SetMainWindowFullscreen(fullscreen)
+BlazeBolt.IsMainWindowFullscreen() &#8594; isFullscreen
+BlazeBolt.ToggleMainWindowFullscreen()
+BlazeBolt.SetMainWindowVSync(enabled)
+BlazeBolt.IsMainWindowVSync() &#8594; isVSync
+BlazeBolt.ToggleMainWindowVSync()
+BlazeBolt.SetWindowTitle(windowPtr, title)
+BlazeBolt.SetWindowSize(windowPtr, width, height)
+BlazeBolt.SetWindowIcon(windowPtr, iconPath)</div></div>
+<h3>Example: Window</h3>
+<div class="code-wrap"><pre class="code-block"><span class="kw">function</span> <span class="fn">Start</span>()
+    <span class="bi">BlazeBolt</span>.<span class="fn">SetMainWindowTitle</span>(<span class="str">"My Game"</span>)
+    <span class="bi">BlazeBolt</span>.<span class="fn">SetMainWindowSize</span>(<span class="num">1024</span>, <span class="num">768</span>)
+<span class="kw">end</span>
+<span class="kw">function</span> <span class="fn">Update</span>(<span class="var">dt</span>)
+    <span class="kw">if</span> <span class="bi">BlazeBolt</span>.<span class="fn">IsKeyJustPressed</span>(<span class="bi">Keys</span>.F11) <span class="kw">then</span> <span class="bi">BlazeBolt</span>.<span class="fn">ToggleMainWindowFullscreen</span>() <span class="kw">end</span>
+    <span class="kw">if</span> <span class="bi">BlazeBolt</span>.<span class="fn">IsKeyJustPressed</span>(<span class="bi">Keys</span>.ESCAPE) <span class="kw">then</span> <span class="bi">BlazeBolt</span>.<span class="fn">SetMainWindowShouldClose</span>(<span class="kw">true</span>) <span class="kw">end</span>
+<span class="kw">end</span></pre><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+</section>
+<!-- SCRIPTS -->
+<section class="doc-section" id="scripts">
+<h2>Script Management</h2>
+<div class="func-card"><h4>Script Functions</h4><div class="func-sig">BlazeBolt.LoadScript(scriptPath) &#8594; success
+BlazeBolt.LoadScriptsFromList(listPath) &#8594; success
+BlazeBolt.ReloadScript(scriptPath) &#8594; success
+BlazeBolt.ReloadAllScripts() &#8594; success
+BlazeBolt.EnableScript(scriptName, enabled)
+BlazeBolt.IsScriptLoaded(scriptName) &#8594; loaded
+BlazeBolt.GetLoadedScripts() &#8594; scripts</div></div>
+<h3>Example: Scripts</h3>
+<div class="code-wrap"><pre class="code-block"><span class="kw">function</span> <span class="fn">Update</span>(<span class="var">dt</span>)
+    <span class="kw">if</span> <span class="bi">BlazeBolt</span>.<span class="fn">IsKeyJustPressed</span>(<span class="bi">Keys</span>.F5) <span class="kw">then</span> <span class="bi">BlazeBolt</span>.<span class="fn">ReloadAllScripts</span>() <span class="kw">end</span>
+    <span class="kw">if</span> <span class="bi">BlazeBolt</span>.<span class="fn">IsKeyJustPressed</span>(<span class="bi">Keys</span>.L) <span class="kw">then</span> <span class="bi">BlazeBolt</span>.<span class="fn">LoadScript</span>(<span class="str">"scripts/new_module.lua"</span>) <span class="kw">end</span>
+<span class="kw">end</span></pre><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+</section>
+<!-- SCENES -->
+<section class="doc-section" id="scenes">
+<h2>Scene Management</h2>
+<div class="func-card"><h4>LoadScene / GetCurrentScene</h4><div class="func-sig">BlazeBolt.LoadScene(sceneName) &#8594; success
+BlazeBolt.GetCurrentScene() &#8594; sceneName</div></div>
+<h3>Example: Scenes</h3>
+<div class="code-wrap"><pre class="code-block"><span class="kw">function</span> <span class="fn">Start</span>() <span class="bi">BlazeBolt</span>.<span class="fn">LoadScene</span>(<span class="str">"main_menu"</span>) <span class="kw">end</span>
+<span class="kw">function</span> <span class="fn">Update</span>(<span class="var">dt</span>)
+    <span class="kw">local</span> <span class="var">s</span> = <span class="bi">BlazeBolt</span>.<span class="fn">GetCurrentScene</span>()
+    <span class="kw">if</span> <span class="var">s</span> == <span class="str">"main_menu"</span> <span class="kw">and</span> <span class="bi">BlazeBolt</span>.<span class="fn">IsKeyJustPressed</span>(<span class="bi">Keys</span>.ENTER) <span class="kw">then</span> <span class="bi">BlazeBolt</span>.<span class="fn">LoadScene</span>(<span class="str">"game"</span>) <span class="kw">end</span>
+    <span class="kw">if</span> <span class="var">s</span> == <span class="str">"game"</span> <span class="kw">and</span> <span class="bi">BlazeBolt</span>.<span class="fn">IsKeyJustPressed</span>(<span class="bi">Keys</span>.ESCAPE) <span class="kw">then</span> <span class="bi">BlazeBolt</span>.<span class="fn">LoadScene</span>(<span class="str">"main_menu"</span>) <span class="kw">end</span>
+<span class="kw">end</span></pre><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+</section>
+<!-- INPUT -->
+<section class="doc-section" id="input">
+<h2>Input</h2>
+<div class="func-card"><h4>Keyboard</h4><div class="func-sig">BlazeBolt.IsKeyPressed(key) &#8594; pressed
+BlazeBolt.IsKeyJustPressed(key) &#8594; justPressed</div></div>
+<div class="func-card"><h4>Mouse</h4><div class="func-sig">BlazeBolt.GetMouseX() &#8594; x
+BlazeBolt.GetMouseY() &#8594; y
+BlazeBolt.GetMouseDeltaX() &#8594; dx
+BlazeBolt.GetMouseDeltaY() &#8594; dy
+BlazeBolt.IsMouseButtonPressed(button) &#8594; pressed
+BlazeBolt.IsMouseButtonJustPressed(button) &#8594; justPressed
+BlazeBolt.GetScrollY() &#8594; scrollY</div></div>
+<h3>Example: Input</h3>
+<div class="code-wrap"><pre class="code-block"><span class="kw">local</span> <span class="var">player</span>, <span class="var">speed</span> = <span class="kw">nil</span>, <span class="num">200</span>
+<span class="kw">function</span> <span class="fn">Start</span>() <span class="var">player</span> = <span class="bi">BlazeBolt</span>.<span class="fn">CreateSprite</span>(<span class="str">"assets/player.png"</span>, <span class="num">400</span>, <span class="num">300</span>) <span class="kw">end</span>
+<span class="kw">function</span> <span class="fn">Update</span>(<span class="var">dt</span>)
+    <span class="kw">local</span> <span class="var">x</span>, <span class="var">y</span> = <span class="bi">BlazeBolt</span>.<span class="fn">SpriteGetPosition</span>(<span class="var">player</span>)
+    <span class="kw">if</span> <span class="bi">BlazeBolt</span>.<span class="fn">IsKeyPressed</span>(<span class="bi">Keys</span>.W) <span class="kw">then</span> <span class="var">y</span> = <span class="var">y</span> - <span class="var">speed</span> * <span class="var">dt</span> <span class="kw">end</span>
+    <span class="kw">if</span> <span class="bi">BlazeBolt</span>.<span class="fn">IsKeyPressed</span>(<span class="bi">Keys</span>.S) <span class="kw">then</span> <span class="var">y</span> = <span class="var">y</span> + <span class="var">speed</span> * <span class="var">dt</span> <span class="kw">end</span>
+    <span class="kw">if</span> <span class="bi">BlazeBolt</span>.<span class="fn">IsKeyPressed</span>(<span class="bi">Keys</span>.A) <span class="kw">then</span> <span class="var">x</span> = <span class="var">x</span> - <span class="var">speed</span> * <span class="var">dt</span> <span class="kw">end</span>
+    <span class="kw">if</span> <span class="bi">BlazeBolt</span>.<span class="fn">IsKeyPressed</span>(<span class="bi">Keys</span>.D) <span class="kw">then</span> <span class="var">x</span> = <span class="var">x</span> + <span class="var">speed</span> * <span class="var">dt</span> <span class="kw">end</span>
+    <span class="bi">BlazeBolt</span>.<span class="fn">SpriteSetPosition</span>(<span class="var">player</span>, <span class="var">x</span>, <span class="var">y</span>)
+<span class="kw">end</span></pre><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+</section>
+<!-- MATH TYPES -->
+<section class="doc-section" id="mathtypes">
+<h2>Math Types</h2>
+<h3 id="vector2">Vector2</h3>
+<p>Constructor: <code>Vector2(x, y)</code></p>
+<div class="func-card"><h4>Properties &amp; Methods</h4><div class="func-sig">v.x, v.y          -- components
+v:length()         -- length
+v:lengthSquared()  -- length squared
+v:normalized()     -- normalized copy
+v:normalize()      -- normalize in place
+v:dot(other)       -- dot product
+v:cross(other)     -- cross product (returns Z)
+v:clone()          -- copy</div>
+<p class="func-desc">Operators: <code>a + b</code>, <code>a - b</code>, <code>a * scalar</code>, <code>a / scalar</code>, <code>-a</code>, <code>a == b</code></p></div>
+<h3 id="vector3">Vector3</h3>
+<p>Constructor: <code>Vector3(x, y, z)</code></p>
+<div class="func-card"><h4>Properties &amp; Methods</h4><div class="func-sig">v.x, v.y, v.z     -- components
+v:length()         -- length
+v:lengthSquared()  -- length squared
+v:normalized()     -- normalized copy
+v:normalize()      -- normalize in place
+v:dot(other)       -- dot product
+v:cross(other)     -- cross product (returns Vector3)
+v:clone()          -- copy</div></div>
+<h3 id="vector4">Vector4</h3>
+<p>Constructor: <code>Vector4(x, y, z, w)</code></p>
+<div class="func-card"><h4>Properties &amp; Methods</h4><div class="func-sig">v.x, v.y, v.z, v.w  -- components
+v:length()            -- length
+v:lengthSquared()     -- length squared
+v:normalized()        -- normalized copy
+v:normalize()         -- normalize in place
+v:dot(other)          -- dot product
+v:toVector3()         -- convert to Vector3
+v:clone()             -- copy</div></div>
+<h3 id="matrix3x3">Matrix3x3</h3>
+<p>Constructor: <code>Matrix3x3()</code> (identity matrix)</p>
+<div class="func-card"><h4>Methods</h4><div class="func-sig">m:get(col, row)   -- get element (1-3)
+m:set(col, row, val)
+m:toArray()        -- flat array of 9 elements
+m:clone()
+m:identity()
+m:translation(x, y)
+m:scale(x, y)
+m:rotation(degrees)</div>
+<p class="func-desc">Operators: <code>a * b</code> (matrix multiply), <code>a == b</code></p></div>
+</section>
+<!-- NOISE -->
+<section class="doc-section" id="noise">
+<h2>Noise</h2>
+<p>Procedural noise generators. All functions are globals (not in <code>BlazeBolt</code> table).</p>
+<div class="func-card"><h4>Noise Functions</h4><div class="func-sig">SetNoiseSeed(seed)
+PerlinNoise1D(x) &#8594; value
+PerlinNoise2D(x, y) &#8594; value
+PerlinNoise3D(x, y, z) &#8594; value
+SimplexNoise2D(x, y) &#8594; value
+ValueNoise2D(x, y) &#8594; value
+FbmNoise2D(x, y, [octaves], [lacunarity], [gain]) &#8594; value
+FbmSimplexNoise2D(x, y, [octaves], [lacunarity], [gain]) &#8594; value
+DomainWarpNoise2D(x, y, [warpScale]) &#8594; value</div>
+<p class="func-desc">All return values from -1 to 1. Default octaves=6, lacunarity=2.0, gain=0.5.</p></div>
+<h3>Example: Noise</h3>
+<div class="code-wrap"><pre class="code-block"><span class="kw">local</span> <span class="var">mesh</span>
+<span class="kw">function</span> <span class="fn">Start</span>()
+    <span class="fn">SetNoiseSeed</span>(<span class="num">42</span>)
+    <span class="var">mesh</span> = <span class="bi">BlazeBolt</span>.<span class="fn">CreateMesh</span>()
+    <span class="kw">local</span> <span class="var">w</span> = <span class="fn">GetScreenWidth</span>(), <span class="var">h</span> = <span class="fn">GetScreenHeight</span>()
+    <span class="bi">BlazeBolt</span>.<span class="fn">MeshSetData</span>(<span class="var">mesh</span>,
+        {{<span class="var">x</span>=<span class="num">0</span>,<span class="var">y</span>=<span class="num">0</span>,<span class="var">u</span>=<span class="num">0</span>,<span class="var">v</span>=<span class="num">0</span>},{<span class="var">x</span>=<span class="var">w</span>,<span class="var">y</span>=<span class="num">0</span>,<span class="var">u</span>=<span class="num">1</span>,<span class="var">v</span>=<span class="num">0</span>},
+         {<span class="var">x</span>=<span class="var">w</span>,<span class="var">y</span>=<span class="var">h</span>,<span class="var">u</span>=<span class="num">1</span>,<span class="var">v</span>=<span class="num">1</span>},{<span class="var">x</span>=<span class="num">0</span>,<span class="var">y</span>=<span class="var">h</span>,<span class="var">u</span>=<span class="num">0</span>,<span class="var">v</span>=<span class="num">1</span>}},
+        {<span class="num">0</span>,<span class="num">1</span>,<span class="num">2</span>,<span class="num">0</span>,<span class="num">2</span>,<span class="num">3</span>})
+    <span class="bi">BlazeBolt</span>.<span class="fn">MeshSetShader</span>(<span class="var">mesh</span>, <span class="str">"shaders/terrain.vert"</span>, <span class="str">"shaders/terrain.frag"</span>)
+<span class="kw">end</span></pre><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+</section>
+<!-- UTILITY -->
+<section class="doc-section" id="utility">
+<h2>Utility</h2>
+<div class="func-card"><h4>Utility Functions</h4><div class="func-sig">BlazeBolt.Print(...)
+BlazeBolt.GetDeltaTime() &#8594; dt
+BlazeBolt.GetTime() &#8594; time
+BlazeBolt.Random([min], [max]) &#8594; value
+BlazeBolt.RandomInt(min, max) &#8594; value
+BlazeBolt.SetRandomSeed(seed)
+BlazeBolt.Quit()
+BlazeBolt.AddConsoleMessage(msg, [type])</div></div>
+<h3>Example: Utility</h3>
+<div class="code-wrap"><pre class="code-block"><span class="kw">local</span> <span class="var">frameCount</span> = <span class="num">0</span>, <span class="var">fpsTimer</span> = <span class="num">0</span>
+<span class="kw">function</span> <span class="fn">Update</span>(<span class="var">dt</span>)
+    <span class="var">frameCount</span> = <span class="var">frameCount</span> + <span class="num">1</span>
+    <span class="var">fpsTimer</span> = <span class="var">fpsTimer</span> + <span class="var">dt</span>
+    <span class="kw">if</span> <span class="var">fpsTimer</span> >= <span class="num">1.0</span> <span class="kw">then</span>
+        <span class="bi">BlazeBolt</span>.<span class="fn">Print</span>(<span class="str">"FPS: "</span>, <span class="var">frameCount</span>)
+        <span class="var">frameCount</span>, <span class="var">fpsTimer</span> = <span class="num">0</span>, <span class="num">0</span>
+    <span class="kw">end</span>
+<span class="kw">end</span></pre><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+</section>
+<!-- NETWORKING -->
+<section class="doc-section" id="networking">
+<h2>Networking</h2>
+<div class="func-card"><h4>NetInit / NetShutdown</h4><div class="func-sig">BlazeBolt.NetInit()
+BlazeBolt.NetShutdown()</div></div>
+<h3 id="tcp-server">TCP Server</h3>
+<div class="func-card"><h4>TCP Server Functions</h4><div class="func-sig">BlazeBolt.CreateTCPServer(port) &#8594; serverId
+BlazeBolt.TCPServerStop(serverId)
+BlazeBolt.TCPServerIsRunning(serverId) &#8594; running
+BlazeBolt.TCPServerPoll(serverId)
+BlazeBolt.TCPServerAccept(serverId) &#8594; clientId, addr, port
+BlazeBolt.TCPServerSend(serverId, clientId, data)
+BlazeBolt.TCPServerBroadcast(serverId, data)
+BlazeBolt.TCPServerReceive(serverId, clientId) &#8594; data
+BlazeBolt.TCPServerDisconnect(serverId, clientId)
+BlazeBolt.TCPServerGetClientCount(serverId) &#8594; count
+BlazeBolt.TCPServerIsClientConnected(serverId, clientId) &#8594; connected</div></div>
+<h3 id="tcp-client">TCP Client</h3>
+<div class="func-card"><h4>TCP Client Functions</h4><div class="func-sig">BlazeBolt.CreateTCPClient() &#8594; clientId
+BlazeBolt.TCPClientConnect(clientId, host, port) &#8594; success
+BlazeBolt.TCPClientSend(clientId, data)
+BlazeBolt.TCPClientReceive(clientId) &#8594; data
+BlazeBolt.TCPClientDisconnect(clientId)
+BlazeBolt.TCPClientIsConnected(clientId) &#8594; connected</div></div>
+<h3 id="udp-server">UDP Server</h3>
+<div class="func-card"><h4>UDP Server Functions</h4><div class="func-sig">BlazeBolt.CreateUDPServer(port) &#8594; serverId
+BlazeBolt.UDPServerStop(serverId)
+BlazeBolt.UDPServerIsRunning(serverId) &#8594; running
+BlazeBolt.UDPServerPoll(serverId)
+BlazeBolt.UDPServerSend(serverId, peerId, data)
+BlazeBolt.UDPServerReceive(serverId, peerId) &#8594; data
+BlazeBolt.UDPServerReceiveAny(serverId) &#8594; peerId, data
+BlazeBolt.UDPServerRemovePeer(serverId, peerId)
+BlazeBolt.UDPServerGetPeerCount(serverId) &#8594; count
+BlazeBolt.UDPServerIsPeerKnown(serverId, peerId) &#8594; known</div></div>
+<h3 id="udp-client">UDP Client</h3>
+<div class="func-card"><h4>UDP Client Functions</h4><div class="func-sig">BlazeBolt.CreateUDPClient() &#8594; clientId
+BlazeBolt.UDPClientConnect(clientId, host, port) &#8594; success
+BlazeBolt.UDPClientSend(clientId, data)
+BlazeBolt.UDPClientReceive(clientId) &#8594; data
+BlazeBolt.UDPClientDisconnect(clientId)
+BlazeBolt.UDPClientIsConnected(clientId) &#8594; connected</div></div>
+<h3>Example: TCP Networking</h3>
+<div class="code-wrap"><pre class="code-block"><span class="kw">local</span> <span class="var">server</span>, <span class="var">client</span>
+<span class="kw">function</span> <span class="fn">Start</span>()
+    <span class="bi">BlazeBolt</span>.<span class="fn">NetInit</span>()
+    <span class="var">server</span> = <span class="bi">BlazeBolt</span>.<span class="fn">CreateTCPServer</span>(<span class="num">8080</span>)
+    <span class="var">client</span> = <span class="bi">BlazeBolt</span>.<span class="fn">CreateTCPClient</span>()
+    <span class="bi">BlazeBolt</span>.<span class="fn">TCPClientConnect</span>(<span class="var">client</span>, <span class="str">"127.0.0.1"</span>, <span class="num">8080</span>)
+<span class="kw">end</span>
+<span class="kw">function</span> <span class="fn">Update</span>(<span class="var">dt</span>)
+    <span class="bi">BlazeBolt</span>.<span class="fn">TCPServerPoll</span>(<span class="var">server</span>)
+    <span class="kw">if</span> <span class="bi">BlazeBolt</span>.<span class="fn">IsKeyJustPressed</span>(<span class="bi">Keys</span>.SPACE) <span class="kw">then</span>
+        <span class="bi">BlazeBolt</span>.<span class="fn">TCPClientSend</span>(<span class="var">client</span>, <span class="str">"Hello from client!"</span>)
+    <span class="kw">end</span>
+<span class="kw">end</span>
+<span class="kw">function</span> <span class="fn">End</span>()
+    <span class="bi">BlazeBolt</span>.<span class="fn">TCPServerStop</span>(<span class="var">server</span>)
+    <span class="bi">BlazeBolt</span>.<span class="fn">TCPClientDisconnect</span>(<span class="var">client</span>)
+    <span class="bi">BlazeBolt</span>.<span class="fn">NetShutdown</span>()
+<span class="kw">end</span></pre><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+<h3>Example: UDP Networking</h3>
+<div class="code-wrap"><pre class="code-block"><span class="kw">local</span> <span class="var">server</span>, <span class="var">client</span>
+<span class="kw">function</span> <span class="fn">Start</span>()
+    <span class="bi">BlazeBolt</span>.<span class="fn">NetInit</span>()
+    <span class="var">server</span> = <span class="bi">BlazeBolt</span>.<span class="fn">CreateUDPServer</span>(<span class="num">9090</span>)
+    <span class="var">client</span> = <span class="bi">BlazeBolt</span>.<span class="fn">CreateUDPClient</span>()
+    <span class="bi">BlazeBolt</span>.<span class="fn">UDPClientConnect</span>(<span class="var">client</span>, <span class="str">"127.0.0.1"</span>, <span class="num">9090</span>)
+<span class="kw">end</span>
+<span class="kw">function</span> <span class="fn">Update</span>(<span class="var">dt</span>)
+    <span class="bi">BlazeBolt</span>.<span class="fn">UDPServerPoll</span>(<span class="var">server</span>)
+    <span class="kw">if</span> <span class="bi">BlazeBolt</span>.<span class="fn">IsKeyJustPressed</span>(<span class="bi">Keys</span>.SPACE) <span class="kw">then</span> <span class="bi">BlazeBolt</span>.<span class="fn">UDPClientSend</span>(<span class="var">client</span>, <span class="str">"ping"</span>) <span class="kw">end</span>
+    <span class="kw">local</span> <span class="var">peerId</span>, <span class="var">data</span> = <span class="bi">BlazeBolt</span>.<span class="fn">UDPServerReceiveAny</span>(<span class="var">server</span>)
+    <span class="kw">if</span> <span class="var">peerId</span> <span class="kw">then</span> <span class="bi">BlazeBolt</span>.<span class="fn">UDPServerSend</span>(<span class="var">server</span>, <span class="var">peerId</span>, <span class="str">"pong"</span>) <span class="kw">end</span>
+<span class="kw">end</span></pre><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+</section>
+<!-- RENDER ORDER -->
+<section class="doc-section" id="renderorder">
+<h2>Render Order</h2>
+<div class="func-card"><h4>SetRenderOrder / GetRenderOrder</h4><div class="func-sig">BlazeBolt.SetRenderOrder(order)
+BlazeBolt.GetRenderOrder() &#8594; order</div>
+<p class="func-desc"><code>order</code> = array of strings: <code>{"Sprites", "Text", "Particles", "Mesh"}</code></p></div>
+<h3>Example: Render Order</h3>
+<div class="code-wrap"><pre class="code-block"><span class="kw">function</span> <span class="fn">Start</span>()
+    <span class="kw">local</span> <span class="var">order</span> = <span class="bi">BlazeBolt</span>.<span class="fn">GetRenderOrder</span>()
+    <span class="bi">BlazeBolt</span>.<span class="fn">SetRenderOrder</span>({<span class="str">"Mesh"</span>, <span class="str">"Particles"</span>, <span class="str">"Sprites"</span>, <span class="str">"Text"</span>})
+<span class="kw">end</span></pre><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+</section>
+<!-- DESTROY -->
+<section class="doc-section" id="destroy">
+<h2>Entity Destruction</h2>
+<div class="func-card" id="destroy-entity"><h4>Destroy</h4><div class="func-sig">BlazeBolt.Destroy(entity)</div></div>
+<div class="func-card" id="destroy-all"><h4>DestroyAll</h4><div class="func-sig">BlazeBolt.DestroyAll()</div></div>
+<h3>Example: Destruction</h3>
+<div class="code-wrap"><pre class="code-block"><span class="kw">local</span> <span class="var">entities</span> = {}
+<span class="kw">function</span> <span class="fn">Start</span>()
+    <span class="kw">for</span> <span class="var">i</span> = <span class="num">1</span>, <span class="num">10</span> <span class="kw">do</span>
+        <span class="var">entities</span>[<span class="var">i</span>] = <span class="bi">BlazeBolt</span>.<span class="fn">CreateSprite</span>(<span class="str">"assets/star.png"</span>, <span class="var">i</span> * <span class="num">50</span>, <span class="num">300</span>)
+    <span class="kw">end</span>
+<span class="kw">end</span>
+<span class="kw">function</span> <span class="fn">Update</span>(<span class="var">dt</span>)
+    <span class="kw">if</span> <span class="bi">BlazeBolt</span>.<span class="fn">IsKeyJustPressed</span>(<span class="bi">Keys</span>.ONE) <span class="kw">and</span> #<span class="var">entities</span> > <span class="num">0</span> <span class="kw">then</span>
+        <span class="bi">BlazeBolt</span>.<span class="fn">Destroy</span>(<span class="var">entities</span>[#<span class="var">entities</span>])
+        <span class="var">entities</span>[#<span class="var">entities</span>] = <span class="kw">nil</span>
+    <span class="kw">end</span>
+    <span class="kw">if</span> <span class="bi">BlazeBolt</span>.<span class="fn">IsKeyJustPressed</span>(<span class="bi">Keys</span>.TWO) <span class="kw">then</span> <span class="bi">BlazeBolt</span>.<span class="fn">DestroyAll</span>() <span class="var">entities</span> = {} <span class="kw">end</span>
+<span class="kw">end</span></pre><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+</section>
+<!-- GLOBAL FUNCTIONS -->
+<section class="doc-section" id="globalfuncs">
+<h2>Global Functions</h2>
+<table><thead><tr><th>Function</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>GetScreenWidth()</code></td><td>Returns current window width</td></tr>
+<tr><td><code>GetScreenHeight()</code></td><td>Returns current window height</td></tr>
+</tbody></table>
+</section>
+<!-- CONSTANTS -->
+<section class="doc-section" id="constants">
+<h2>Constants</h2>
+<h3>TextAlignment</h3>
+<table><thead><tr><th>Constant</th><th>Value</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>TextAlignment.LEFT</code></td><td>0</td><td>Left alignment</td></tr>
+<tr><td><code>TextAlignment.CENTER</code></td><td>1</td><td>Center alignment</td></tr>
+<tr><td><code>TextAlignment.RIGHT</code></td><td>2</td><td>Right alignment</td></tr>
+</tbody></table>
+<h3>MouseButtons</h3>
+<table><thead><tr><th>Constant</th><th>Value</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>MouseButtons.LEFT</code></td><td>0</td><td>Left mouse button</td></tr>
+<tr><td><code>MouseButtons.RIGHT</code></td><td>1</td><td>Right mouse button</td></tr>
+<tr><td><code>MouseButtons.MIDDLE</code></td><td>2</td><td>Middle mouse button</td></tr>
+</tbody></table>
+<h3>Keys</h3>
+<table><thead><tr><th>Constant</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>Keys.A</code> &ndash; <code>Keys.Z</code></td><td>Letters</td></tr>
+<tr><td><code>Keys.ZERO</code> &ndash; <code>Keys.NINE</code></td><td>Digits</td></tr>
+<tr><td><code>Keys.SPACE</code></td><td>Space</td></tr>
+<tr><td><code>Keys.ENTER</code></td><td>Enter</td></tr>
+<tr><td><code>Keys.ESCAPE</code></td><td>Escape</td></tr>
+<tr><td><code>Keys.LEFT_SHIFT</code> / <code>RIGHT_SHIFT</code></td><td>Shift keys</td></tr>
+<tr><td><code>Keys.LEFT_CONTROL</code> / <code>RIGHT_CONTROL</code></td><td>Ctrl keys</td></tr>
+<tr><td><code>Keys.UP</code>, <code>DOWN</code>, <code>LEFT</code>, <code>RIGHT</code></td><td>Arrow keys</td></tr>
+<tr><td><code>Keys.F1</code> &ndash; <code>Keys.F25</code></td><td>Function keys</td></tr>
+<tr><td><code>Keys.BACKSPACE</code></td><td>Backspace</td></tr>
+<tr><td><code>Keys.TAB</code></td><td>Tab</td></tr>
+<tr><td><code>Keys.CAPS_LOCK</code></td><td>Caps Lock</td></tr>
+<tr><td><code>Keys.PLUS</code> / <code>Keys.MINUS</code></td><td>Plus / Minus</td></tr>
+</tbody></table>
+</section>
+</div>
+</main>
+<script>
+// Copy code button
+function copyCode(btn) {
+  const pre = btn.closest('.code-wrap').querySelector('pre');
+  const text = pre.textContent || pre.innerText;
+  navigator.clipboard.writeText(text).then(() => {
+    btn.textContent = 'Copied!';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 2000);
+  });
+}
+
+// Sidebar search
+const searchBox = document.getElementById('search-box');
+const navItems = document.querySelectorAll('#sidebar-nav .nav-item');
+searchBox.addEventListener('input', function() {
+  const q = this.value.toLowerCase();
+  navItems.forEach(item => {
+    const text = item.textContent.toLowerCase();
+    const parent = item.closest('.nav-section') || item.parentElement;
+    item.style.display = (!q || text.includes(q)) ? '' : 'none';
+  });
+});
+
+// Smooth scroll
+navItems.forEach(item => {
+  item.addEventListener('click', function(e) {
+    e.preventDefault();
+    const id = this.getAttribute('href').substring(1);
+    const el = document.getElementById(id);
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    // Close mobile sidebar
+    document.getElementById('sidebar').classList.remove('open');
+    document.getElementById('overlay').classList.remove('active');
+  });
+});
+
+// Scroll spy
+const sections = document.querySelectorAll('.doc-section, .hero');
+const observer = new IntersectionObserver(entries => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      const id = entry.target.id;
+      navItems.forEach(item => {
+        item.classList.remove('active');
+        if (item.getAttribute('href') === '#' + id) item.classList.add('active');
+      });
+    }
+  });
+}, { rootMargin: '-20% 0px -80% 0px' });
+sections.forEach(s => { if (s.id) observer.observe(s); });
+
+// Back to top
+const backToTop = document.getElementById('back-to-top');
+window.addEventListener('scroll', () => {
+  backToTop.classList.toggle('visible', window.scrollY > 400);
+});
+backToTop.addEventListener('click', () => window.scrollTo({ top: 0, behavior: 'smooth' }));
+
+// Hamburger menu
+document.getElementById('hamburger').addEventListener('click', () => {
+  document.getElementById('sidebar').classList.toggle('open');
+  document.getElementById('overlay').classList.toggle('active');
+});
+document.getElementById('overlay').addEventListener('click', () => {
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('overlay').classList.remove('active');
+});
+</script>
+</body>
+</html>
