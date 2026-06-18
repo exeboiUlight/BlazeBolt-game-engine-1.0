@@ -31,6 +31,7 @@ set(ALSOFT_INSTALL_EXAMPLES OFF CACHE BOOL "" FORCE)
 set(ALSOFT_INSTALL_UTILS OFF CACHE BOOL "" FORCE)
 set(ALSOFT_UPDATE_BUILD_VERSION OFF CACHE BOOL "" FORCE)
 set(ALSOFT_DLOPEN OFF CACHE BOOL "" FORCE)
+set(ALSOFT_BACKEND_DSOUND OFF CACHE BOOL "" FORCE)
 add_subdirectory(libs/openal)
 
 if(TARGET OpenAL)
@@ -96,8 +97,7 @@ if(WIN32)
     target_link_libraries(BlazeBolt PRIVATE ws2_32)
 endif()
     if(MINGW OR (CMAKE_CXX_COMPILER_ID STREQUAL "GNU"))
-        target_compile_options(BlazeBolt PRIVATE -flto)
-        target_link_options(BlazeBolt PRIVATE -flto -Wl,--gc-sections)
+        target_link_options(BlazeBolt PRIVATE -Wl,--gc-sections)
     endif()
 add_custom_command(TARGET BlazeBolt POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory
@@ -110,10 +110,9 @@ if(WIN32)
     target_include_directories(BlazeBoltWin PRIVATE ${BLAZEBOLT_INCLUDES})
     target_link_libraries(BlazeBoltWin PRIVATE ${BLAZEBOLT_LIBS})
     target_link_libraries(BlazeBoltWin PRIVATE ws2_32)
-    if(MINGW OR (CMAKE_CXX_COMPILER_ID STREQUAL "GNU"))
-        target_compile_options(BlazeBoltWin PRIVATE -flto)
-        target_link_options(BlazeBoltWin PRIVATE -flto -Wl,--gc-sections)
-    endif()
+        if(MINGW OR (CMAKE_CXX_COMPILER_ID STREQUAL "GNU"))
+            target_link_options(BlazeBoltWin PRIVATE -Wl,--gc-sections)
+        endif()
     add_custom_command(TARGET BlazeBoltWin POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_directory
             ${CMAKE_SOURCE_DIR}/assets/ $<TARGET_FILE_DIR:BlazeBoltWin>
