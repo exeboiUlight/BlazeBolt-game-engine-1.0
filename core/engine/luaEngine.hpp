@@ -253,9 +253,58 @@ namespace LuaEngine {
         void stopSoundById(int soundId);
         void setSoundVolume(const std::string& soundName, float volume);
         void setSoundVolumeById(int soundId, float volume);
+        void setSoundPitch(int soundId, float pitch);
+        void setSoundLooping(int soundId, bool loop);
         bool isSoundPlaying(const std::string& soundName);
         void stopAllSounds();
         void updateAudio();
+
+        // Audio 3D positional
+        void setSoundPosition(int soundId, float x, float y, float z);
+        void setSoundPositionByName(const std::string& soundName, float x, float y, float z);
+        void getSoundPosition(int soundId, float& x, float& y, float& z);
+        void setSoundVelocity(int soundId, float x, float y, float z);
+        void setSoundRolloff(int soundId, float rolloff);
+        void setSoundReferenceDistance(int soundId, float dist);
+        void setSoundMaxDistance(int soundId, float dist);
+        void setSoundSpatial(int soundId, bool spatial);
+        void setSoundCone(int soundId, float innerAngle, float outerAngle, float outerGain);
+        void setSoundDirection(int soundId, float x, float y, float z);
+
+        // Listener
+        void setListenerPosition(float x, float y, float z);
+        void getListenerPosition(float& x, float& y, float& z);
+        void setListenerVelocity(float x, float y, float z);
+        void setListenerOrientation(float fx, float fy, float fz, float ux, float uy, float uz);
+        void setListenerGain(float gain);
+
+        // EFX Effects
+        int createAudioEffect();
+        void destroyAudioEffect(int effectIndex);
+        bool setAudioEffectType(int effectIndex, int type);
+        bool setAudioEffectf(int effectIndex, int param, float value);
+        bool setAudioEffecti(int effectIndex, int param, int value);
+        float getAudioEffectf(int effectIndex, int param);
+        int getAudioEffecti(int effectIndex, int param);
+        bool getAudioEfxSupported();
+
+        // EFX Filters
+        int createAudioFilter();
+        void destroyAudioFilter(int filterIndex);
+        bool setAudioFilterType(int filterIndex, int type);
+        bool setAudioFilterf(int filterIndex, int param, float value);
+
+        // EFX Effect Slots
+        int createAudioEffectSlot();
+        void destroyAudioEffectSlot(int slotIndex);
+        bool setAudioEffectSlotEffect(int slotIndex, int effectIndex);
+        bool clearAudioEffectSlotEffect(int slotIndex);
+        bool setAudioEffectSlotGain(int slotIndex, float gain);
+
+        // Linking
+        bool attachAudioEffect(int soundId, int slotIndex);
+        bool detachAudioEffect(int soundId);
+        bool attachAudioFilter(int soundId, int filterIndex);
 
         // Window management
         std::shared_ptr<Window> createWindow(int width, int height, const std::string& title);

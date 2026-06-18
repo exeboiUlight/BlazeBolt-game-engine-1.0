@@ -25,7 +25,7 @@ if target == "linux":
     DEBUG_FLAGS1 = DEBUG_FLAGS2 = " -g"
     COMMON_INCLUDES = "-I./include -I./core"
     COMMON_LIBS = "-L./lib -lGL -lglfw -lfreetype -llua5.4 -lopenal"
-    COMMON_STATIC = "-static-libgcc -static-libstdc++"
+    COMMON_STATIC = "-static-libgcc -static-libstdc++ -flto -ffunction-sections -fdata-sections -Wl,--gc-sections"
     EXT = ""
     SIZE_OPT = "-Os"
 else:
@@ -33,7 +33,7 @@ else:
     DEBUG_FLAGS2 = " -Wl,-subsystem,windows"
     COMMON_INCLUDES = "-I./include -I./core"
     COMMON_LIBS = "-L./lib -lopengl32 -lglfw3 -lfreetype -lgdi32 -llua54 -lopenal32 -lws2_32"
-    COMMON_STATIC = "-static-libgcc -static-libstdc++"
+    COMMON_STATIC = "-static-libgcc -static-libstdc++ -flto -ffunction-sections -fdata-sections -Wl,--gc-sections"
     EXT = ".exe"
     SIZE_OPT = "-Oz"
 

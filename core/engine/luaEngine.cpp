@@ -314,6 +314,43 @@ namespace LuaEngine {
         {"StopAllSounds", _functions::StopAllSounds},
         {"SetSoundVolume", _functions::SetSoundVolume},
         {"IsSoundPlaying", _functions::IsSoundPlaying},
+        {"SetSoundPitch", _functions::SetSoundPitch},
+        {"SetSoundLoopingById", _functions::SetSoundLoopingById},
+        {"SetSoundPosition", _functions::SetSoundPosition},
+        {"SetSoundPositionByName", _functions::SetSoundPositionByName},
+        {"GetSoundPosition", _functions::GetSoundPosition},
+        {"SetSoundVelocity", _functions::SetSoundVelocity},
+        {"SetSoundRolloff", _functions::SetSoundRolloff},
+        {"SetSoundReferenceDistance", _functions::SetSoundReferenceDistance},
+        {"SetSoundMaxDistance", _functions::SetSoundMaxDistance},
+        {"SetSoundSpatial", _functions::SetSoundSpatial},
+        {"SetSoundCone", _functions::SetSoundCone},
+        {"SetSoundDirection", _functions::SetSoundDirection},
+        {"SetListenerPosition", _functions::SetListenerPosition},
+        {"GetListenerPosition", _functions::GetListenerPosition},
+        {"SetListenerVelocity", _functions::SetListenerVelocity},
+        {"SetListenerOrientation", _functions::SetListenerOrientation},
+        {"SetListenerGain", _functions::SetListenerGain},
+        {"CreateAudioEffect", _functions::CreateAudioEffect},
+        {"DestroyAudioEffect", _functions::DestroyAudioEffect},
+        {"SetAudioEffectType", _functions::SetAudioEffectType},
+        {"SetAudioEffectf", _functions::SetAudioEffectf},
+        {"SetAudioEffecti", _functions::SetAudioEffecti},
+        {"GetAudioEffectf", _functions::GetAudioEffectf},
+        {"GetAudioEffecti", _functions::GetAudioEffecti},
+        {"GetAudioEfxSupported", _functions::GetAudioEfxSupported},
+        {"CreateAudioFilter", _functions::CreateAudioFilter},
+        {"DestroyAudioFilter", _functions::DestroyAudioFilter},
+        {"SetAudioFilterType", _functions::SetAudioFilterType},
+        {"SetAudioFilterf", _functions::SetAudioFilterf},
+        {"CreateAudioEffectSlot", _functions::CreateAudioEffectSlot},
+        {"DestroyAudioEffectSlot", _functions::DestroyAudioEffectSlot},
+        {"SetAudioEffectSlotEffect", _functions::SetAudioEffectSlotEffect},
+        {"ClearAudioEffectSlotEffect", _functions::ClearAudioEffectSlotEffect},
+        {"SetAudioEffectSlotGain", _functions::SetAudioEffectSlotGain},
+        {"AttachAudioEffect", _functions::AttachAudioEffect},
+        {"DetachAudioEffect", _functions::DetachAudioEffect},
+        {"AttachAudioFilter", _functions::AttachAudioFilter},
 
         // Window functions
         {"CreateWindow", _functions::CreateWindow},
@@ -1455,6 +1492,197 @@ namespace LuaEngine {
         if (audioInitialized) {
             audioEngine.update();
         }
+    }
+
+    void LuaEngine::setSoundPitch(int soundId, float pitch) {
+        if (!audioInitialized) return;
+        audioEngine.setPitch(soundId, pitch);
+    }
+
+    void LuaEngine::setSoundLooping(int soundId, bool loop) {
+        if (!audioInitialized) return;
+        audioEngine.setLooping(soundId, loop);
+    }
+
+    // 3D Positional Audio
+    void LuaEngine::setSoundPosition(int soundId, float x, float y, float z) {
+        if (!audioInitialized) return;
+        audioEngine.setSourcePosition(soundId, x, y, z);
+    }
+
+    void LuaEngine::setSoundPositionByName(const std::string& soundName, float x, float y, float z) {
+        if (!audioInitialized) return;
+        audioEngine.setSourcePosition(soundName, x, y, z);
+    }
+
+    void LuaEngine::getSoundPosition(int soundId, float& x, float& y, float& z) {
+        if (!audioInitialized) { x = y = z = 0; return; }
+        audioEngine.getSourcePosition(soundId, x, y, z);
+    }
+
+    void LuaEngine::setSoundVelocity(int soundId, float x, float y, float z) {
+        if (!audioInitialized) return;
+        audioEngine.setSourceVelocity(soundId, x, y, z);
+    }
+
+    void LuaEngine::setSoundRolloff(int soundId, float rolloff) {
+        if (!audioInitialized) return;
+        audioEngine.setSourceRolloff(soundId, rolloff);
+    }
+
+    void LuaEngine::setSoundReferenceDistance(int soundId, float dist) {
+        if (!audioInitialized) return;
+        audioEngine.setSourceReferenceDistance(soundId, dist);
+    }
+
+    void LuaEngine::setSoundMaxDistance(int soundId, float dist) {
+        if (!audioInitialized) return;
+        audioEngine.setSourceMaxDistance(soundId, dist);
+    }
+
+    void LuaEngine::setSoundSpatial(int soundId, bool spatial) {
+        if (!audioInitialized) return;
+        audioEngine.setSourceSpatial(soundId, spatial);
+    }
+
+    void LuaEngine::setSoundCone(int soundId, float innerAngle, float outerAngle, float outerGain) {
+        if (!audioInitialized) return;
+        audioEngine.setSourceCone(soundId, innerAngle, outerAngle, outerGain);
+    }
+
+    void LuaEngine::setSoundDirection(int soundId, float x, float y, float z) {
+        if (!audioInitialized) return;
+        audioEngine.setSourceDirection(soundId, x, y, z);
+    }
+
+    // Listener
+    void LuaEngine::setListenerPosition(float x, float y, float z) {
+        if (!audioInitialized) return;
+        audioEngine.setListenerPosition(x, y, z);
+    }
+
+    void LuaEngine::getListenerPosition(float& x, float& y, float& z) {
+        if (!audioInitialized) { x = y = z = 0; return; }
+        audioEngine.getListenerPosition(x, y, z);
+    }
+
+    void LuaEngine::setListenerVelocity(float x, float y, float z) {
+        if (!audioInitialized) return;
+        audioEngine.setListenerVelocity(x, y, z);
+    }
+
+    void LuaEngine::setListenerOrientation(float fx, float fy, float fz, float ux, float uy, float uz) {
+        if (!audioInitialized) return;
+        audioEngine.setListenerOrientation(fx, fy, fz, ux, uy, uz);
+    }
+
+    void LuaEngine::setListenerGain(float gain) {
+        if (!audioInitialized) return;
+        audioEngine.setListenerGain(gain);
+    }
+
+    // EFX Effects
+    int LuaEngine::createAudioEffect() {
+        if (!audioInitialized) return -1;
+        return audioEngine.createEffect();
+    }
+
+    void LuaEngine::destroyAudioEffect(int effectIndex) {
+        if (!audioInitialized) return;
+        audioEngine.destroyEffect(effectIndex);
+    }
+
+    bool LuaEngine::setAudioEffectType(int effectIndex, int type) {
+        if (!audioInitialized) return false;
+        return audioEngine.setEffectType(effectIndex, type);
+    }
+
+    bool LuaEngine::setAudioEffectf(int effectIndex, int param, float value) {
+        if (!audioInitialized) return false;
+        return audioEngine.setEffectf(effectIndex, param, value);
+    }
+
+    bool LuaEngine::setAudioEffecti(int effectIndex, int param, int value) {
+        if (!audioInitialized) return false;
+        return audioEngine.setEffecti(effectIndex, param, value);
+    }
+
+    float LuaEngine::getAudioEffectf(int effectIndex, int param) {
+        if (!audioInitialized) return 0;
+        return audioEngine.getEffectf(effectIndex, param);
+    }
+
+    int LuaEngine::getAudioEffecti(int effectIndex, int param) {
+        if (!audioInitialized) return 0;
+        return audioEngine.getEffecti(effectIndex, param);
+    }
+
+    bool LuaEngine::getAudioEfxSupported() {
+        if (!audioInitialized) return false;
+        return audioEngine.getEfxSupported();
+    }
+
+    // EFX Filters
+    int LuaEngine::createAudioFilter() {
+        if (!audioInitialized) return -1;
+        return audioEngine.createFilter();
+    }
+
+    void LuaEngine::destroyAudioFilter(int filterIndex) {
+        if (!audioInitialized) return;
+        audioEngine.destroyFilter(filterIndex);
+    }
+
+    bool LuaEngine::setAudioFilterType(int filterIndex, int type) {
+        if (!audioInitialized) return false;
+        return audioEngine.setFilterType(filterIndex, type);
+    }
+
+    bool LuaEngine::setAudioFilterf(int filterIndex, int param, float value) {
+        if (!audioInitialized) return false;
+        return audioEngine.setFilterf(filterIndex, param, value);
+    }
+
+    // EFX Effect Slots
+    int LuaEngine::createAudioEffectSlot() {
+        if (!audioInitialized) return -1;
+        return audioEngine.createEffectSlot();
+    }
+
+    void LuaEngine::destroyAudioEffectSlot(int slotIndex) {
+        if (!audioInitialized) return;
+        audioEngine.destroyEffectSlot(slotIndex);
+    }
+
+    bool LuaEngine::setAudioEffectSlotEffect(int slotIndex, int effectIndex) {
+        if (!audioInitialized) return false;
+        return audioEngine.setEffectSlotEffect(slotIndex, effectIndex);
+    }
+
+    bool LuaEngine::clearAudioEffectSlotEffect(int slotIndex) {
+        if (!audioInitialized) return false;
+        return audioEngine.clearEffectSlotEffect(slotIndex);
+    }
+
+    bool LuaEngine::setAudioEffectSlotGain(int slotIndex, float gain) {
+        if (!audioInitialized) return false;
+        return audioEngine.setEffectSlotGain(slotIndex, gain);
+    }
+
+    // Linking
+    bool LuaEngine::attachAudioEffect(int soundId, int slotIndex) {
+        if (!audioInitialized) return false;
+        return audioEngine.attachEffectToSource(soundId, slotIndex);
+    }
+
+    bool LuaEngine::detachAudioEffect(int soundId) {
+        if (!audioInitialized) return false;
+        return audioEngine.detachEffectFromSource(soundId);
+    }
+
+    bool LuaEngine::attachAudioFilter(int soundId, int filterIndex) {
+        if (!audioInitialized) return false;
+        return audioEngine.attachFilterToSource(soundId, filterIndex);
     }
 
     // Window management

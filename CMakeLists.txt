@@ -2,21 +2,35 @@ cmake_minimum_required(VERSION 3.10)
 project(BlazeBolt)
 
 if(NOT CMAKE_BUILD_TYPE)
-    set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type" FORCE)
+    set(CMAKE_BUILD_TYPE MinSizeRel CACHE STRING "Build type" FORCE)
 endif()
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED true)
 
 if(MINGW OR (CMAKE_CXX_COMPILER_ID STREQUAL "GNU"))
-    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static-libgcc -static-libstdc++ -static")
-    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -static-libgcc -static-libstdc++")
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static-libgcc -static-libstdc++ -static -s")
+    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -static-libgcc -static-libstdc++ -s")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -ffunction-sections -fdata-sections")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -ffunction-sections -fdata-sections")
 endif()
 
 add_subdirectory(libs/glfw)
 add_subdirectory(libs/glad)
 add_subdirectory(libs/freetype)
 add_subdirectory(libs/lua)
+
+set(ALSOFT_UTILS OFF CACHE BOOL "" FORCE)
+set(ALSOFT_EXAMPLES OFF CACHE BOOL "" FORCE)
+set(ALSOFT_TESTS OFF CACHE BOOL "" FORCE)
+set(ALSOFT_INSTALL OFF CACHE BOOL "" FORCE)
+set(ALSOFT_INSTALL_CONFIG OFF CACHE BOOL "" FORCE)
+set(ALSOFT_INSTALL_HRTF_DATA OFF CACHE BOOL "" FORCE)
+set(ALSOFT_INSTALL_AMBDEC_PRESETS OFF CACHE BOOL "" FORCE)
+set(ALSOFT_INSTALL_EXAMPLES OFF CACHE BOOL "" FORCE)
+set(ALSOFT_INSTALL_UTILS OFF CACHE BOOL "" FORCE)
+set(ALSOFT_UPDATE_BUILD_VERSION OFF CACHE BOOL "" FORCE)
+set(ALSOFT_DLOPEN OFF CACHE BOOL "" FORCE)
 add_subdirectory(libs/openal)
 
 if(TARGET OpenAL)
@@ -81,6 +95,10 @@ target_link_libraries(BlazeBolt PRIVATE ${BLAZEBOLT_LIBS})
 if(WIN32)
     target_link_libraries(BlazeBolt PRIVATE ws2_32)
 endif()
+    if(MINGW OR (CMAKE_CXX_COMPILER_ID STREQUAL "GNU"))
+        target_compile_options(BlazeBolt PRIVATE -flto)
+        target_link_options(BlazeBolt PRIVATE -flto -Wl,--gc-sections)
+    endif()
 add_custom_command(TARGET BlazeBolt POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory
         ${CMAKE_SOURCE_DIR}/assets/ $<TARGET_FILE_DIR:BlazeBolt>
@@ -92,6 +110,10 @@ if(WIN32)
     target_include_directories(BlazeBoltWin PRIVATE ${BLAZEBOLT_INCLUDES})
     target_link_libraries(BlazeBoltWin PRIVATE ${BLAZEBOLT_LIBS})
     target_link_libraries(BlazeBoltWin PRIVATE ws2_32)
+    if(MINGW OR (CMAKE_CXX_COMPILER_ID STREQUAL "GNU"))
+        target_compile_options(BlazeBoltWin PRIVATE -flto)
+        target_link_options(BlazeBoltWin PRIVATE -flto -Wl,--gc-sections)
+    endif()
     add_custom_command(TARGET BlazeBoltWin POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_directory
             ${CMAKE_SOURCE_DIR}/assets/ $<TARGET_FILE_DIR:BlazeBoltWin>

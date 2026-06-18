@@ -2042,6 +2042,351 @@ namespace LuaEngine {
             return 1;
         }
 
+        // Audio: pitch & looping by ID
+        static int SetSoundPitch(lua_State* state) {
+            int soundId = luaL_checkinteger(state, 1);
+            float pitch = luaL_checknumber(state, 2);
+            LuaEngine* engine = getEngine(state);
+            if (!engine) return 0;
+            engine->setSoundPitch(soundId, pitch);
+            return 0;
+        }
+
+        static int SetSoundLoopingById(lua_State* state) {
+            int soundId = luaL_checkinteger(state, 1);
+            bool loop = lua_toboolean(state, 2);
+            LuaEngine* engine = getEngine(state);
+            if (!engine) return 0;
+            engine->setSoundLooping(soundId, loop);
+            return 0;
+        }
+
+        // Audio: 3D positional
+        static int SetSoundPosition(lua_State* state) {
+            int soundId = luaL_checkinteger(state, 1);
+            float x = luaL_checknumber(state, 2);
+            float y = luaL_checknumber(state, 3);
+            float z = luaL_checknumber(state, 4);
+            LuaEngine* engine = getEngine(state);
+            if (!engine) return 0;
+            engine->setSoundPosition(soundId, x, y, z);
+            return 0;
+        }
+
+        static int SetSoundPositionByName(lua_State* state) {
+            const char* soundName = luaL_checkstring(state, 1);
+            float x = luaL_checknumber(state, 2);
+            float y = luaL_checknumber(state, 3);
+            float z = luaL_checknumber(state, 4);
+            LuaEngine* engine = getEngine(state);
+            if (!engine) return 0;
+            engine->setSoundPositionByName(soundName, x, y, z);
+            return 0;
+        }
+
+        static int GetSoundPosition(lua_State* state) {
+            int soundId = luaL_checkinteger(state, 1);
+            LuaEngine* engine = getEngine(state);
+            float x = 0, y = 0, z = 0;
+            if (engine) engine->getSoundPosition(soundId, x, y, z);
+            lua_pushnumber(state, x);
+            lua_pushnumber(state, y);
+            lua_pushnumber(state, z);
+            return 3;
+        }
+
+        static int SetSoundVelocity(lua_State* state) {
+            int soundId = luaL_checkinteger(state, 1);
+            float x = luaL_checknumber(state, 2);
+            float y = luaL_checknumber(state, 3);
+            float z = luaL_checknumber(state, 4);
+            LuaEngine* engine = getEngine(state);
+            if (!engine) return 0;
+            engine->setSoundVelocity(soundId, x, y, z);
+            return 0;
+        }
+
+        static int SetSoundRolloff(lua_State* state) {
+            int soundId = luaL_checkinteger(state, 1);
+            float rolloff = luaL_checknumber(state, 2);
+            LuaEngine* engine = getEngine(state);
+            if (!engine) return 0;
+            engine->setSoundRolloff(soundId, rolloff);
+            return 0;
+        }
+
+        static int SetSoundReferenceDistance(lua_State* state) {
+            int soundId = luaL_checkinteger(state, 1);
+            float dist = luaL_checknumber(state, 2);
+            LuaEngine* engine = getEngine(state);
+            if (!engine) return 0;
+            engine->setSoundReferenceDistance(soundId, dist);
+            return 0;
+        }
+
+        static int SetSoundMaxDistance(lua_State* state) {
+            int soundId = luaL_checkinteger(state, 1);
+            float dist = luaL_checknumber(state, 2);
+            LuaEngine* engine = getEngine(state);
+            if (!engine) return 0;
+            engine->setSoundMaxDistance(soundId, dist);
+            return 0;
+        }
+
+        static int SetSoundSpatial(lua_State* state) {
+            int soundId = luaL_checkinteger(state, 1);
+            bool spatial = lua_toboolean(state, 2);
+            LuaEngine* engine = getEngine(state);
+            if (!engine) return 0;
+            engine->setSoundSpatial(soundId, spatial);
+            return 0;
+        }
+
+        static int SetSoundCone(lua_State* state) {
+            int soundId = luaL_checkinteger(state, 1);
+            float inner = luaL_checknumber(state, 2);
+            float outer = luaL_checknumber(state, 3);
+            float gain = luaL_checknumber(state, 4);
+            LuaEngine* engine = getEngine(state);
+            if (!engine) return 0;
+            engine->setSoundCone(soundId, inner, outer, gain);
+            return 0;
+        }
+
+        static int SetSoundDirection(lua_State* state) {
+            int soundId = luaL_checkinteger(state, 1);
+            float x = luaL_checknumber(state, 2);
+            float y = luaL_checknumber(state, 3);
+            float z = luaL_checknumber(state, 4);
+            LuaEngine* engine = getEngine(state);
+            if (!engine) return 0;
+            engine->setSoundDirection(soundId, x, y, z);
+            return 0;
+        }
+
+        // Listener
+        static int SetListenerPosition(lua_State* state) {
+            float x = luaL_checknumber(state, 1);
+            float y = luaL_checknumber(state, 2);
+            float z = luaL_checknumber(state, 3);
+            LuaEngine* engine = getEngine(state);
+            if (!engine) return 0;
+            engine->setListenerPosition(x, y, z);
+            return 0;
+        }
+
+        static int GetListenerPosition(lua_State* state) {
+            LuaEngine* engine = getEngine(state);
+            float x = 0, y = 0, z = 0;
+            if (engine) engine->getListenerPosition(x, y, z);
+            lua_pushnumber(state, x);
+            lua_pushnumber(state, y);
+            lua_pushnumber(state, z);
+            return 3;
+        }
+
+        static int SetListenerVelocity(lua_State* state) {
+            float x = luaL_checknumber(state, 1);
+            float y = luaL_checknumber(state, 2);
+            float z = luaL_checknumber(state, 3);
+            LuaEngine* engine = getEngine(state);
+            if (!engine) return 0;
+            engine->setListenerVelocity(x, y, z);
+            return 0;
+        }
+
+        static int SetListenerOrientation(lua_State* state) {
+            float fx = luaL_checknumber(state, 1);
+            float fy = luaL_checknumber(state, 2);
+            float fz = luaL_checknumber(state, 3);
+            float ux = luaL_checknumber(state, 4);
+            float uy = luaL_checknumber(state, 5);
+            float uz = luaL_checknumber(state, 6);
+            LuaEngine* engine = getEngine(state);
+            if (!engine) return 0;
+            engine->setListenerOrientation(fx, fy, fz, ux, uy, uz);
+            return 0;
+        }
+
+        static int SetListenerGain(lua_State* state) {
+            float gain = luaL_checknumber(state, 1);
+            LuaEngine* engine = getEngine(state);
+            if (!engine) return 0;
+            engine->setListenerGain(gain);
+            return 0;
+        }
+
+        // EFX Effects
+        static int CreateAudioEffect(lua_State* state) {
+            LuaEngine* engine = getEngine(state);
+            int id = engine ? engine->createAudioEffect() : -1;
+            lua_pushinteger(state, id);
+            return 1;
+        }
+
+        static int DestroyAudioEffect(lua_State* state) {
+            int idx = luaL_checkinteger(state, 1);
+            LuaEngine* engine = getEngine(state);
+            if (engine) engine->destroyAudioEffect(idx);
+            return 0;
+        }
+
+        static int SetAudioEffectType(lua_State* state) {
+            int idx = luaL_checkinteger(state, 1);
+            int type = luaL_checkinteger(state, 2);
+            LuaEngine* engine = getEngine(state);
+            bool ok = engine ? engine->setAudioEffectType(idx, type) : false;
+            lua_pushboolean(state, ok);
+            return 1;
+        }
+
+        static int SetAudioEffectf(lua_State* state) {
+            int idx = luaL_checkinteger(state, 1);
+            int param = luaL_checkinteger(state, 2);
+            float value = luaL_checknumber(state, 3);
+            LuaEngine* engine = getEngine(state);
+            bool ok = engine ? engine->setAudioEffectf(idx, param, value) : false;
+            lua_pushboolean(state, ok);
+            return 1;
+        }
+
+        static int SetAudioEffecti(lua_State* state) {
+            int idx = luaL_checkinteger(state, 1);
+            int param = luaL_checkinteger(state, 2);
+            int value = luaL_checkinteger(state, 3);
+            LuaEngine* engine = getEngine(state);
+            bool ok = engine ? engine->setAudioEffecti(idx, param, value) : false;
+            lua_pushboolean(state, ok);
+            return 1;
+        }
+
+        static int GetAudioEffectf(lua_State* state) {
+            int idx = luaL_checkinteger(state, 1);
+            int param = luaL_checkinteger(state, 2);
+            LuaEngine* engine = getEngine(state);
+            float val = engine ? engine->getAudioEffectf(idx, param) : 0;
+            lua_pushnumber(state, val);
+            return 1;
+        }
+
+        static int GetAudioEffecti(lua_State* state) {
+            int idx = luaL_checkinteger(state, 1);
+            int param = luaL_checkinteger(state, 2);
+            LuaEngine* engine = getEngine(state);
+            int val = engine ? engine->getAudioEffecti(idx, param) : 0;
+            lua_pushinteger(state, val);
+            return 1;
+        }
+
+        static int GetAudioEfxSupported(lua_State* state) {
+            LuaEngine* engine = getEngine(state);
+            bool ok = engine ? engine->getAudioEfxSupported() : false;
+            lua_pushboolean(state, ok);
+            return 1;
+        }
+
+        // EFX Filters
+        static int CreateAudioFilter(lua_State* state) {
+            LuaEngine* engine = getEngine(state);
+            int id = engine ? engine->createAudioFilter() : -1;
+            lua_pushinteger(state, id);
+            return 1;
+        }
+
+        static int DestroyAudioFilter(lua_State* state) {
+            int idx = luaL_checkinteger(state, 1);
+            LuaEngine* engine = getEngine(state);
+            if (engine) engine->destroyAudioFilter(idx);
+            return 0;
+        }
+
+        static int SetAudioFilterType(lua_State* state) {
+            int idx = luaL_checkinteger(state, 1);
+            int type = luaL_checkinteger(state, 2);
+            LuaEngine* engine = getEngine(state);
+            bool ok = engine ? engine->setAudioFilterType(idx, type) : false;
+            lua_pushboolean(state, ok);
+            return 1;
+        }
+
+        static int SetAudioFilterf(lua_State* state) {
+            int idx = luaL_checkinteger(state, 1);
+            int param = luaL_checkinteger(state, 2);
+            float value = luaL_checknumber(state, 3);
+            LuaEngine* engine = getEngine(state);
+            bool ok = engine ? engine->setAudioFilterf(idx, param, value) : false;
+            lua_pushboolean(state, ok);
+            return 1;
+        }
+
+        // EFX Effect Slots
+        static int CreateAudioEffectSlot(lua_State* state) {
+            LuaEngine* engine = getEngine(state);
+            int id = engine ? engine->createAudioEffectSlot() : -1;
+            lua_pushinteger(state, id);
+            return 1;
+        }
+
+        static int DestroyAudioEffectSlot(lua_State* state) {
+            int idx = luaL_checkinteger(state, 1);
+            LuaEngine* engine = getEngine(state);
+            if (engine) engine->destroyAudioEffectSlot(idx);
+            return 0;
+        }
+
+        static int SetAudioEffectSlotEffect(lua_State* state) {
+            int slotIdx = luaL_checkinteger(state, 1);
+            int effectIdx = luaL_checkinteger(state, 2);
+            LuaEngine* engine = getEngine(state);
+            bool ok = engine ? engine->setAudioEffectSlotEffect(slotIdx, effectIdx) : false;
+            lua_pushboolean(state, ok);
+            return 1;
+        }
+
+        static int ClearAudioEffectSlotEffect(lua_State* state) {
+            int idx = luaL_checkinteger(state, 1);
+            LuaEngine* engine = getEngine(state);
+            bool ok = engine ? engine->clearAudioEffectSlotEffect(idx) : false;
+            lua_pushboolean(state, ok);
+            return 1;
+        }
+
+        static int SetAudioEffectSlotGain(lua_State* state) {
+            int idx = luaL_checkinteger(state, 1);
+            float gain = luaL_checknumber(state, 2);
+            LuaEngine* engine = getEngine(state);
+            bool ok = engine ? engine->setAudioEffectSlotGain(idx, gain) : false;
+            lua_pushboolean(state, ok);
+            return 1;
+        }
+
+        // Linking
+        static int AttachAudioEffect(lua_State* state) {
+            int soundId = luaL_checkinteger(state, 1);
+            int slotIdx = luaL_checkinteger(state, 2);
+            LuaEngine* engine = getEngine(state);
+            bool ok = engine ? engine->attachAudioEffect(soundId, slotIdx) : false;
+            lua_pushboolean(state, ok);
+            return 1;
+        }
+
+        static int DetachAudioEffect(lua_State* state) {
+            int soundId = luaL_checkinteger(state, 1);
+            LuaEngine* engine = getEngine(state);
+            bool ok = engine ? engine->detachAudioEffect(soundId) : false;
+            lua_pushboolean(state, ok);
+            return 1;
+        }
+
+        static int AttachAudioFilter(lua_State* state) {
+            int soundId = luaL_checkinteger(state, 1);
+            int filterIdx = luaL_checkinteger(state, 2);
+            LuaEngine* engine = getEngine(state);
+            bool ok = engine ? engine->attachAudioFilter(soundId, filterIdx) : false;
+            lua_pushboolean(state, ok);
+            return 1;
+        }
+
         // Window management
         static int CreateWindow(lua_State* state) {
             int width = luaL_checkinteger(state, 1);

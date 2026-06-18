@@ -1,6 +1,6 @@
 # BlazeBolt Engine — Lua API Reference
 
-> **Version:** 1.0  
+> **Version:** 1.1  
 > **Lua version:** 5.4  
 > **Engine:** BlazeBolt Game Engine
 
