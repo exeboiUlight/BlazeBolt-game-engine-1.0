@@ -12,6 +12,7 @@
 
 #include "hub.hpp"
 #include "editor.hpp"
+#include "title_bar.hpp"
 
 #include <cstdio>
 #include <cstdlib>
@@ -41,6 +42,8 @@ int main(int argc, char** argv) {
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_COMPAT_PROFILE);
+    glfwWindowHint(GLFW_DECORATED, GLFW_FALSE);
+    glfwWindowHint(GLFW_MAXIMIZED, GLFW_TRUE);
 #ifdef __APPLE__
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 #endif
@@ -49,6 +52,8 @@ int main(int argc, char** argv) {
     if (!window) { glfwTerminate(); return 1; }
     glfwMakeContextCurrent(window);
     glfwSwapInterval(1);
+
+    GetTitleBar().Init(window);
 
     if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
         fprintf(stderr, "Failed to initialize GLAD\n");
@@ -111,6 +116,7 @@ int main(int argc, char** argv) {
         glClear(GL_COLOR_BUFFER_BIT);
 
         if (state == STATE_HUB) {
+            GetTitleBar().Render("BlazeBolt Engine");
             hub.Render();
             if (hub.ShouldOpenEditor()) {
                 editor.OpenProject(hub.GetSelectedProjectPath());
@@ -118,6 +124,7 @@ int main(int argc, char** argv) {
                 hub.ResetOpenFlag();
             }
         } else if (state == STATE_EDITOR) {
+            GetTitleBar().Render("BlazeBolt Editor");
             editor.Render();
             if (editor.ShouldReturnToHub()) {
                 state = STATE_HUB;

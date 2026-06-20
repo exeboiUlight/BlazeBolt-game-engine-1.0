@@ -1,4 +1,5 @@
 #include "hub.hpp"
+#include "title_bar.hpp"
 #include "stb_image.h"
 #include <glad/glad.h>
 #include <cstdio>
@@ -284,9 +285,11 @@ void Hub::Render() {
     hub_style.WindowBorderSize = 0.0f;
     hub_style.FrameBorderSize = 0.0f;
 
+    float title_bar_h = GetTitleBar().GetHeight();
+
     const ImGuiViewport* vp = ImGui::GetMainViewport();
-    ImGui::SetNextWindowPos(vp->WorkPos);
-    ImGui::SetNextWindowSize(vp->WorkSize);
+    ImGui::SetNextWindowPos(ImVec2(vp->Pos.x, vp->Pos.y + title_bar_h));
+    ImGui::SetNextWindowSize(ImVec2(vp->Size.x, vp->Size.y - title_bar_h));
 
     ImGuiWindowFlags flags = ImGuiWindowFlags_NoDecoration
         | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize
@@ -507,10 +510,14 @@ void Hub::Render() {
 
         ImGui::Spacing();
         ImGui::Text("Location:");
-        ImGui::SetNextItemWidth(-1);
+
+        float browse_w = 80.0f;
+        float spacing = ImGui::GetStyle().ItemSpacing.x;
+        float input_w = ImGui::GetContentRegionAvail().x - browse_w - spacing;
+        ImGui::SetNextItemWidth(input_w);
         ImGui::InputText("##path", m_new_path, sizeof(m_new_path));
         ImGui::SameLine();
-        if (ImGui::Button("Browse...")) {
+        if (ImGui::Button("Browse...", ImVec2(browse_w, 0))) {
 #ifdef PLATFORM_WINDOWS
             // Simple folder selection via PowerShell
             FILE* f = POPEN("powershell -NoProfile -Command \"(New-Object -ComObject Shell.Application).BrowseForFolder(0,'Select Folder',0).Path\"", "r");

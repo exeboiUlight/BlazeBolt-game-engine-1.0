@@ -1,4 +1,5 @@
 #include "editor.hpp"
+#include "title_bar.hpp"
 #include "node_editor.hpp"
 #include "stb_image.h"
 #include "stb_image_write.h"
@@ -442,9 +443,11 @@ void Editor::SaveTheme() {
 void Editor::Render() {
     ApplyTheme(m_current_theme);
 
+    float title_bar_h = GetTitleBar().GetHeight();
+
     const ImGuiViewport* vp = ImGui::GetMainViewport();
-    ImGui::SetNextWindowPos(vp->WorkPos);
-    ImGui::SetNextWindowSize(vp->WorkSize);
+    ImGui::SetNextWindowPos(ImVec2(vp->Pos.x, vp->Pos.y + title_bar_h));
+    ImGui::SetNextWindowSize(ImVec2(vp->Size.x, vp->Size.y - title_bar_h));
 
     ImGuiWindowFlags flags = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove
         | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus;
