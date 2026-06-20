@@ -555,6 +555,26 @@ void Editor::RenderToolBar() {
 // ======================== SIDE PANEL / FILE MANAGER ========================
 
 void Editor::RenderSidePanel() {
+    bool is_node_graph = false;
+    if (m_active_tab >= 0 && m_active_tab < (int)m_tabs.size()) {
+        is_node_graph = (m_tabs[m_active_tab].type == EditorTabType::NodeGraph);
+    }
+
+    if (is_node_graph) {
+        ImGui::TextColored(ImVec4(0.85f, 0.85f, 0.90f, 1.0f), "Nodes");
+        ImGui::Separator();
+
+        auto& tab = m_tabs[m_active_tab];
+        if (tab.node_editor) {
+            ImGui::BeginChild("##NodePaletteSection", ImVec2(0, ImGui::GetContentRegionAvail().y * 0.55f), ImGuiChildFlags_Borders);
+            tab.node_editor->RenderPalettePanel();
+            ImGui::EndChild();
+
+            ImGui::Dummy(ImVec2(0, 6));
+            ImGui::Separator();
+        }
+    }
+
     ImGui::TextColored(ImVec4(0.85f, 0.85f, 0.90f, 1.0f), "Files");
     ImGui::Separator();
 

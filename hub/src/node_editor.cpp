@@ -8,64 +8,74 @@
 #include <set>
 #include <queue>
 
-static inline ImU32 ClampByte(int v) { return (ImU32)(v < 0 ? 0 : (v > 255 ? 255 : v)); }
+namespace ed = ax::NodeEditor;
 
-static const float NODE_RADIUS = 6.0f;
-static const float NODE_HEADER_HEIGHT = 24.0f;
-static const float NODE_PIN_SPACING = 20.0f;
-static const float NODE_PADDING = 8.0f;
-static const float NODE_MIN_WIDTH = 140.0f;
-static const float NODE_INLINE_HEIGHT = 22.0f;
+static inline ed::NodeId MakeNodeId(int id) {
+    return ed::NodeId(reinterpret_cast<void*>(static_cast<intptr_t>(id)));
+}
+
+static inline ed::PinId MakePinId(int id) {
+    return ed::PinId(reinterpret_cast<void*>(static_cast<intptr_t>(id)));
+}
+
+static inline ed::LinkId MakeLinkId(int id) {
+    return ed::LinkId(reinterpret_cast<void*>(static_cast<intptr_t>(id)));
+}
+
+static inline int IdFromPointer(void* ptr) {
+    return static_cast<int>(reinterpret_cast<intptr_t>(ptr));
+}
+
+static const float NODE_HEADER_HEIGHT = 26.0f;
+static const float NODE_PIN_SPACING   = 22.0f;
+static const float NODE_PADDING       = 8.0f;
+static const float NODE_MIN_WIDTH     = 150.0f;
+static const float NODE_INLINE_HEIGHT = 24.0f;
+
+int NodeEditor::s_next_node_id = 1;
+
+int NodeEditor::GenerateNodeId() {
+    return s_next_node_id++;
+}
+
+// ============================================================================
+// Construction / Destruction
+// ============================================================================
 
 NodeEditor::NodeEditor() {
-    m_state.offset = ImVec2(400, 300);
-    m_state.zoom = 1.0f;
+    ed::Config config;
+    config.SettingsFile = nullptr;
+    m_context = ed::CreateEditor(&config);
 }
 
-NodeEditor::~NodeEditor() {}
+NodeEditor::~NodeEditor() {
+    if (m_context) {
+        ed::DestroyEditor(m_context);
+        m_context = nullptr;
+    }
+}
 
 void NodeEditor::Clear() {
-    m_state.nodes.clear();
-    m_state.connections.clear();
-    m_state.selected_nodes.clear();
-    m_state.selected_node_id = -1;
-    m_state.hovered_node_id = -1;
-    m_state.dragging_node_id = -1;
-    m_state.is_connecting = false;
-    m_state.is_panning = false;
-    m_state.is_selecting = false;
-    m_state.modified = false;
-    m_state.current_file_path.clear();
+    m_nodes.clear();
+    m_connections.clear();
+    m_selected_nodes.clear();
+    m_modified = false;
+    m_current_file_path.clear();
+    if (m_context) {
+        ed::DestroyEditor(m_context);
+        ed::Config config;
+        config.SettingsFile = nullptr;
+        m_context = ed::CreateEditor(&config);
+    }
 }
 
 // ============================================================================
-// Coordinate conversion
-// ============================================================================
-
-ImVec2 NodeEditor::ScreenToCanvas(ImVec2 screen_pos) {
-    ImVec2 origin = m_state.canvas_pos_cache;
-    return ImVec2(
-        (screen_pos.x - origin.x - m_state.offset.x) / m_state.zoom,
-        (screen_pos.y - origin.y - m_state.offset.y) / m_state.zoom
-    );
-}
-
-ImVec2 NodeEditor::CanvasToScreen(ImVec2 canvas_pos) {
-    ImVec2 origin = m_state.canvas_pos_cache;
-    return ImVec2(
-        canvas_pos.x * m_state.zoom + m_state.offset.x + origin.x,
-        canvas_pos.y * m_state.zoom + m_state.offset.y + origin.y
-    );
-}
-
-// ============================================================================
-// Lookup helpers
+// Helpers
 // ============================================================================
 
 NodeInstance* NodeEditor::FindNode(int node_id) {
-    for (auto& n : m_state.nodes) {
+    for (auto& n : m_nodes)
         if (n.id == node_id) return &n;
-    }
     return nullptr;
 }
 
@@ -74,11 +84,9 @@ const NodeTypeDef* NodeEditor::GetTypeDef(const NodeInstance& node) {
 }
 
 int NodeEditor::FindConnectedNode(int node_id, int pin_index) {
-    for (auto& c : m_state.connections) {
-        if (c.to_node_id == node_id && c.to_pin_index == pin_index) {
+    for (auto& c : m_connections)
+        if (c.to_node_id == node_id && c.to_pin_index == pin_index)
             return c.from_node_id;
-        }
-    }
     return -1;
 }
 
@@ -86,22 +94,18 @@ bool NodeEditor::HasInputConnection(int node_id, int pin_index) {
     return FindConnectedNode(node_id, pin_index) != -1;
 }
 
-// ============================================================================
-// Pin / category colors
-// ============================================================================
-
 ImU32 NodeEditor::GetPinColor(PinType type) {
     switch (type) {
         case PinType::Flow:    return IM_COL32(255, 255, 255, 255);
-        case PinType::Number:  return IM_COL32(100, 200, 100, 255);
-        case PinType::Integer: return IM_COL32(100, 180, 100, 255);
-        case PinType::String:  return IM_COL32(200, 200, 100, 255);
-        case PinType::Bool:    return IM_COL32(200, 80, 80, 255);
-        case PinType::Entity:  return IM_COL32(80, 200, 200, 255);
-        case PinType::Table:   return IM_COL32(180, 120, 200, 255);
-        case PinType::Vector2: return IM_COL32(100, 180, 220, 255);
-        case PinType::Vector3: return IM_COL32(100, 160, 220, 255);
-        case PinType::Any:     return IM_COL32(150, 150, 150, 255);
+        case PinType::Number:  return IM_COL32(80, 200, 120, 255);
+        case PinType::Integer: return IM_COL32(80, 180, 120, 255);
+        case PinType::String:  return IM_COL32(220, 200, 80, 255);
+        case PinType::Bool:    return IM_COL32(220, 60, 60, 255);
+        case PinType::Entity:  return IM_COL32(80, 200, 220, 255);
+        case PinType::Table:   return IM_COL32(180, 100, 220, 255);
+        case PinType::Vector2: return IM_COL32(80, 180, 240, 255);
+        case PinType::Vector3: return IM_COL32(80, 160, 240, 255);
+        case PinType::Any:     return IM_COL32(160, 160, 160, 255);
         default:               return IM_COL32(128, 128, 128, 255);
     }
 }
@@ -111,27 +115,20 @@ ImU32 NodeEditor::GetCategoryHeaderColor(NodeCategory cat) {
     return IM_COL32(c.Value.x * 255, c.Value.y * 255, c.Value.z * 255, 255);
 }
 
-// ============================================================================
-// Node sizing & pin positions
-// ============================================================================
-
 void NodeEditor::ComputeNodeSize(NodeInstance& node) {
     const NodeTypeDef* def = GetTypeDef(node);
     if (!def) return;
 
     float max_pins = (float)std::max(def->inputs.size(), def->outputs.size());
-    float height = NODE_HEADER_HEIGHT + NODE_PADDING + max_pins * NODE_PIN_SPACING + NODE_PADDING;
-    if (def->has_inline) {
+    float height = NODE_HEADER_HEIGHT + NODE_PADDING * 2 + max_pins * NODE_PIN_SPACING;
+    if (def->has_inline)
         height += NODE_INLINE_HEIGHT + NODE_PADDING;
-    }
 
     ImGui::PushFont(nullptr);
     float name_width = ImGui::CalcTextSize(def->name).x;
     ImGui::PopFont();
 
-    float width = NODE_MIN_WIDTH;
-    width = std::max(width, name_width + NODE_PADDING * 2 + 20.0f);
-
+    float width = std::max(NODE_MIN_WIDTH, name_width + NODE_PADDING * 2 + 20.0f);
     node.size = ImVec2(width, height);
 }
 
@@ -142,15 +139,13 @@ void NodeEditor::ComputePinPositions(NodeInstance& node) {
     node.input_pins.clear();
     node.output_pins.clear();
 
-    float y_start = NODE_HEADER_HEIGHT + NODE_PADDING;
-
     for (size_t i = 0; i < def->inputs.size(); i++) {
         NodePin pin;
         pin.id = node.id * 100 + (int)i;
         pin.name = def->inputs[i].name;
         pin.type = def->inputs[i].type;
         pin.is_input = true;
-        pin.position = ImVec2(0.0f, y_start + i * NODE_PIN_SPACING);
+        pin.position = ImVec2(0.0f, NODE_HEADER_HEIGHT + NODE_PADDING + i * NODE_PIN_SPACING);
         node.input_pins.push_back(pin);
     }
 
@@ -160,491 +155,355 @@ void NodeEditor::ComputePinPositions(NodeInstance& node) {
         pin.name = def->outputs[i].name;
         pin.type = def->outputs[i].type;
         pin.is_input = false;
-        pin.position = ImVec2(node.size.x, y_start + i * NODE_PIN_SPACING);
+        pin.position = ImVec2(node.size.x, NODE_HEADER_HEIGHT + NODE_PADDING + i * NODE_PIN_SPACING);
         node.output_pins.push_back(pin);
     }
 }
 
-ImVec2 NodeEditor::GetPinPosition(const NodeInstance& node, int pin_index, bool is_input) {
-    ImVec2 abs_pos = ImVec2(node.position.x + (is_input ? 0.0f : node.size.x),
-                             node.position.y + NODE_HEADER_HEIGHT + NODE_PADDING + pin_index * NODE_PIN_SPACING);
-    return abs_pos;
-}
-
 // ============================================================================
-// Canvas rendering
+// Main render
 // ============================================================================
 
 void NodeEditor::Render(EditorTab& tab) {
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
-    ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 0.0f);
+    if (!m_context) return;
 
-    ImGui::BeginChild("##NodeCanvas", ImVec2(0, 0), ImGuiChildFlags_None,
-        ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoMove);
+    ImGui::BeginChild("##NodeCanvas", ImVec2(0, 0), ImGuiChildFlags_None, ImGuiWindowFlags_NoScrollbar);
 
-    ImVec2 canvas_pos = ImGui::GetCursorScreenPos();
-    ImVec2 canvas_size = ImGui::GetContentRegionAvail();
-    ImDrawList* draw_list = ImGui::GetWindowDrawList();
+    ed::SetCurrentEditor(m_context);
+    ed::Begin("NodeEditor");
 
-    m_state.canvas_pos_cache = canvas_pos;
+    // ----------------------------------------------------------------
+    //  Configure the editor style (safe to call each frame)
+    // ----------------------------------------------------------------
+    {
+        auto& style = ed::GetStyle();
+        style.NodeRounding             = 6.0f;
+        style.NodeBorderWidth          = 1.0f;
+        style.HoveredNodeBorderWidth   = 2.0f;
+        style.SelectedNodeBorderWidth  = 2.5f;
+        style.SelectedNodeBorderOffset = 0.0f;
+        style.HoverNodeBorderOffset    = 0.0f;
+        style.PinRounding              = 0.0f;
+        style.PinBorderWidth           = 0.0f;
+        style.LinkStrength             = 100.0f;
+        style.SourceDirection          = ImVec2(1.0f, 0.0f);
+        style.TargetDirection          = ImVec2(-1.0f, 0.0f);
+        style.FlowSpeed                = 200.0f;
+        style.FlowDuration             = 2.0f;
+        style.FlowMarkerDistance       = 30.0f;
+        style.HighlightConnectedLinks  = 1.0f;
+        style.SnapLinkToPinDir         = 1.0f;
 
-    draw_list->AddRectFilled(canvas_pos, ImVec2(canvas_pos.x + canvas_size.x, canvas_pos.y + canvas_size.y),
-                             IM_COL32(22, 22, 28, 255));
-
-    RenderGrid(draw_list, canvas_pos, canvas_size);
-    RenderConnections(draw_list);
-    RenderNodes(draw_list);
-
-    if (m_state.is_connecting) {
-        RenderConnectionBeingCreated(draw_list);
+        style.Colors[ed::StyleColor_Bg]                = ImVec4(0.16f, 0.16f, 0.19f, 1.0f);
+        style.Colors[ed::StyleColor_Grid]              = ImVec4(0.22f, 0.22f, 0.26f, 0.50f);
+        style.Colors[ed::StyleColor_NodeBg]            = ImVec4(0.14f, 0.14f, 0.17f, 1.0f);
+        style.Colors[ed::StyleColor_NodeBorder]        = ImVec4(0.30f, 0.30f, 0.35f, 0.80f);
+        style.Colors[ed::StyleColor_HovNodeBorder]     = ImVec4(0.20f, 0.50f, 0.85f, 1.0f);
+        style.Colors[ed::StyleColor_SelNodeBorder]     = ImVec4(1.00f, 0.68f, 0.20f, 1.0f);
+        style.Colors[ed::StyleColor_NodeSelRect]       = ImVec4(0.02f, 0.50f, 1.00f, 0.25f);
+        style.Colors[ed::StyleColor_NodeSelRectBorder] = ImVec4(0.02f, 0.50f, 1.00f, 0.50f);
+        style.Colors[ed::StyleColor_HovLinkBorder]     = ImVec4(0.20f, 0.50f, 0.85f, 1.0f);
+        style.Colors[ed::StyleColor_SelLinkBorder]     = ImVec4(1.00f, 0.68f, 0.20f, 1.0f);
+        style.Colors[ed::StyleColor_Flow]              = ImVec4(1.00f, 0.50f, 0.25f, 1.0f);
+        style.Colors[ed::StyleColor_FlowMarker]        = ImVec4(1.00f, 0.50f, 0.25f, 1.0f);
+        style.Colors[ed::StyleColor_PinRect]           = ImVec4(0.24f, 0.70f, 1.00f, 0.40f);
+        style.Colors[ed::StyleColor_PinRectBorder]     = ImVec4(0.24f, 0.70f, 1.00f, 0.60f);
+        style.Colors[ed::StyleColor_GroupBg]           = ImVec4(0.0f, 0.0f, 0.0f, 0.16f);
+        style.Colors[ed::StyleColor_GroupBorder]       = ImVec4(1.0f, 1.0f, 1.0f, 0.12f);
     }
-    if (m_state.is_selecting) {
-        RenderSelectionRect(draw_list);
-    }
 
-    HandleCanvasInteraction();
-
-    RenderPalette();
-
-    ImGui::EndChild();
-    ImGui::PopStyleVar(2);
-}
-
-void NodeEditor::RenderGrid(ImDrawList* draw_list, ImVec2 canvas_pos, ImVec2 canvas_size) {
-    float grid_step = 20.0f * m_state.zoom;
-    if (grid_step < 5.0f) grid_step = 5.0f;
-
-    ImU32 grid_color = IM_COL32(35, 35, 45, 255);
-    ImU32 grid_color_bold = IM_COL32(45, 45, 60, 255);
-
-    float ox = fmodf(m_state.offset.x, grid_step);
-    float oy = fmodf(m_state.offset.y, grid_step);
-
-    for (float x = ox; x < canvas_size.x; x += grid_step) {
-        float abs_x = canvas_pos.x + x;
-        bool bold = (fmodf(x, grid_step * 5) < 1.0f || grid_step * 5.0f - fmodf(x, grid_step * 5.0f) < 1.0f);
-        draw_list->AddLine(ImVec2(abs_x, canvas_pos.y), ImVec2(abs_x, canvas_pos.y + canvas_size.y),
-                           bold ? grid_color_bold : grid_color, bold ? 1.0f : 0.5f);
-    }
-    for (float y = oy; y < canvas_size.y; y += grid_step) {
-        float abs_y = canvas_pos.y + y;
-        bool bold = (fmodf(y, grid_step * 5) < 1.0f || grid_step * 5.0f - fmodf(y, grid_step * 5.0f) < 1.0f);
-        draw_list->AddLine(ImVec2(canvas_pos.x, abs_y), ImVec2(canvas_pos.x + canvas_size.x, abs_y),
-                           bold ? grid_color_bold : grid_color, bold ? 1.0f : 0.5f);
-    }
-}
-
-// ============================================================================
-// Node rendering
-// ============================================================================
-
-void NodeEditor::RenderNodes(ImDrawList* draw_list) {
-    for (auto& node : m_state.nodes) {
+    // ----------------------------------------------------------------
+    //  Draw all nodes
+    // ----------------------------------------------------------------
+    for (auto& node : m_nodes) {
         ComputeNodeSize(node);
         ComputePinPositions(node);
-        RenderNode(draw_list, node);
-    }
-}
 
-void NodeEditor::RenderNode(ImDrawList* draw_list, NodeInstance& node) {
-    const NodeTypeDef* def = GetTypeDef(node);
-    if (!def) return;
+        const NodeTypeDef* def = GetTypeDef(node);
+        if (!def) continue;
 
-    ImVec2 screen_pos = CanvasToScreen(node.position);
-    ImVec2 screen_size = ImVec2(node.size.x * m_state.zoom, node.size.y * m_state.zoom);
+        ed::BeginNode(MakeNodeId(node.id));
+        ImGui::PushID(node.id);
 
-    bool is_selected = IsNodeSelected(node.id);
-    bool is_hovered = (m_state.hovered_node_id == node.id);
+        ImDrawList* dl = ImGui::GetWindowDrawList();
+        ImVec2 nodeOrigin = ImGui::GetCursorScreenPos();
 
-    ImU32 shadow_color = IM_COL32(0, 0, 0, 60);
-    ImVec2 shadow_offset = ImVec2(3.0f * m_state.zoom, 3.0f * m_state.zoom);
-    draw_list->AddRectFilled(
-        ImVec2(screen_pos.x + shadow_offset.x, screen_pos.y + shadow_offset.y),
-        ImVec2(screen_pos.x + screen_size.x + shadow_offset.x, screen_pos.y + screen_size.y + shadow_offset.y),
-        shadow_color, 6.0f);
+        // -- Header colored bar --
+        ImU32 rawCat = GetCategoryHeaderColor(def->category);
+        ImVec4 hdrF = ImGui::ColorConvertU32ToFloat4(rawCat);
+        hdrF.x *= 0.55f; hdrF.y *= 0.55f; hdrF.z *= 0.55f; hdrF.w = 1.0f;
+        ImU32 headerBg = ImGui::ColorConvertFloat4ToU32(hdrF);
 
-    ImU32 body_color = IM_COL32(35, 35, 42, 245);
-    ImU32 border_color = IM_COL32(65, 65, 75, 255);
-    if (is_selected) border_color = IM_COL32(80, 160, 255, 255);
-    else if (is_hovered) border_color = IM_COL32(90, 90, 110, 255);
+        ImVec2 hMin = nodeOrigin;
+        ImVec2 hMax = ImVec2(nodeOrigin.x + node.size.x, nodeOrigin.y + NODE_HEADER_HEIGHT);
+        dl->AddRectFilled(hMin, hMax, headerBg, 6.0f, ImDrawFlags_RoundCornersTop);
 
-    draw_list->AddRectFilled(screen_pos, ImVec2(screen_pos.x + screen_size.x, screen_pos.y + screen_size.y),
-                             body_color, 6.0f);
+        // -- Title (centered) --
+        ImVec2 titlePos = ImGui::GetCursorScreenPos();
+        float tw = ImGui::CalcTextSize(def->name).x;
+        ImGui::SetCursorScreenPos(ImVec2(titlePos.x + (node.size.x - tw) * 0.5f, titlePos.y + 3.0f));
+        ImGui::TextUnformatted(def->name);
+        ImGui::SetCursorScreenPos(ImVec2(nodeOrigin.x, hMax.y));
+        ImGui::Dummy(ImVec2(0, NODE_PADDING));
 
-    ImU32 header_color = GetCategoryHeaderColor(def->category);
-    ImVec2 header_end = ImVec2(screen_pos.x + screen_size.x, screen_pos.y + NODE_HEADER_HEIGHT * m_state.zoom);
+        // -- Input pins --
+        for (size_t i = 0; i < node.input_pins.size(); i++) {
+            auto& pin = node.input_pins[i];
+            ed::BeginPin(MakePinId(pin.id), ed::PinKind::Input);
 
-    draw_list->AddRectFilled(screen_pos, header_end, header_color, 6.0f, ImDrawFlags_RoundCornersTop);
-    draw_list->AddRectFilled(ImVec2(screen_pos.x, header_end.y - 6.0f), header_end, header_color, 0.0f);
+            ImVec2 cp = ImGui::GetCursorScreenPos();
+            float cy = cp.y + ImGui::GetFrameHeight() * 0.5f;
+            ImU32 col = GetPinColor(pin.type);
 
-    ImU32 header_line_color = IM_COL32(
-        ((header_color >> 0) & 0xFF) * 60 / 255,
-        ((header_color >> 8) & 0xFF) * 60 / 255,
-        ((header_color >> 16) & 0xFF) * 60 / 255, 180);
-    draw_list->AddLine(
-        ImVec2(screen_pos.x, header_end.y),
-        ImVec2(screen_pos.x + screen_size.x, header_end.y),
-        header_line_color, 1.0f);
+            dl->AddCircleFilled(ImVec2(cp.x + 5.0f, cy), 5.0f, col);
+            dl->AddCircle(ImVec2(cp.x + 5.0f, cy), 5.0f, IM_COL32(0, 0, 0, 100));
 
-    float border_thickness = is_selected ? 2.0f : 1.0f;
-    if (is_selected) {
-        ImU32 glow_color = IM_COL32(80, 160, 255, 60);
-        for (int g = 0; g < 2; g++) {
-            float expand = (float)(g + 1) * 1.5f;
-            draw_list->AddRect(
-                ImVec2(screen_pos.x - expand, screen_pos.y - expand),
-                ImVec2(screen_pos.x + screen_size.x + expand, screen_pos.y + screen_size.y + expand),
-                glow_color, 6.0f, 0, 1.0f);
-        }
-    }
-    draw_list->AddRect(screen_pos, ImVec2(screen_pos.x + screen_size.x, screen_pos.y + screen_size.y),
-                       border_color, 6.0f, 0, border_thickness);
+            ImGui::Dummy(ImVec2(14.0f, 0));
+            ImGui::SameLine();
 
-    ImVec2 text_pos = ImVec2(screen_pos.x + NODE_PADDING * m_state.zoom, screen_pos.y + 5.0f * m_state.zoom);
-    draw_list->AddText(text_pos, IM_COL32(255, 255, 255, 255), def->name);
+            ImVec4 tc = ImGui::ColorConvertU32ToFloat4(col);
+            tc.w = 1.0f;
+            ImGui::PushStyleColor(ImGuiCol_Text, tc);
+            ImGui::TextUnformatted(pin.name.c_str());
+            ImGui::PopStyleColor();
 
-    ImVec2 mouse = ImGui::GetIO().MousePos;
-    float pin_base_radius = NODE_RADIUS * m_state.zoom;
-    float pin_hover_radius = pin_base_radius + 3.0f * m_state.zoom;
-
-    for (size_t i = 0; i < node.input_pins.size(); i++) {
-        ImVec2 pin_canvas = ImVec2(node.position.x, node.position.y + NODE_HEADER_HEIGHT + NODE_PADDING + i * NODE_PIN_SPACING);
-        ImVec2 pin_screen = CanvasToScreen(pin_canvas);
-        ImU32 pin_color = GetPinColor(node.input_pins[i].type);
-
-        float dist_to_mouse = std::sqrtf(
-            (mouse.x - pin_screen.x) * (mouse.x - pin_screen.x) +
-            (mouse.y - pin_screen.y) * (mouse.y - pin_screen.y));
-        bool pin_hovered = dist_to_mouse < pin_hover_radius + 4.0f;
-
-        if (pin_hovered) {
-            ImU32 glow = IM_COL32(
-                (pin_color >> 0) & 0xFF,
-                (pin_color >> 8) & 0xFF,
-                (pin_color >> 16) & 0xFF, 80);
-            draw_list->AddCircleFilled(pin_screen, pin_hover_radius + 4.0f, glow);
-            draw_list->AddCircleFilled(pin_screen, pin_hover_radius + 2.0f, IM_COL32(
-                (pin_color >> 0) & 0xFF,
-                (pin_color >> 8) & 0xFF,
-                (pin_color >> 16) & 0xFF, 160));
+            ed::EndPin();
         }
 
-        draw_list->AddCircleFilled(pin_screen, pin_base_radius, pin_color);
-        draw_list->AddCircle(pin_screen, pin_base_radius, IM_COL32(0, 0, 0, 180), 0, 1.5f);
+        // -- Inline editor --
+        if (def->has_inline) {
+            ImGui::Dummy(ImVec2(14.0f, 0));
+            ImGui::SameLine();
+            auto& value_ref = node.pin_values[-1];
 
-        ImU32 highlight = IM_COL32(
-            ClampByte(((pin_color >> 0) & 0xFF) + 80),
-            ClampByte(((pin_color >> 8) & 0xFF) + 80),
-            ClampByte(((pin_color >> 16) & 0xFF) + 80), 120);
-        draw_list->AddCircleFilled(
-            ImVec2(pin_screen.x - pin_base_radius * 0.3f, pin_screen.y - pin_base_radius * 0.3f),
-            pin_base_radius * 0.35f, highlight);
-
-        ImVec2 label_pos = ImVec2(pin_screen.x + pin_base_radius + 5.0f, pin_screen.y - 6.0f * m_state.zoom);
-        draw_list->AddText(label_pos, IM_COL32(210, 210, 215, 255), node.input_pins[i].name.c_str());
-    }
-
-    for (size_t i = 0; i < node.output_pins.size(); i++) {
-        ImVec2 pin_canvas = ImVec2(node.position.x + node.size.x,
-                                   node.position.y + NODE_HEADER_HEIGHT + NODE_PADDING + i * NODE_PIN_SPACING);
-        ImVec2 pin_screen = CanvasToScreen(pin_canvas);
-        ImU32 pin_color = GetPinColor(node.output_pins[i].type);
-
-        float dist_to_mouse = std::sqrtf(
-            (mouse.x - pin_screen.x) * (mouse.x - pin_screen.x) +
-            (mouse.y - pin_screen.y) * (mouse.y - pin_screen.y));
-        bool pin_hovered = dist_to_mouse < pin_hover_radius + 4.0f;
-
-        if (pin_hovered) {
-            ImU32 glow = IM_COL32(
-                (pin_color >> 0) & 0xFF,
-                (pin_color >> 8) & 0xFF,
-                (pin_color >> 16) & 0xFF, 80);
-            draw_list->AddCircleFilled(pin_screen, pin_hover_radius + 4.0f, glow);
-            draw_list->AddCircleFilled(pin_screen, pin_hover_radius + 2.0f, IM_COL32(
-                (pin_color >> 0) & 0xFF,
-                (pin_color >> 8) & 0xFF,
-                (pin_color >> 16) & 0xFF, 160));
-        }
-
-        draw_list->AddCircleFilled(pin_screen, pin_base_radius, pin_color);
-        draw_list->AddCircle(pin_screen, pin_base_radius, IM_COL32(0, 0, 0, 180), 0, 1.5f);
-
-        ImU32 highlight = IM_COL32(
-            ClampByte(((pin_color >> 0) & 0xFF) + 80),
-            ClampByte(((pin_color >> 8) & 0xFF) + 80),
-            ClampByte(((pin_color >> 16) & 0xFF) + 80), 120);
-        draw_list->AddCircleFilled(
-            ImVec2(pin_screen.x - pin_base_radius * 0.3f, pin_screen.y - pin_base_radius * 0.3f),
-            pin_base_radius * 0.35f, highlight);
-
-        ImVec2 label_pos = ImVec2(pin_screen.x - pin_base_radius - 5.0f, pin_screen.y - 6.0f * m_state.zoom);
-        ImVec2 text_size = ImGui::CalcTextSize(node.output_pins[i].name.c_str());
-        draw_list->AddText(ImVec2(label_pos.x - text_size.x, label_pos.y), IM_COL32(210, 210, 215, 255),
-                           node.output_pins[i].name.c_str());
-    }
-
-    if (def->has_inline) {
-        RenderInlineEditor(node);
-    }
-}
-
-void NodeEditor::RenderInlineEditor(NodeInstance& node) {
-    const NodeTypeDef* def = GetTypeDef(node);
-    if (!def || !def->has_inline) return;
-
-    ImVec2 screen_pos = CanvasToScreen(node.position);
-    ImVec2 screen_size = ImVec2(node.size.x * m_state.zoom, node.size.y * m_state.zoom);
-
-    float inline_y = screen_pos.y + (NODE_HEADER_HEIGHT + NODE_PADDING + node.input_pins.size() * NODE_PIN_SPACING + NODE_PADDING * 0.5f) * m_state.zoom;
-    float inline_x = screen_pos.x + NODE_PADDING * m_state.zoom;
-    float inline_w = screen_size.x - NODE_PADDING * 2.0f * m_state.zoom;
-    float inline_h = NODE_INLINE_HEIGHT * m_state.zoom;
-
-    std::string label = "##inline_" + std::to_string(node.id);
-    std::string& val = m_state.nodes[0].pin_values[0];
-
-    auto it = m_state.nodes.begin();
-    while (it != m_state.nodes.end()) {
-        if (it->id == node.id) break;
-        ++it;
-    }
-    if (it == m_state.nodes.end()) return;
-
-    std::string& value_ref = it->pin_values[-1];
-    if (it->pin_values.find(-1) == it->pin_values.end()) {
-        it->pin_values[-1] = "";
-    }
-
-    ImGui::SetCursorScreenPos(ImVec2(inline_x, inline_y));
-
-    ImGui::PushItemWidth(inline_w);
-    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(4.0f * m_state.zoom, 2.0f * m_state.zoom));
-    ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 3.0f);
-
-    ImGui::PushID(node.id);
-
-    switch (def->inline_type) {
-        case PinType::String: {
-            char buf[512];
-            auto pit = it->pin_values.find(-1);
-            if (pit != it->pin_values.end()) {
-                strncpy(buf, pit->second.c_str(), sizeof(buf) - 1);
-            } else {
-                buf[0] = '\0';
-            }
-            buf[sizeof(buf) - 1] = '\0';
-            if (ImGui::InputText("##val", buf, sizeof(buf))) {
-                it->pin_values[-1] = buf;
-                m_state.modified = true;
-            }
-            break;
-        }
-        case PinType::Number: {
-            float fv = 0.0f;
-            auto pit = it->pin_values.find(-1);
-            if (pit != it->pin_values.end()) {
-                fv = std::strtof(pit->second.c_str(), nullptr);
-            }
-            if (ImGui::InputFloat("##val", &fv, 0.0f, 0.0f, "%.3f")) {
-                it->pin_values[-1] = std::to_string(fv);
-                m_state.modified = true;
-            }
-            break;
-        }
-        case PinType::Integer: {
-            int iv = 0;
-            auto pit = it->pin_values.find(-1);
-            if (pit != it->pin_values.end()) {
-                iv = std::atoi(pit->second.c_str());
-            }
-            if (ImGui::InputInt("##val", &iv, 0, 0)) {
-                it->pin_values[-1] = std::to_string(iv);
-                m_state.modified = true;
-            }
-            break;
-        }
-        case PinType::Bool: {
-            bool bv = false;
-            auto pit = it->pin_values.find(-1);
-            if (pit != it->pin_values.end()) {
-                bv = (pit->second == "true" || pit->second == "1");
-            }
-            if (ImGui::Checkbox("##val", &bv)) {
-                it->pin_values[-1] = bv ? "true" : "false";
-                m_state.modified = true;
-            }
-            break;
-        }
-        default: {
-            char buf[512];
-            auto pit = it->pin_values.find(-1);
-            if (pit != it->pin_values.end()) {
-                strncpy(buf, pit->second.c_str(), sizeof(buf) - 1);
-            } else {
-                buf[0] = '\0';
-            }
-            buf[sizeof(buf) - 1] = '\0';
-            if (ImGui::InputText("##val", buf, sizeof(buf))) {
-                it->pin_values[-1] = buf;
-                m_state.modified = true;
-            }
-            break;
-        }
-    }
-
-    ImGui::PopID();
-    ImGui::PopStyleVar(2);
-    ImGui::PopItemWidth();
-}
-
-// ============================================================================
-// Connection rendering
-// ============================================================================
-
-void NodeEditor::RenderConnections(ImDrawList* draw_list) {
-    for (auto& conn : m_state.connections) {
-        NodeInstance* from_node = FindNode(conn.from_node_id);
-        NodeInstance* to_node = FindNode(conn.to_node_id);
-        if (!from_node || !to_node) continue;
-
-        ImVec2 start_pin = GetPinPosition(*from_node, conn.from_pin_index, false);
-        ImVec2 end_pin = GetPinPosition(*to_node, conn.to_pin_index, true);
-
-        ImVec2 start_screen = CanvasToScreen(start_pin);
-        ImVec2 end_screen = CanvasToScreen(end_pin);
-
-        float dist = std::sqrtf((end_screen.x - start_screen.x) * (end_screen.x - start_screen.x) +
-                                (end_screen.y - start_screen.y) * (end_screen.y - start_screen.y));
-        float bezier_offset = std::max(50.0f, dist * 0.4f) * m_state.zoom;
-
-        ImVec2 cp1 = ImVec2(start_screen.x + bezier_offset, start_screen.y);
-        ImVec2 cp2 = ImVec2(end_screen.x - bezier_offset, end_screen.y);
-
-        PinType pin_type = PinType::Any;
-        for (auto& p : from_node->output_pins) {
-            if (p.is_input == false) {
-                if (conn.from_pin_index >= 0 && conn.from_pin_index < (int)from_node->output_pins.size()) {
-                    pin_type = from_node->output_pins[conn.from_pin_index].type;
+            switch (def->inline_type) {
+                case PinType::String: {
+                    char buf[512];
+                    strncpy(buf, value_ref.c_str(), sizeof(buf) - 1);
+                    buf[sizeof(buf) - 1] = '\0';
+                    ImGui::PushItemWidth(110.0f);
+                    if (ImGui::InputText("##val", buf, sizeof(buf))) {
+                        value_ref = buf;
+                        m_modified = true;
+                    }
+                    ImGui::PopItemWidth();
+                    break;
+                }
+                case PinType::Number: {
+                    float fv = std::strtof(value_ref.c_str(), nullptr);
+                    ImGui::PushItemWidth(110.0f);
+                    if (ImGui::InputFloat("##val", &fv, 0.0f, 0.0f, "%.3f")) {
+                        value_ref = std::to_string(fv);
+                        m_modified = true;
+                    }
+                    ImGui::PopItemWidth();
+                    break;
+                }
+                case PinType::Integer: {
+                    int iv = std::atoi(value_ref.c_str());
+                    ImGui::PushItemWidth(110.0f);
+                    if (ImGui::InputInt("##val", &iv, 0, 0)) {
+                        value_ref = std::to_string(iv);
+                        m_modified = true;
+                    }
+                    ImGui::PopItemWidth();
+                    break;
+                }
+                case PinType::Bool: {
+                    bool bv = (value_ref == "true" || value_ref == "1");
+                    if (ImGui::Checkbox("##val", &bv)) {
+                        value_ref = bv ? "true" : "false";
+                        m_modified = true;
+                    }
+                    break;
+                }
+                default: {
+                    char buf[512];
+                    strncpy(buf, value_ref.c_str(), sizeof(buf) - 1);
+                    buf[sizeof(buf) - 1] = '\0';
+                    ImGui::PushItemWidth(110.0f);
+                    if (ImGui::InputText("##val", buf, sizeof(buf))) {
+                        value_ref = buf;
+                        m_modified = true;
+                    }
+                    ImGui::PopItemWidth();
                     break;
                 }
             }
         }
 
-        ImVec2 mouse = ImGui::GetIO().MousePos;
-        bool hovered = false;
-        for (float t = 0.0f; t <= 1.0f; t += 0.02f) {
-            float u = 1.0f - t;
-            float tt = t * t;
-            float uu = u * u;
-            float uuu = uu * u;
-            float ttt = tt * t;
-            ImVec2 p = ImVec2(
-                uuu * start_screen.x + 3 * uu * t * cp1.x + 3 * u * tt * cp2.x + ttt * end_screen.x,
-                uuu * start_screen.y + 3 * uu * t * cp1.y + 3 * u * tt * cp2.y + ttt * end_screen.y
-            );
-            float d = std::sqrtf((mouse.x - p.x) * (mouse.x - p.x) + (mouse.y - p.y) * (mouse.y - p.y));
-            if (d < 8.0f) { hovered = true; break; }
+        ImGui::PopID();
+        ed::EndNode();
+
+        node.position = ed::GetNodePosition(MakeNodeId(node.id));
+    }
+
+    // ----------------------------------------------------------------
+    //  Draw all links
+    // ----------------------------------------------------------------
+    for (auto& conn : m_connections) {
+        int start_pin_id = conn.from_node_id * 100 + 50 + conn.from_pin_index;
+        int end_pin_id   = conn.to_node_id   * 100 + conn.to_pin_index;
+
+        NodeInstance* from_node = FindNode(conn.from_node_id);
+        PinType pin_type = PinType::Any;
+        if (from_node && conn.from_pin_index >= 0 && conn.from_pin_index < (int)from_node->output_pins.size())
+            pin_type = from_node->output_pins[conn.from_pin_index].type;
+
+        int link_id = conn.from_node_id * 10000 + conn.from_pin_index * 100 + conn.to_node_id * 10 + conn.to_pin_index;
+
+        ImVec4 col = ImGui::ColorConvertU32ToFloat4(GetPinColor(pin_type));
+        col.w = 0.85f;
+        ed::Link(MakeLinkId(link_id), MakePinId(start_pin_id), MakePinId(end_pin_id), col, 2.5f);
+    }
+
+    // ----------------------------------------------------------------
+    //  Create new link
+    // ----------------------------------------------------------------
+    if (ed::BeginCreate(ImVec4(0.8f, 0.8f, 0.85f, 0.8f), 2.0f)) {
+        ed::PinId startPinId, endPinId;
+        if (ed::QueryNewLink(&startPinId, &endPinId)) {
+            if (startPinId && endPinId) {
+                int start_raw = IdFromPointer(startPinId.AsPointer());
+                int end_raw   = IdFromPointer(endPinId.AsPointer());
+
+                int start_node_id = start_raw / 100;
+                int start_pin_idx = start_raw % 100;
+                int end_node_id   = end_raw   / 100;
+                int end_pin_idx   = end_raw   % 100;
+
+                bool start_is_output = (start_pin_idx >= 50);
+                bool end_is_input    = (end_pin_idx   < 50);
+
+                int from_node = 0, from_pin = 0, to_node = 0, to_pin = 0;
+                bool valid_dir = false;
+
+                if (start_is_output && end_is_input) {
+                    from_node = start_node_id;
+                    from_pin  = start_pin_idx - 50;
+                    to_node   = end_node_id;
+                    to_pin    = end_pin_idx;
+                    valid_dir = true;
+                } else if (!start_is_output && !end_is_input) {
+                    from_node = end_node_id;
+                    from_pin  = end_pin_idx - 50;
+                    to_node   = start_node_id;
+                    to_pin    = start_pin_idx;
+                    valid_dir = true;
+                }
+
+                if (!valid_dir) {
+                    ed::RejectNewItem(ImVec4(1.0f, 0.3f, 0.3f, 0.8f), 2.0f);
+                } else if (from_node == to_node) {
+                    ed::RejectNewItem(ImVec4(1.0f, 0.3f, 0.3f, 0.8f), 2.0f);
+                } else {
+                    NodeInstance* src_node = FindNode(from_node);
+                    NodeInstance* dst_node = FindNode(to_node);
+                    bool compatible = true;
+
+                    if (src_node && from_pin >= 0 && from_pin < (int)src_node->output_pins.size()) {
+                        PinType src_type = src_node->output_pins[from_pin].type;
+                        if (dst_node && to_pin >= 0 && to_pin < (int)dst_node->input_pins.size()) {
+                            PinType dst_type = dst_node->input_pins[to_pin].type;
+                            if (src_type != PinType::Any && dst_type != PinType::Any && src_type != dst_type)
+                                compatible = false;
+                        }
+                    }
+
+                    if (compatible) {
+                        if (ed::AcceptNewItem(ImVec4(0.4f, 0.8f, 0.4f, 0.8f), 2.0f))
+                            AddConnection(from_node, from_pin, to_node, to_pin);
+                    } else {
+                        ed::RejectNewItem(ImVec4(1.0f, 0.3f, 0.3f, 0.8f), 2.0f);
+                    }
+                }
+            }
+        }
+    }
+    ed::EndCreate();
+
+    // ----------------------------------------------------------------
+    //  Delete links and nodes
+    // ----------------------------------------------------------------
+    if (ed::BeginDelete()) {
+        ed::LinkId linkId;
+        while (ed::QueryDeletedLink(&linkId)) {
+            int link_key = IdFromPointer(linkId.AsPointer());
+            for (auto it = m_connections.begin(); it != m_connections.end(); ++it) {
+                int conn_key = it->from_node_id * 10000 + it->from_pin_index * 100 + it->to_node_id * 10 + it->to_pin_index;
+                if (conn_key == link_key) {
+                    ed::AcceptDeletedItem();
+                    m_connections.erase(it);
+                    m_modified = true;
+                    break;
+                }
+            }
         }
 
-        float thickness = hovered ? 3.5f : 2.5f;
-        ImU32 conn_color = GetPinColor(pin_type);
-        if (hovered) {
-            conn_color = IM_COL32(255, 120, 120, 255);
+        ed::NodeId nodeId;
+        while (ed::QueryDeletedNode(&nodeId)) {
+            int node_id = IdFromPointer(nodeId.AsPointer());
+            DeleteNode(node_id);
+            ed::AcceptDeletedItem();
         }
+    }
+    ed::EndDelete();
 
-        if (!hovered) {
-            ImU32 shadow_conn = IM_COL32(0, 0, 0, 40);
-            ImVec2 so = ImVec2(1.0f, 1.5f);
-            draw_list->AddBezierCubic(
-                ImVec2(start_screen.x + so.x, start_screen.y + so.y),
-                ImVec2(cp1.x + so.x, cp1.y + so.y),
-                ImVec2(cp2.x + so.x, cp2.y + so.y),
-                ImVec2(end_screen.x + so.x, end_screen.y + so.y),
-                shadow_conn, thickness + 1.0f);
+    // ----------------------------------------------------------------
+    //  Context menus
+    // ----------------------------------------------------------------
+    if (ed::ShowBackgroundContextMenu()) {
+        ImGui::OpenPopup("NodePalette");
+        m_palette_search[0] = '\0';
+    }
+
+    ed::NodeId contextNodeId;
+    if (ed::ShowNodeContextMenu(&contextNodeId)) {
+        int node_id = IdFromPointer(contextNodeId.AsPointer());
+        ClearSelection();
+        SelectNode(node_id);
+    }
+
+    ed::End();
+
+    RenderPalette();
+
+    // ----------------------------------------------------------------
+    //  Drag-drop from palette panel (must be inside the child window)
+    // ----------------------------------------------------------------
+    if (ImGui::BeginDragDropTarget()) {
+        if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("NODE_TYPE")) {
+            int type_id = *(const int*)payload->Data;
+            ImVec2 drop_pos = ImGui::GetMousePos();
+            ImVec2 canvas_pos = ed::ScreenToCanvas(drop_pos);
+            AddNode(type_id, canvas_pos);
         }
+        ImGui::EndDragDropTarget();
+    }
 
-        draw_list->AddBezierCubic(start_screen, cp1, cp2, end_screen, conn_color, thickness);
+    ImGui::EndChild();
 
-        if (hovered) {
-            draw_list->AddBezierCubic(start_screen, cp1, cp2, end_screen, IM_COL32(255, 200, 200, 60), thickness + 3.0f);
-        }
+    ed::SetCurrentEditor(nullptr);
+
+    // ----------------------------------------------------------------
+    //  Keyboard shortcuts
+    // ----------------------------------------------------------------
+    ImGuiIO& io = ImGui::GetIO();
+    if (ImGui::IsKeyPressed(ImGuiKey_Delete) || ImGui::IsKeyPressed(ImGuiKey_Backspace)) {
+        if (!m_selected_nodes.empty())
+            DeleteSelectedNodes();
+    }
+    if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_C)) CopySelectedNodes();
+    if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_X)) CutSelectedNodes();
+    if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_V)) PasteNodes();
+    if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_S)) {
+        if (!m_current_file_path.empty())
+            SaveToFile(m_current_file_path);
     }
 }
 
-void NodeEditor::RenderConnectionBeingCreated(ImDrawList* draw_list) {
-    ImVec2 mouse_screen = ImGui::GetIO().MousePos;
-
-    ImVec2 start_screen;
-    NodeInstance* from_node = FindNode(m_state.connecting_from_node);
-    if (from_node && m_state.connecting_from_pin >= 0) {
-        ImVec2 pin_pos;
-        if (m_state.connecting_from_output) {
-            pin_pos = GetPinPosition(*from_node, m_state.connecting_from_pin, false);
-        } else {
-            pin_pos = GetPinPosition(*from_node, m_state.connecting_from_pin, true);
-        }
-        start_screen = CanvasToScreen(pin_pos);
-    } else {
-        start_screen = mouse_screen;
-    }
-
-    ImVec2 end_screen;
-    if (m_state.is_connecting) {
-        end_screen = mouse_screen;
-    } else {
-        end_screen = mouse_screen;
-    }
-
-    if (!m_state.connecting_from_output) {
-        std::swap(start_screen, end_screen);
-    }
-
-    float dist = std::sqrtf((end_screen.x - start_screen.x) * (end_screen.x - start_screen.x) +
-                            (end_screen.y - start_screen.y) * (end_screen.y - start_screen.y));
-    float bezier_offset = std::max(50.0f, dist * 0.4f);
-
-    ImVec2 cp1 = ImVec2(start_screen.x + bezier_offset, start_screen.y);
-    ImVec2 cp2 = ImVec2(end_screen.x - bezier_offset, end_screen.y);
-
-    draw_list->AddBezierCubic(start_screen, cp1, cp2, end_screen, IM_COL32(200, 200, 210, 140), 2.0f);
-    draw_list->AddBezierCubic(start_screen, cp1, cp2, end_screen, IM_COL32(255, 255, 255, 50), 5.0f);
-}
-
 // ============================================================================
-// Selection rectangle
-// ============================================================================
-
-void NodeEditor::RenderSelectionRect(ImDrawList* draw_list) {
-    ImVec2 canvas_origin = ImGui::GetCursorScreenPos();
-
-    ImVec2 s = ImVec2(
-        canvas_origin.x + m_state.offset.x + m_state.selection_start.x * m_state.zoom,
-        canvas_origin.y + m_state.offset.y + m_state.selection_start.y * m_state.zoom
-    );
-    ImVec2 e = ImVec2(
-        canvas_origin.x + m_state.offset.x + m_state.selection_end.x * m_state.zoom,
-        canvas_origin.y + m_state.offset.y + m_state.selection_end.y * m_state.zoom
-    );
-
-    ImVec2 r_min = ImVec2(std::min(s.x, e.x), std::min(s.y, e.y));
-    ImVec2 r_max = ImVec2(std::max(s.x, e.x), std::max(s.y, e.y));
-
-    draw_list->AddRectFilled(r_min, r_max, IM_COL32(80, 150, 255, 30));
-    draw_list->AddRect(r_min, r_max, IM_COL32(80, 150, 255, 180), 0.0f, 0, 1.5f);
-
-    for (float x = r_min.x; x < r_max.x; x += 6.0f) {
-        draw_list->AddLine(ImVec2(x, r_min.y), ImVec2(x + 3.0f, r_min.y), IM_COL32(80, 150, 255, 100), 1.0f);
-        draw_list->AddLine(ImVec2(x, r_max.y), ImVec2(x + 3.0f, r_max.y), IM_COL32(80, 150, 255, 100), 1.0f);
-    }
-    for (float y = r_min.y; y < r_max.y; y += 6.0f) {
-        draw_list->AddLine(ImVec2(r_min.x, y), ImVec2(r_min.x, y + 3.0f), IM_COL32(80, 150, 255, 100), 1.0f);
-        draw_list->AddLine(ImVec2(r_max.x, y), ImVec2(r_max.x, y + 3.0f), IM_COL32(80, 150, 255, 100), 1.0f);
-    }
-}
-
-// ============================================================================
-// Palette
+// Palette (context menu popup)
 // ============================================================================
 
 void NodeEditor::RenderPalette() {
@@ -653,18 +512,18 @@ void NodeEditor::RenderPalette() {
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(10, 10));
     ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 8.0f);
     ImGui::PushStyleVar(ImGuiStyleVar_PopupRounding, 6.0f);
+    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(8, 4));
     ImGui::PushStyleColor(ImGuiCol_PopupBg, IM_COL32(28, 28, 34, 248));
     ImGui::PushStyleColor(ImGuiCol_Border, IM_COL32(60, 60, 75, 180));
     ImGui::PushStyleColor(ImGuiCol_ScrollbarBg, IM_COL32(22, 22, 28, 200));
     ImGui::PushStyleColor(ImGuiCol_ScrollbarGrab, IM_COL32(55, 55, 65, 255));
 
     if (ImGui::BeginPopup("NodePalette")) {
-        ImGui::InputTextWithHint("##search", "Search...", m_state.palette_search, sizeof(m_state.palette_search));
+        ImGui::InputTextWithHint("##search", "Search...", m_palette_search, sizeof(m_palette_search));
         ImGui::Separator();
 
         const auto& defs = GetNodeTypeDefs();
-        std::set<int> shown_categories;
-        std::string search_lower = m_state.palette_search;
+        std::string search_lower = m_palette_search;
         std::transform(search_lower.begin(), search_lower.end(), search_lower.begin(), ::tolower);
 
         for (auto cat : {
@@ -676,9 +535,9 @@ void NodeEditor::RenderPalette() {
             bool any_match = false;
             for (auto& d : defs) {
                 if (d.category != cat) continue;
-                std::string name_lower = d.name;
-                std::transform(name_lower.begin(), name_lower.end(), name_lower.begin(), ::tolower);
-                if (search_lower.empty() || name_lower.find(search_lower) != std::string::npos) {
+                std::string nl = d.name;
+                std::transform(nl.begin(), nl.end(), nl.begin(), ::tolower);
+                if (search_lower.empty() || nl.find(search_lower) != std::string::npos) {
                     any_match = true;
                     break;
                 }
@@ -688,20 +547,20 @@ void NodeEditor::RenderPalette() {
             if (ImGui::TreeNodeEx(GetCategoryName(cat), ImGuiTreeNodeFlags_DefaultOpen)) {
                 for (auto& d : defs) {
                     if (d.category != cat) continue;
-                    std::string name_lower = d.name;
-                    std::transform(name_lower.begin(), name_lower.end(), name_lower.begin(), ::tolower);
-                    if (!search_lower.empty() && name_lower.find(search_lower) == std::string::npos) continue;
+                    std::string nl = d.name;
+                    std::transform(nl.begin(), nl.end(), nl.begin(), ::tolower);
+                    if (!search_lower.empty() && nl.find(search_lower) == std::string::npos) continue;
 
                     ImU32 cat_col = GetCategoryHeaderColor(cat);
-                    ImVec2 text_pos = ImGui::GetCursorScreenPos();
+                    ImVec2 tp = ImGui::GetCursorScreenPos();
                     ImGui::GetWindowDrawList()->AddRectFilled(
-                        ImVec2(text_pos.x, text_pos.y),
-                        ImVec2(text_pos.x + 3.0f, text_pos.y + ImGui::GetFrameHeight()),
+                        ImVec2(tp.x, tp.y),
+                        ImVec2(tp.x + 3.0f, tp.y + ImGui::GetFrameHeight()),
                         cat_col);
 
                     if (ImGui::Selectable(d.name, false, ImGuiSelectableFlags_None, ImVec2(200, 18))) {
-                        ImVec2 canvas_mouse = ScreenToCanvas(ImGui::GetIO().MousePos);
-                        AddNode(d.id, canvas_mouse);
+                        ImVec2 mouse_pos = ImGui::GetIO().MousePos;
+                        AddNode(d.id, mouse_pos);
                         ImGui::CloseCurrentPopup();
                     }
                 }
@@ -712,334 +571,72 @@ void NodeEditor::RenderPalette() {
     }
 
     ImGui::PopStyleColor(4);
-    ImGui::PopStyleVar(3);
+    ImGui::PopStyleVar(4);
 }
 
 // ============================================================================
-// Interaction
+// Palette Panel (left side drag-drop list)
 // ============================================================================
 
-void NodeEditor::HandleCanvasInteraction() {
-    ImGuiIO& io = ImGui::GetIO();
-    ImVec2 mouse_screen = io.MousePos;
+void NodeEditor::RenderPalettePanel() {
+    const auto& defs = GetNodeTypeDefs();
 
-    if (ImGui::IsKeyPressed(ImGuiKey_Delete) || ImGui::IsKeyPressed(ImGuiKey_Backspace)) {
-        if (!m_state.selected_nodes.empty()) {
-            DeleteSelectedNodes();
+    ImGui::InputTextWithHint("##pp_search", "Search...", m_palette_search_panel, sizeof(m_palette_search_panel));
+
+    std::string search_lower = m_palette_search_panel;
+    std::transform(search_lower.begin(), search_lower.end(), search_lower.begin(), ::tolower);
+
+    ImGui::BeginChild("##PalettePanelList", ImVec2(0, 0));
+
+    for (auto cat : {
+        NodeCategory::Flow, NodeCategory::Variables, NodeCategory::Math, NodeCategory::Comparison,
+        NodeCategory::Sprites, NodeCategory::Animation, NodeCategory::Text, NodeCategory::Camera,
+        NodeCategory::Physics, NodeCategory::Audio, NodeCategory::Window, NodeCategory::Scenes,
+        NodeCategory::Noise, NodeCategory::MathTypes, NodeCategory::Constants
+    }) {
+        bool any_match = false;
+        for (auto& d : defs) {
+            if (d.category != cat) continue;
+            std::string nl = d.name;
+            std::transform(nl.begin(), nl.end(), nl.begin(), ::tolower);
+            if (search_lower.empty() || nl.find(search_lower) != std::string::npos) {
+                any_match = true;
+                break;
+            }
         }
-    }
+        if (!any_match) continue;
 
-    if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_C)) {
-        CopySelectedNodes();
-    }
-    if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_X)) {
-        CutSelectedNodes();
-    }
-    if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_V)) {
-        PasteNodes();
-    }
-    if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_S)) {
-        if (!m_state.current_file_path.empty()) {
-            SaveToFile(m_state.current_file_path);
-        }
-    }
+        if (ImGui::TreeNodeEx(GetCategoryName(cat), ImGuiTreeNodeFlags_DefaultOpen)) {
+            for (auto& d : defs) {
+                if (d.category != cat) continue;
+                std::string nl = d.name;
+                std::transform(nl.begin(), nl.end(), nl.begin(), ::tolower);
+                if (!search_lower.empty() && nl.find(search_lower) == std::string::npos) continue;
 
-    if (m_state.is_connecting && io.MouseReleased[0]) {
-        ImVec2 mouse_canvas = ScreenToCanvas(mouse_screen);
+                ImGui::PushID(d.id);
 
-        for (auto& node : m_state.nodes) {
-            for (size_t i = 0; i < node.input_pins.size(); i++) {
-                ImVec2 pin_pos = GetPinPosition(node, (int)i, true);
-                float d = std::sqrtf((mouse_canvas.x - pin_pos.x) * (mouse_canvas.x - pin_pos.x) +
-                                     (mouse_canvas.y - pin_pos.y) * (mouse_canvas.y - pin_pos.y));
-                if (d < 12.0f / m_state.zoom) {
-                    if (m_state.connecting_from_output) {
-                        AddConnection(m_state.connecting_from_node, m_state.connecting_from_pin, node.id, (int)i);
-                    } else {
-                        AddConnection(node.id, (int)i, m_state.connecting_from_node, m_state.connecting_from_pin);
-                    }
-                    break;
+                ImU32 cat_col = GetCategoryHeaderColor(cat);
+                ImVec2 p = ImGui::GetCursorScreenPos();
+                float h = ImGui::GetFrameHeight();
+                ImGui::GetWindowDrawList()->AddRectFilled(
+                    ImVec2(p.x, p.y), ImVec2(p.x + 3, p.y + h), cat_col);
+
+                ImGui::Selectable(d.name, false, ImGuiSelectableFlags_None, ImVec2(ImGui::GetContentRegionAvail().x, 18));
+
+                if (ImGui::BeginDragDropSource()) {
+                    ImGui::SetDragDropPayload("NODE_TYPE", &d.id, sizeof(int));
+                    ImGui::Text("%s", d.name);
+                    ImGui::EndDragDropSource();
                 }
+
+                ImGui::PopID();
             }
-            for (size_t i = 0; i < node.output_pins.size(); i++) {
-                ImVec2 pin_pos = GetPinPosition(node, (int)i, false);
-                float d = std::sqrtf((mouse_canvas.x - pin_pos.x) * (mouse_canvas.x - pin_pos.x) +
-                                     (mouse_canvas.y - pin_pos.y) * (mouse_canvas.y - pin_pos.y));
-                if (d < 12.0f / m_state.zoom) {
-                    if (m_state.connecting_from_output) {
-                        AddConnection(node.id, (int)i, m_state.connecting_from_node, m_state.connecting_from_pin);
-                    } else {
-                        AddConnection(m_state.connecting_from_node, m_state.connecting_from_pin, node.id, (int)i);
-                    }
-                    break;
-                }
-            }
-        }
-        m_state.is_connecting = false;
-    }
-
-    if (m_state.is_panning) {
-        m_state.offset.x += io.MouseDelta.x;
-        m_state.offset.y += io.MouseDelta.y;
-    }
-
-    if (m_state.is_selecting) {
-        ImVec2 canvas_mouse = ScreenToCanvas(mouse_screen);
-        m_state.selection_end = canvas_mouse;
-
-        m_state.selected_nodes.clear();
-        ImVec2 sel_min = ImVec2(std::min(m_state.selection_start.x, m_state.selection_end.x),
-                                std::min(m_state.selection_start.y, m_state.selection_end.y));
-        ImVec2 sel_max = ImVec2(std::max(m_state.selection_start.x, m_state.selection_end.x),
-                                std::max(m_state.selection_start.y, m_state.selection_end.y));
-
-        for (auto& node : m_state.nodes) {
-            bool overlap = node.position.x < sel_max.x && node.position.x + node.size.x > sel_min.x &&
-                           node.position.y < sel_max.y && node.position.y + node.size.y > sel_min.y;
-            if (overlap) {
-                m_state.selected_nodes.push_back(node.id);
-            }
-        }
-
-        if (io.MouseReleased[0]) {
-            m_state.is_selecting = false;
-            if (!m_state.selected_nodes.empty()) {
-                m_state.selected_node_id = m_state.selected_nodes[0];
-            }
+            ImGui::TreePop();
         }
     }
 
-    if (m_state.dragging_node_id >= 0) {
-        if (io.MouseReleased[0]) {
-            m_state.dragging_node_id = -1;
-        } else {
-            ImVec2 mouse_canvas = ScreenToCanvas(mouse_screen);
-            NodeInstance* node = FindNode(m_state.dragging_node_id);
-            if (node) {
-                node->position.x = mouse_canvas.x - m_state.drag_offset.x;
-                node->position.y = mouse_canvas.y - m_state.drag_offset.y;
-                m_state.modified = true;
-            }
-        }
-    }
-
-    bool hovering_node = false;
-    for (auto& node : m_state.nodes) {
-        ImVec2 screen_pos = CanvasToScreen(node.position);
-        ImVec2 screen_size = ImVec2(node.size.x * m_state.zoom, node.size.y * m_state.zoom);
-
-        if (mouse_screen.x >= screen_pos.x && mouse_screen.x <= screen_pos.x + screen_size.x &&
-            mouse_screen.y >= screen_pos.y && mouse_screen.y <= screen_pos.y + screen_size.y) {
-            m_state.hovered_node_id = node.id;
-            hovering_node = true;
-
-            for (size_t i = 0; i < node.input_pins.size(); i++) {
-                ImVec2 pin_pos = GetPinPosition(node, (int)i, true);
-                ImVec2 pin_screen = CanvasToScreen(pin_pos);
-                float d = std::sqrtf((mouse_screen.x - pin_screen.x) * (mouse_screen.x - pin_screen.x) +
-                                     (mouse_screen.y - pin_screen.y) * (mouse_screen.y - pin_screen.y));
-                if (d < NODE_RADIUS * m_state.zoom + 4.0f) {
-                    if (io.MouseClicked[0]) {
-                        m_state.is_connecting = true;
-                        m_state.connecting_from_node = node.id;
-                        m_state.connecting_from_pin = (int)i;
-                        m_state.connecting_from_output = false;
-                        m_state.connecting_mouse_pos = mouse_screen;
-                    }
-                }
-            }
-
-            for (size_t i = 0; i < node.output_pins.size(); i++) {
-                ImVec2 pin_pos = GetPinPosition(node, (int)i, false);
-                ImVec2 pin_screen = CanvasToScreen(pin_pos);
-                float d = std::sqrtf((mouse_screen.x - pin_screen.x) * (mouse_screen.x - pin_screen.x) +
-                                     (mouse_screen.y - pin_screen.y) * (mouse_screen.y - pin_screen.y));
-                if (d < NODE_RADIUS * m_state.zoom + 4.0f) {
-                    if (io.MouseClicked[0]) {
-                        m_state.is_connecting = true;
-                        m_state.connecting_from_node = node.id;
-                        m_state.connecting_from_pin = (int)i;
-                        m_state.connecting_from_output = true;
-                        m_state.connecting_mouse_pos = mouse_screen;
-                    }
-                }
-            }
-
-            break;
-        }
-    }
-
-    if (!hovering_node) {
-        m_state.hovered_node_id = -1;
-    }
-
-    ImGui::SetCursorScreenPos(ImGui::GetCursorScreenPos());
-
-    ImGui::InvisibleButton("##canvas_bg", ImGui::GetContentRegionAvail());
-    bool canvas_active = ImGui::IsItemActive();
-    bool canvas_hovered = ImGui::IsItemHovered();
-
-    if (canvas_active || canvas_hovered) {
-        if (io.MouseWheel != 0.0f) {
-            float old_zoom = m_state.zoom;
-            m_state.zoom *= (1.0f + io.MouseWheel * 0.1f);
-            m_state.zoom = std::max(0.1f, std::min(m_state.zoom, 5.0f));
-
-            ImVec2 canvas_pos = ImGui::GetCursorScreenPos();
-            float mx = mouse_screen.x - canvas_pos.x;
-            float my = mouse_screen.y - canvas_pos.y;
-
-            m_state.offset.x = mx - (mx - m_state.offset.x) * (m_state.zoom / old_zoom);
-            m_state.offset.y = my - (my - m_state.offset.y) * (m_state.zoom / old_zoom);
-        }
-
-        if (io.MouseClicked[0] && !hovering_node) {
-            bool over_connection = false;
-            for (auto& conn : m_state.connections) {
-                NodeInstance* from_node = FindNode(conn.from_node_id);
-                NodeInstance* to_node = FindNode(conn.to_node_id);
-                if (!from_node || !to_node) continue;
-
-                ImVec2 start_screen = CanvasToScreen(GetPinPosition(*from_node, conn.from_pin_index, false));
-                ImVec2 end_screen = CanvasToScreen(GetPinPosition(*to_node, conn.to_pin_index, true));
-
-                float bez_offset = std::max(50.0f,
-                    std::sqrtf((end_screen.x - start_screen.x) * (end_screen.x - start_screen.x) +
-                               (end_screen.y - start_screen.y) * (end_screen.y - start_screen.y)) * 0.4f);
-                ImVec2 cp1 = ImVec2(start_screen.x + bez_offset, start_screen.y);
-                ImVec2 cp2 = ImVec2(end_screen.x - bez_offset, end_screen.y);
-
-                for (float t = 0.0f; t <= 1.0f; t += 0.02f) {
-                    float u = 1.0f - t;
-                    ImVec2 p = ImVec2(
-                        u * u * u * start_screen.x + 3 * u * u * t * cp1.x + 3 * u * t * t * cp2.x + t * t * t * end_screen.x,
-                        u * u * u * start_screen.y + 3 * u * u * t * cp1.y + 3 * u * t * t * cp2.y + t * t * t * end_screen.y
-                    );
-                    float d = std::sqrtf((mouse_screen.x - p.x) * (mouse_screen.x - p.x) +
-                                         (mouse_screen.y - p.y) * (mouse_screen.y - p.y));
-                    if (d < 8.0f) {
-                        over_connection = true;
-                        break;
-                    }
-                }
-                if (over_connection) break;
-            }
-
-            if (!over_connection) {
-                if (!io.KeyCtrl) {
-                    ClearSelection();
-                }
-                ImVec2 canvas_mouse = ScreenToCanvas(mouse_screen);
-                m_state.is_selecting = true;
-                m_state.selection_start = canvas_mouse;
-                m_state.selection_end = canvas_mouse;
-            }
-        }
-
-        if (io.MouseClicked[0] && hovering_node) {
-            NodeInstance* clicked_node = FindNode(m_state.hovered_node_id);
-            if (clicked_node) {
-                if (!io.KeyCtrl) {
-                    ClearSelection();
-                }
-                SelectNode(clicked_node->id, io.KeyCtrl);
-
-                m_state.dragging_node_id = clicked_node->id;
-                ImVec2 canvas_mouse = ScreenToCanvas(mouse_screen);
-                m_state.drag_offset = ImVec2(canvas_mouse.x - clicked_node->position.x,
-                                             canvas_mouse.y - clicked_node->position.y);
-                m_state.modified = true;
-            }
-        }
-
-        if (io.MouseClicked[0] && !hovering_node && !m_state.is_connecting) {
-            bool over_connection = false;
-            for (auto& conn : m_state.connections) {
-                NodeInstance* from_node = FindNode(conn.from_node_id);
-                NodeInstance* to_node = FindNode(conn.to_node_id);
-                if (!from_node || !to_node) continue;
-
-                ImVec2 start_screen = CanvasToScreen(GetPinPosition(*from_node, conn.from_pin_index, false));
-                ImVec2 end_screen = CanvasToScreen(GetPinPosition(*to_node, conn.to_pin_index, true));
-
-                float bez_offset = std::max(50.0f,
-                    std::sqrtf((end_screen.x - start_screen.x) * (end_screen.x - start_screen.x) +
-                               (end_screen.y - start_screen.y) * (end_screen.y - start_screen.y)) * 0.4f);
-                ImVec2 cp1 = ImVec2(start_screen.x + bez_offset, start_screen.y);
-                ImVec2 cp2 = ImVec2(end_screen.x - bez_offset, end_screen.y);
-
-                for (float t = 0.0f; t <= 1.0f; t += 0.02f) {
-                    float u = 1.0f - t;
-                    ImVec2 p = ImVec2(
-                        u * u * u * start_screen.x + 3 * u * u * t * cp1.x + 3 * u * t * t * cp2.x + t * t * t * end_screen.x,
-                        u * u * u * start_screen.y + 3 * u * u * t * cp1.y + 3 * u * t * t * cp2.y + t * t * t * end_screen.y
-                    );
-                    float d = std::sqrtf((mouse_screen.x - p.x) * (mouse_screen.x - p.x) +
-                                         (mouse_screen.y - p.y) * (mouse_screen.y - p.y));
-                    if (d < 8.0f) {
-                        over_connection = true;
-                        break;
-                    }
-                }
-                if (over_connection) break;
-            }
-
-            if (over_connection) {
-                for (auto it = m_state.connections.begin(); it != m_state.connections.end(); ) {
-                    NodeInstance* from_node = FindNode(it->from_node_id);
-                    NodeInstance* to_node = FindNode(it->to_node_id);
-                    if (!from_node || !to_node) { ++it; continue; }
-
-                    ImVec2 start_screen = CanvasToScreen(GetPinPosition(*from_node, it->from_pin_index, false));
-                    ImVec2 end_screen = CanvasToScreen(GetPinPosition(*to_node, it->to_pin_index, true));
-
-                    float bez_offset = std::max(50.0f,
-                        std::sqrtf((end_screen.x - start_screen.x) * (end_screen.x - start_screen.x) +
-                                   (end_screen.y - start_screen.y) * (end_screen.y - start_screen.y)) * 0.4f);
-                    ImVec2 cp1 = ImVec2(start_screen.x + bez_offset, start_screen.y);
-                    ImVec2 cp2 = ImVec2(end_screen.x - bez_offset, end_screen.y);
-
-                    bool hit = false;
-                    for (float t = 0.0f; t <= 1.0f; t += 0.02f) {
-                        float u = 1.0f - t;
-                        ImVec2 p = ImVec2(
-                            u * u * u * start_screen.x + 3 * u * u * t * cp1.x + 3 * u * t * t * cp2.x + t * t * t * end_screen.x,
-                            u * u * u * start_screen.y + 3 * u * u * t * cp1.y + 3 * u * t * t * cp2.y + t * t * t * end_screen.y
-                        );
-                        float d = std::sqrtf((mouse_screen.x - p.x) * (mouse_screen.x - p.x) +
-                                             (mouse_screen.y - p.y) * (mouse_screen.y - p.y));
-                        if (d < 8.0f) { hit = true; break; }
-                    }
-
-                    if (hit) {
-                        it = m_state.connections.erase(it);
-                        m_state.modified = true;
-                        break;
-                    } else {
-                        ++it;
-                    }
-                }
-            }
-        }
-
-        if (io.MouseClicked[1] && canvas_hovered) {
-            ImGui::OpenPopup("NodePalette");
-            m_state.palette_search[0] = '\0';
-        }
-
-        if (io.MouseDown[2] || (io.KeyAlt && io.MouseDown[0])) {
-            if (!m_state.is_panning) {
-                m_state.is_panning = true;
-            }
-        } else {
-            m_state.is_panning = false;
-        }
-    }
+    ImGui::EndChild();
 }
-
-void NodeEditor::HandleNodeInteraction(NodeInstance& node) {}
-
-void NodeEditor::HandlePinInteraction(NodeInstance& node, int pin_index, bool is_input) {}
 
 // ============================================================================
 // Node management
@@ -1059,40 +656,37 @@ void NodeEditor::AddNode(int type_id, ImVec2 position) {
     node.position.x -= node.size.x * 0.5f;
     node.position.y -= NODE_HEADER_HEIGHT * 0.5f;
 
-    for (size_t i = 0; i < def->inputs.size(); i++) {
+    for (size_t i = 0; i < def->inputs.size(); i++)
         node.pin_values[(int)i] = "";
-    }
+
     if (def->has_inline) {
         switch (def->inline_type) {
-            case PinType::Number: node.pin_values[-1] = "0.0"; break;
-            case PinType::Integer: node.pin_values[-1] = "0"; break;
-            case PinType::Bool: node.pin_values[-1] = "false"; break;
-            case PinType::String: node.pin_values[-1] = ""; break;
-            default: node.pin_values[-1] = ""; break;
+            case PinType::Number:  node.pin_values[-1] = "0.0";   break;
+            case PinType::Integer: node.pin_values[-1] = "0";     break;
+            case PinType::Bool:    node.pin_values[-1] = "false"; break;
+            default:               node.pin_values[-1] = "";      break;
         }
     }
 
-    m_state.nodes.push_back(node);
-    m_state.modified = true;
+    m_nodes.push_back(node);
+    m_modified = true;
 }
 
 void NodeEditor::DeleteSelectedNodes() {
-    for (int id : m_state.selected_nodes) {
+    for (int id : m_selected_nodes)
         DeleteNode(id);
-    }
-    m_state.selected_nodes.clear();
-    m_state.selected_node_id = -1;
+    m_selected_nodes.clear();
 }
 
 void NodeEditor::DeleteNode(int node_id) {
     RemoveAllConnectionsForNode(node_id);
-    for (auto it = m_state.nodes.begin(); it != m_state.nodes.end(); ++it) {
+    for (auto it = m_nodes.begin(); it != m_nodes.end(); ++it) {
         if (it->id == node_id) {
-            m_state.nodes.erase(it);
+            m_nodes.erase(it);
             break;
         }
     }
-    m_state.modified = true;
+    m_modified = true;
 }
 
 // ============================================================================
@@ -1102,51 +696,29 @@ void NodeEditor::DeleteNode(int node_id) {
 void NodeEditor::AddConnection(int from_node, int from_pin, int to_node, int to_pin) {
     if (from_node == to_node) return;
 
-    for (auto& c : m_state.connections) {
-        if (c.to_node_id == to_node && c.to_pin_index == to_pin) {
-            c.from_node_id = from_node;
-            c.from_pin_index = from_pin;
-            m_state.modified = true;
-            return;
-        }
-    }
-
-    NodeConnection conn;
-    conn.from_node_id = from_node;
-    conn.from_pin_index = from_pin;
-    conn.to_node_id = to_node;
-    conn.to_pin_index = to_pin;
-    m_state.connections.push_back(conn);
-    m_state.modified = true;
-}
-
-void NodeEditor::RemoveConnectionsForPin(int node_id, int pin_index, bool is_input) {
-    for (auto it = m_state.connections.begin(); it != m_state.connections.end(); ) {
-        if (is_input) {
-            if (it->to_node_id == node_id && it->to_pin_index == pin_index) {
-                it = m_state.connections.erase(it);
-                m_state.modified = true;
-                continue;
-            }
-        } else {
-            if (it->from_node_id == node_id && it->from_pin_index == pin_index) {
-                it = m_state.connections.erase(it);
-                m_state.modified = true;
-                continue;
-            }
+    for (auto it = m_connections.begin(); it != m_connections.end(); ) {
+        if (it->to_node_id == to_node && it->to_pin_index == to_pin) {
+            it = m_connections.erase(it);
+            continue;
         }
         ++it;
     }
+
+    NodeConnection conn;
+    conn.from_node_id  = from_node;
+    conn.from_pin_index = from_pin;
+    conn.to_node_id    = to_node;
+    conn.to_pin_index  = to_pin;
+    m_connections.push_back(conn);
+    m_modified = true;
 }
 
 void NodeEditor::RemoveAllConnectionsForNode(int node_id) {
-    for (auto it = m_state.connections.begin(); it != m_state.connections.end(); ) {
-        if (it->from_node_id == node_id || it->to_node_id == node_id) {
-            it = m_state.connections.erase(it);
-            m_state.modified = true;
-        } else {
+    for (auto it = m_connections.begin(); it != m_connections.end(); ) {
+        if (it->from_node_id == node_id || it->to_node_id == node_id)
+            it = m_connections.erase(it);
+        else
             ++it;
-        }
     }
 }
 
@@ -1155,25 +727,22 @@ void NodeEditor::RemoveAllConnectionsForNode(int node_id) {
 // ============================================================================
 
 void NodeEditor::ClearSelection() {
-    m_state.selected_nodes.clear();
-    m_state.selected_node_id = -1;
+    m_selected_nodes.clear();
+    if (m_context) ed::ClearSelection();
 }
 
 void NodeEditor::SelectNode(int node_id, bool add_to_selection) {
-    if (!add_to_selection) {
-        m_state.selected_nodes.clear();
-    }
-    for (int id : m_state.selected_nodes) {
+    if (!add_to_selection) m_selected_nodes.clear();
+    for (int id : m_selected_nodes)
         if (id == node_id) return;
-    }
-    m_state.selected_nodes.push_back(node_id);
-    m_state.selected_node_id = node_id;
+    m_selected_nodes.push_back(node_id);
+    if (m_context)
+        ed::SelectNode(MakeNodeId(node_id), add_to_selection);
 }
 
 bool NodeEditor::IsNodeSelected(int node_id) {
-    for (int id : m_state.selected_nodes) {
+    for (int id : m_selected_nodes)
         if (id == node_id) return true;
-    }
     return false;
 }
 
@@ -1182,25 +751,21 @@ bool NodeEditor::IsNodeSelected(int node_id) {
 // ============================================================================
 
 void NodeEditor::CopySelectedNodes() {
-    m_state.clipboard_nodes.clear();
-    m_state.clipboard_connections.clear();
+    m_clipboard_nodes.clear();
+    m_clipboard_connections.clear();
 
-    for (int id : m_state.selected_nodes) {
+    for (int id : m_selected_nodes) {
         NodeInstance* node = FindNode(id);
-        if (node) {
-            m_state.clipboard_nodes.push_back(*node);
-        }
+        if (node) m_clipboard_nodes.push_back(*node);
     }
 
-    for (auto& conn : m_state.connections) {
-        bool from_selected = false, to_selected = false;
-        for (int id : m_state.selected_nodes) {
-            if (conn.from_node_id == id) from_selected = true;
-            if (conn.to_node_id == id) to_selected = true;
+    for (auto& conn : m_connections) {
+        bool from_sel = false, to_sel = false;
+        for (int id : m_selected_nodes) {
+            if (conn.from_node_id == id) from_sel = true;
+            if (conn.to_node_id == id)   to_sel   = true;
         }
-        if (from_selected && to_selected) {
-            m_state.clipboard_connections.push_back(conn);
-        }
+        if (from_sel && to_sel) m_clipboard_connections.push_back(conn);
     }
 }
 
@@ -1210,23 +775,25 @@ void NodeEditor::CutSelectedNodes() {
 }
 
 void NodeEditor::PasteNodes() {
-    if (m_state.clipboard_nodes.empty()) return;
+    if (m_clipboard_nodes.empty()) return;
 
     std::unordered_map<int, int> id_map;
     ImVec2 paste_center = ImVec2(0, 0);
-
-    for (auto& node : m_state.clipboard_nodes) {
+    for (auto& node : m_clipboard_nodes) {
         paste_center.x += node.position.x;
         paste_center.y += node.position.y;
     }
-    paste_center.x /= m_state.clipboard_nodes.size();
-    paste_center.y /= m_state.clipboard_nodes.size();
+    paste_center.x /= m_clipboard_nodes.size();
+    paste_center.y /= m_clipboard_nodes.size();
 
-    ImVec2 mouse_canvas = ScreenToCanvas(ImGui::GetIO().MousePos);
+    ImVec2 mouse_screen = ImGui::GetIO().MousePos;
+    ImVec2 mouse_canvas = mouse_screen;
+    if (m_context)
+        mouse_canvas = ed::ScreenToCanvas(mouse_screen);
 
     ClearSelection();
 
-    for (auto& node : m_state.clipboard_nodes) {
+    for (auto& node : m_clipboard_nodes) {
         int old_id = node.id;
         int new_id = GenerateNodeId();
         id_map[old_id] = new_id;
@@ -1236,22 +803,22 @@ void NodeEditor::PasteNodes() {
         new_node.position.x = mouse_canvas.x + (node.position.x - paste_center.x);
         new_node.position.y = mouse_canvas.y + (node.position.y - paste_center.y);
 
-        m_state.nodes.push_back(new_node);
+        m_nodes.push_back(new_node);
         SelectNode(new_id, true);
     }
 
-    for (auto& conn : m_state.clipboard_connections) {
+    for (auto& conn : m_clipboard_connections) {
         NodeConnection new_conn = conn;
         auto it_from = id_map.find(conn.from_node_id);
-        auto it_to = id_map.find(conn.to_node_id);
+        auto it_to   = id_map.find(conn.to_node_id);
         if (it_from != id_map.end() && it_to != id_map.end()) {
             new_conn.from_node_id = it_from->second;
-            new_conn.to_node_id = it_to->second;
-            m_state.connections.push_back(new_conn);
+            new_conn.to_node_id   = it_to->second;
+            m_connections.push_back(new_conn);
         }
     }
 
-    m_state.modified = true;
+    m_modified = true;
 }
 
 // ============================================================================
@@ -1262,37 +829,34 @@ bool NodeEditor::SaveToFile(const std::string& path) {
     std::ofstream f(path);
     if (!f.is_open()) return false;
 
-    f << "[NODEMAP]\n";
-    f << "VERSION=1\n";
+    f << "[NODEMAP]\nVERSION=1\n";
 
     f << "[NODES]\n";
-    for (auto& node : m_state.nodes) {
+    for (auto& node : m_nodes) {
         f << "ID=" << node.id
           << ";TYPE=" << node.type_id
           << ";X=" << node.position.x
           << ";Y=" << node.position.y;
-
-        for (auto& kv : node.pin_values) {
+        for (auto& kv : node.pin_values)
             f << ";V" << kv.first << "=" << kv.second;
-        }
         f << "\n";
     }
 
     f << "[CONNECTIONS]\n";
-    for (auto& conn : m_state.connections) {
+    for (auto& conn : m_connections) {
         f << "FROM=" << conn.from_node_id << ":" << conn.from_pin_index
           << ";TO=" << conn.to_node_id << ":" << conn.to_pin_index << "\n";
     }
 
     f.close();
-    m_state.current_file_path = path;
-    m_state.modified = false;
+    m_current_file_path = path;
+    m_modified = false;
     return true;
 }
 
 static std::string trim_str(const std::string& s) {
     size_t start = s.find_first_not_of(" \t\r\n");
-    size_t end = s.find_last_not_of(" \t\r\n");
+    size_t end   = s.find_last_not_of(" \t\r\n");
     if (start == std::string::npos) return "";
     return s.substr(start, end - start + 1);
 }
@@ -1302,7 +866,7 @@ bool NodeEditor::LoadFromFile(const std::string& path) {
     if (!f.is_open()) return false;
 
     Clear();
-    m_state.current_file_path = path;
+    m_current_file_path = path;
 
     enum Section { None, Nodes, Connections };
     Section section = None;
@@ -1312,10 +876,9 @@ bool NodeEditor::LoadFromFile(const std::string& path) {
         line = trim_str(line);
         if (line.empty()) continue;
 
-        if (line == "[NODEMAP]") continue;
-        if (line == "[NODES]") { section = Nodes; continue; }
-        if (line == "[CONNECTIONS]") { section = Connections; continue; }
-
+        if (line == "[NODEMAP]")      continue;
+        if (line == "[NODES]")        { section = Nodes; continue; }
+        if (line == "[CONNECTIONS]")  { section = Connections; continue; }
         if (line.substr(0, 8) == "VERSION=") continue;
 
         if (section == Nodes) {
@@ -1330,10 +893,10 @@ bool NodeEditor::LoadFromFile(const std::string& path) {
                 std::string key = segment.substr(0, eq);
                 std::string val = segment.substr(eq + 1);
 
-                if (key == "ID") node.id = std::atoi(val.c_str());
-                else if (key == "TYPE") node.type_id = std::atoi(val.c_str());
-                else if (key == "X") node.position.x = std::strtof(val.c_str(), nullptr);
-                else if (key == "Y") node.position.y = std::strtof(val.c_str(), nullptr);
+                if      (key == "ID")   node.id      = std::atoi(val.c_str());
+                else if (key == "TYPE") node.type_id  = std::atoi(val.c_str());
+                else if (key == "X")    node.position.x = std::strtof(val.c_str(), nullptr);
+                else if (key == "Y")    node.position.y = std::strtof(val.c_str(), nullptr);
                 else if (key.size() > 1 && key[0] == 'V') {
                     int pin_idx = std::atoi(key.substr(1).c_str());
                     node.pin_values[pin_idx] = val;
@@ -1342,26 +905,26 @@ bool NodeEditor::LoadFromFile(const std::string& path) {
 
             if (FindNodeTypeDef(node.type_id)) {
                 ComputeNodeSize(node);
-                m_state.nodes.push_back(node);
+                m_nodes.push_back(node);
             }
         } else if (section == Connections) {
             NodeConnection conn;
             size_t from_colon = line.find(':', line.find("FROM=") + 5);
-            size_t from_semi = line.find(';');
-            size_t to_colon = line.find(':', line.find("TO=") + 3);
+            size_t from_semi  = line.find(';');
+            size_t to_colon   = line.find(':', line.find("TO=") + 3);
 
             if (from_colon != std::string::npos && from_semi != std::string::npos && to_colon != std::string::npos) {
-                conn.from_node_id = std::atoi(line.substr(line.find("FROM=") + 5, from_colon - line.find("FROM=") - 5).c_str());
+                conn.from_node_id  = std::atoi(line.substr(line.find("FROM=") + 5, from_colon - line.find("FROM=") - 5).c_str());
                 conn.from_pin_index = std::atoi(line.substr(from_colon + 1, from_semi - from_colon - 1).c_str());
-                conn.to_node_id = std::atoi(line.substr(line.find("TO=") + 3, to_colon - line.find("TO=") - 3).c_str());
-                conn.to_pin_index = std::atoi(line.substr(to_colon + 1).c_str());
-                m_state.connections.push_back(conn);
+                conn.to_node_id    = std::atoi(line.substr(line.find("TO=") + 3, to_colon - line.find("TO=") - 3).c_str());
+                conn.to_pin_index  = std::atoi(line.substr(to_colon + 1).c_str());
+                m_connections.push_back(conn);
             }
         }
     }
 
     f.close();
-    m_state.modified = false;
+    m_modified = false;
     return true;
 }
 
@@ -1406,18 +969,17 @@ std::string NodeEditor::GetNodeInputValue(NodeInstance& node, int pin_index,
     }
 
     auto pit = node.pin_values.find(pin_index);
-    if (pit != node.pin_values.end() && !pit->second.empty()) {
+    if (pit != node.pin_values.end() && !pit->second.empty())
         return pit->second;
-    }
 
     const NodeTypeDef* def = GetTypeDef(node);
     if (def && pin_index < (int)def->inputs.size()) {
         switch (def->inputs[pin_index].type) {
-            case PinType::Number: return "0.0";
+            case PinType::Number:  return "0.0";
             case PinType::Integer: return "0";
-            case PinType::Bool: return "false";
-            case PinType::String: return "\"\"";
-            default: return "nil";
+            case PinType::Bool:    return "false";
+            case PinType::String:  return "\"\"";
+            default:               return "nil";
         }
     }
 
@@ -1436,31 +998,28 @@ std::string NodeEditor::GenerateNodeCode(NodeInstance& node,
         std::string val = GetNodeInputValue(node, (int)i, output_vars, var_counter);
         std::string placeholder = "{" + std::to_string(i) + "}";
         size_t pos;
-        while ((pos = tmpl.find(placeholder)) != std::string::npos) {
+        while ((pos = tmpl.find(placeholder)) != std::string::npos)
             tmpl.replace(pos, placeholder.size(), val);
-        }
     }
 
     for (size_t i = 0; i < def->outputs.size(); i++) {
         std::string var_name = GetNodeOutputVar(node.id, (int)i, output_vars, var_counter);
         std::string placeholder = "${" + std::to_string(i) + "}";
         size_t pos;
-        while ((pos = tmpl.find(placeholder)) != std::string::npos) {
+        while ((pos = tmpl.find(placeholder)) != std::string::npos)
             tmpl.replace(pos, placeholder.size(), var_name);
-        }
+
         std::string named_placeholder = "${" + def->outputs[i].name + "}";
-        while ((pos = tmpl.find(named_placeholder)) != std::string::npos) {
+        while ((pos = tmpl.find(named_placeholder)) != std::string::npos)
             tmpl.replace(pos, named_placeholder.size(), var_name);
-        }
     }
 
     if (def->has_inline) {
         auto pit = node.pin_values.find(-1);
         std::string inline_val = (pit != node.pin_values.end()) ? pit->second : "";
         size_t pos;
-        while ((pos = tmpl.find("{inline}")) != std::string::npos) {
+        while ((pos = tmpl.find("{inline}")) != std::string::npos)
             tmpl.replace(pos, 8, inline_val);
-        }
     }
 
     return tmpl;
@@ -1470,177 +1029,19 @@ std::string NodeEditor::GenerateLua() {
     std::unordered_map<int, std::string> output_vars;
     int var_counter = 0;
 
-    std::vector<int> start_nodes;
-    std::vector<int> update_nodes;
-    std::vector<int> draw_nodes;
-    std::vector<int> end_nodes;
+    std::vector<int> start_nodes, update_nodes, draw_nodes, end_nodes;
 
-    for (auto& node : m_state.nodes) {
-        if (node.type_id == 1000) start_nodes.push_back(node.id);
+    for (auto& node : m_nodes) {
+        if      (node.type_id == 1000) start_nodes.push_back(node.id);
         else if (node.type_id == 1001) update_nodes.push_back(node.id);
         else if (node.type_id == 1002) draw_nodes.push_back(node.id);
         else if (node.type_id == 1003) end_nodes.push_back(node.id);
     }
 
     std::string lua_code;
-
-    auto generate_function = [&](const std::string& func_name, int start_node_id, const std::string& extra_params) {
-        std::string code;
-        std::set<int> visited;
-        std::vector<int> order;
-
-        std::function<void(int)> dfs = [&](int node_id) {
-            if (visited.count(node_id)) return;
-            visited.insert(node_id);
-
-            NodeInstance* node = FindNode(node_id);
-            if (!node) return;
-
-            for (auto& conn : m_state.connections) {
-                if (conn.from_node_id == node_id && conn.from_pin_index >= 0) {
-                    for (auto& conn2 : m_state.connections) {
-                        if (conn2.to_node_id == conn.to_node_id && conn2.to_pin_index == conn.to_pin_index && &conn2 != &conn) {
-                        }
-                    }
-                }
-            }
-
-            order.push_back(node_id);
-
-            for (auto& conn : m_state.connections) {
-                if (conn.from_node_id == node_id) {
-                    dfs(conn.to_node_id);
-                }
-            }
-        };
-
-        if (start_node_id >= 0) {
-            dfs(start_node_id);
-        }
-
-        for (auto& node : m_state.nodes) {
-            if (!visited.count(node.id)) {
-                const NodeTypeDef* def = GetTypeDef(node);
-                if (def && def->category != NodeCategory::Flow) {
-                    order.push_back(node.id);
-                }
-            }
-        }
-
-        for (int node_id : order) {
-            NodeInstance* node = FindNode(node_id);
-            if (!node) continue;
-
-            std::string node_code = GenerateNodeCode(*node, output_vars, var_counter);
-            if (node_code.empty()) continue;
-
-            std::istringstream stream(node_code);
-            std::string line;
-            while (std::getline(stream, line)) {
-                if (line.size() >= 2 && line[0] == '>' && line[1] == '>') {
-                    code += line.substr(2) + "\n";
-                } else {
-                    code += "    " + line + "\n";
-                }
-            }
-        }
-
-        if (start_node_id >= 0) {
-            NodeInstance* start_node = FindNode(start_node_id);
-            if (start_node) {
-                std::string start_code = GenerateNodeCode(*start_node, output_vars, var_counter);
-                std::string combined = "";
-                std::istringstream stream(start_code);
-                std::string line;
-                while (std::getline(stream, line)) {
-                    if (line.size() >= 2 && line[0] == '>' && line[1] == '>') {
-                        combined += line.substr(2) + "\n";
-                    }
-                }
-
-                std::string existing = code;
-                code = combined;
-                std::istringstream existing_stream(existing);
-                while (std::getline(existing_stream, line)) {
-                    if (!line.empty()) {
-                        code += line + "\n";
-                    }
-                }
-            }
-        }
-
-        return code;
-    };
-
-    std::string start_code = generate_function("Start", start_nodes.empty() ? -1 : start_nodes[0], "");
-    std::string update_code = generate_function("Update", update_nodes.empty() ? -1 : update_nodes[0], "dt");
-    std::string draw_code = generate_function("Draw", draw_nodes.empty() ? -1 : draw_nodes[0], "");
-    std::string end_code = generate_function("End", end_nodes.empty() ? -1 : end_nodes[0], "");
-
-    output_vars.clear();
-    var_counter = 0;
-
-    auto generate_clean = [&](const std::string& func_name, int start_node_id, const std::string& extra_params,
-                              std::set<int>& global_visited) {
-        std::string code;
-
-        std::vector<int> exec_order;
-        std::set<int> visited;
-
-        if (start_node_id >= 0) {
-            std::function<void(int)> follow_exec = [&](int node_id) {
-                if (visited.count(node_id)) return;
-                visited.insert(node_id);
-                global_visited.insert(node_id);
-                exec_order.push_back(node_id);
-
-                NodeInstance* node = FindNode(node_id);
-                if (!node) return;
-
-                const NodeTypeDef* def = GetTypeDef(*node);
-                if (!def) return;
-
-                for (size_t out_idx = 0; out_idx < def->outputs.size(); out_idx++) {
-                    if (def->outputs[out_idx].type == PinType::Flow) {
-                        for (auto& conn : m_state.connections) {
-                            if (conn.from_node_id == node_id && conn.from_pin_index == (int)out_idx) {
-                                follow_exec(conn.to_node_id);
-                            }
-                        }
-                    }
-                }
-            };
-            follow_exec(start_node_id);
-        }
-
-        for (int node_id : exec_order) {
-            NodeInstance* node = FindNode(node_id);
-            if (!node) continue;
-
-            std::string node_code = GenerateNodeCode(*node, output_vars, var_counter);
-            if (node_code.empty()) continue;
-
-            std::istringstream stream(node_code);
-            std::string line;
-            while (std::getline(stream, line)) {
-                if (line.size() >= 2 && line[0] == '>' && line[1] == '>') {
-                    code += line.substr(2) + "\n";
-                } else {
-                    code += "    " + line + "\n";
-                }
-            }
-        }
-
-        return code;
-    };
-
     std::set<int> global_visited;
 
-    lua_code.clear();
-    output_vars.clear();
-    var_counter = 0;
-
-    auto generate_final_function = [&](const std::string& func_name, int start_node_id, const std::string& extra_params) {
+    auto generate_final_function = [&](const std::string&, int start_node_id, const std::string&) {
         std::string code;
         std::set<int> visited;
         std::vector<int> exec_order;
@@ -1654,16 +1055,14 @@ std::string NodeEditor::GenerateLua() {
 
                 NodeInstance* node = FindNode(node_id);
                 if (!node) return;
-
                 const NodeTypeDef* def = GetTypeDef(*node);
                 if (!def) return;
 
                 for (size_t out_idx = 0; out_idx < def->outputs.size(); out_idx++) {
                     if (def->outputs[out_idx].type == PinType::Flow) {
-                        for (auto& conn : m_state.connections) {
-                            if (conn.from_node_id == node_id && conn.from_pin_index == (int)out_idx) {
+                        for (auto& conn : m_connections) {
+                            if (conn.from_node_id == node_id && conn.from_pin_index == (int)out_idx)
                                 follow_exec(conn.to_node_id);
-                            }
                         }
                     }
                 }
@@ -1674,21 +1073,18 @@ std::string NodeEditor::GenerateLua() {
         for (int node_id : exec_order) {
             NodeInstance* node = FindNode(node_id);
             if (!node) continue;
-
             std::string node_code = GenerateNodeCode(*node, output_vars, var_counter);
             if (node_code.empty()) continue;
 
             std::istringstream stream(node_code);
-            std::string line;
-            while (std::getline(stream, line)) {
-                if (line.size() >= 2 && line[0] == '>' && line[1] == '>') {
-                    code += "    " + line.substr(2) + "\n";
-                } else if (!line.empty()) {
-                    code += "    " + line + "\n";
-                }
+            std::string l;
+            while (std::getline(stream, l)) {
+                if (l.size() >= 2 && l[0] == '>' && l[1] == '>')
+                    code += "    " + l.substr(2) + "\n";
+                else if (!l.empty())
+                    code += "    " + l + "\n";
             }
         }
-
         return code;
     };
 
@@ -1699,28 +1095,24 @@ std::string NodeEditor::GenerateLua() {
         lua_code += generate_final_function("Start", start_nodes[0], "");
         lua_code += "end\n\n";
     }
-
     if (!update_nodes.empty()) {
         lua_code += "function Update(dt)\n";
         lua_code += generate_final_function("Update", update_nodes[0], "dt");
         lua_code += "end\n\n";
     }
-
     if (!draw_nodes.empty()) {
         lua_code += "function Draw()\n";
         lua_code += generate_final_function("Draw", draw_nodes[0], "");
         lua_code += "end\n\n";
     }
-
     if (!end_nodes.empty()) {
         lua_code += "function End()\n";
         lua_code += generate_final_function("End", end_nodes[0], "");
         lua_code += "end\n\n";
     }
 
-    for (auto& node : m_state.nodes) {
+    for (auto& node : m_nodes) {
         if (global_visited.count(node.id)) continue;
-
         const NodeTypeDef* def = GetTypeDef(node);
         if (!def) continue;
 
@@ -1728,32 +1120,30 @@ std::string NodeEditor::GenerateLua() {
             std::string func_name = GetNodeInputValue(node, 0, output_vars, var_counter);
             lua_code += "function " + func_name + "()\n";
 
-            for (auto& conn : m_state.connections) {
+            for (auto& conn : m_connections) {
                 if (conn.from_node_id == node.id && conn.from_pin_index == 1) {
                     std::function<void(int)> gen_body = [&](int nid) {
                         NodeInstance* n = FindNode(nid);
                         if (!n) return;
                         global_visited.insert(nid);
 
-                        std::string code = GenerateNodeCode(*n, output_vars, var_counter);
-                        std::istringstream stream(code);
-                        std::string line;
-                        while (std::getline(stream, line)) {
-                            if (line.size() >= 2 && line[0] == '>' && line[1] == '>') {
-                                lua_code += "    " + line.substr(2) + "\n";
-                            } else if (!line.empty()) {
-                                lua_code += "    " + line + "\n";
-                            }
+                        std::string c = GenerateNodeCode(*n, output_vars, var_counter);
+                        std::istringstream stream(c);
+                        std::string l;
+                        while (std::getline(stream, l)) {
+                            if (l.size() >= 2 && l[0] == '>' && l[1] == '>')
+                                lua_code += "    " + l.substr(2) + "\n";
+                            else if (!l.empty())
+                                lua_code += "    " + l + "\n";
                         }
 
                         const NodeTypeDef* nd = GetTypeDef(*n);
                         if (nd) {
                             for (size_t oi = 0; oi < nd->outputs.size(); oi++) {
                                 if (nd->outputs[oi].type == PinType::Flow) {
-                                    for (auto& c2 : m_state.connections) {
-                                        if (c2.from_node_id == n->id && c2.from_pin_index == (int)oi) {
+                                    for (auto& c2 : m_connections) {
+                                        if (c2.from_node_id == n->id && c2.from_pin_index == (int)oi)
                                             gen_body(c2.to_node_id);
-                                        }
                                     }
                                 }
                             }
@@ -1763,31 +1153,31 @@ std::string NodeEditor::GenerateLua() {
                     break;
                 }
             }
-
             lua_code += "end\n\n";
         }
     }
 
-    for (auto& node : m_state.nodes) {
+    for (auto& node : m_nodes) {
         if (global_visited.count(node.id)) continue;
-
         const NodeTypeDef* def = GetTypeDef(node);
         if (!def) continue;
 
         std::string node_code = GenerateNodeCode(node, output_vars, var_counter);
         if (!node_code.empty()) {
             std::istringstream stream(node_code);
-            std::string line;
-            while (std::getline(stream, line)) {
-                if (line.size() >= 2 && line[0] == '>' && line[1] == '>') {
-                    lua_code += line.substr(2) + "\n";
-                } else if (!line.empty()) {
-                    lua_code += line + "\n";
-                }
+            std::string l;
+            while (std::getline(stream, l)) {
+                if (l.size() >= 2 && l[0] == '>' && l[1] == '>')
+                    lua_code += l.substr(2) + "\n";
+                else if (!l.empty())
+                    lua_code += l + "\n";
             }
             lua_code += "\n";
         }
     }
 
     return lua_code;
+}
+
+void NodeEditor::RenderInlineEditor(NodeInstance&) {
 }

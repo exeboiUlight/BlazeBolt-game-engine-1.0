@@ -5,15 +5,12 @@
 #include <unordered_map>
 #include <functional>
 #include "imgui.h"
-#include "imgui_internal.h"
+#include "imgui_node_editor.h"
 #include "node_types.hpp"
 
 struct EditorTab;
 
-inline int GenerateNodeId() {
-    static int counter = 0;
-    return counter++;
-}
+namespace ed = ax::NodeEditor;
 
 struct NodePin {
     int id;
@@ -42,43 +39,6 @@ struct NodeInstance {
     std::vector<NodePin> output_pins;
 };
 
-struct NodeEditorState {
-    std::vector<NodeInstance> nodes;
-    std::vector<NodeConnection> connections;
-
-    ImVec2 offset = ImVec2(0, 0);
-    float zoom = 1.0f;
-
-    int selected_node_id = -1;
-    int hovered_node_id = -1;
-    int dragging_node_id = -1;
-    ImVec2 drag_offset = ImVec2(0, 0);
-
-    bool is_connecting = false;
-    int connecting_from_node = -1;
-    int connecting_from_pin = -1;
-    bool connecting_from_output = true;
-    ImVec2 connecting_mouse_pos = ImVec2(0, 0);
-
-    bool is_panning = false;
-    ImVec2 pan_start = ImVec2(0, 0);
-    bool is_selecting = false;
-    ImVec2 selection_start = ImVec2(0, 0);
-    ImVec2 selection_end = ImVec2(0, 0);
-    std::vector<int> selected_nodes;
-
-    char palette_search[256] = "";
-    int palette_selected_category = -1;
-
-    std::vector<NodeInstance> clipboard_nodes;
-    std::vector<NodeConnection> clipboard_connections;
-
-    std::string current_file_path;
-    bool modified = false;
-
-    ImVec2 canvas_pos_cache = ImVec2(0, 0);
-};
-
 class NodeEditor {
 public:
     NodeEditor();
@@ -91,38 +51,41 @@ public:
 
     std::string GenerateLua();
 
-    NodeEditorState& GetState() { return m_state; }
-    bool IsModified() const { return m_state.modified; }
-    void ClearModified() { m_state.modified = false; }
+    bool IsModified() const { return m_modified; }
+    void ClearModified() { m_modified = false; }
 
     void Clear();
+    void RenderPalettePanel();
 
 private:
-    NodeEditorState m_state;
+    ed::EditorContext* m_context = nullptr;
 
-    void RenderCanvas();
-    void RenderGrid(ImDrawList* draw_list, ImVec2 canvas_pos, ImVec2 canvas_size);
-    void RenderNodes(ImDrawList* draw_list);
-    void RenderConnections(ImDrawList* draw_list);
-    void RenderConnectionBeingCreated(ImDrawList* draw_list);
-    void RenderSelectionRect(ImDrawList* draw_list);
+    std::vector<NodeInstance> m_nodes;
+    std::vector<NodeConnection> m_connections;
 
-    void RenderNode(ImDrawList* draw_list, NodeInstance& node);
-    void ComputeNodeSize(NodeInstance& node);
-    void ComputePinPositions(NodeInstance& node);
-    ImVec2 GetPinPosition(const NodeInstance& node, int pin_index, bool is_input);
+    std::vector<int> m_selected_nodes;
+    bool m_modified = false;
+    std::string m_current_file_path;
 
-    void HandleCanvasInteraction();
-    void HandleNodeInteraction(NodeInstance& node);
-    void HandlePinInteraction(NodeInstance& node, int pin_index, bool is_input);
+    char m_palette_search[256] = "";
+    char m_palette_search_panel[256] = "";
+
+    std::vector<NodeInstance> m_clipboard_nodes;
+    std::vector<NodeConnection> m_clipboard_connections;
+
+    static int s_next_node_id;
+    static int GenerateNodeId();
 
     void RenderPalette();
+
+    void ComputeNodeSize(NodeInstance& node);
+    void ComputePinPositions(NodeInstance& node);
+
     void AddNode(int type_id, ImVec2 position);
     void DeleteSelectedNodes();
     void DeleteNode(int node_id);
 
     void AddConnection(int from_node, int from_pin, int to_node, int to_pin);
-    void RemoveConnectionsForPin(int node_id, int pin_index, bool is_input);
     void RemoveAllConnectionsForNode(int node_id);
 
     void ClearSelection();
@@ -132,9 +95,6 @@ private:
     void CopySelectedNodes();
     void CutSelectedNodes();
     void PasteNodes();
-
-    ImVec2 ScreenToCanvas(ImVec2 screen_pos);
-    ImVec2 CanvasToScreen(ImVec2 canvas_pos);
 
     NodeInstance* FindNode(int node_id);
     const NodeTypeDef* GetTypeDef(const NodeInstance& node);

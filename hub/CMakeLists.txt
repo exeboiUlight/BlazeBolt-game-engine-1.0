@@ -28,6 +28,10 @@ set(IMGUI_SOURCES
     ${IMGUI_DIR}/backends/imgui_impl_opengl3.cpp
     ${IMGUI_DIR}/misc/freetype/imgui_freetype.cpp
     ${IMGUI_DIR}/texteditor/TextEditor.cpp
+    ${IMGUI_DIR}/imgui_canvas.cpp
+    ${IMGUI_DIR}/crude_json.cpp
+    ${IMGUI_DIR}/imgui_node_editor.cpp
+    ${IMGUI_DIR}/imgui_node_editor_api.cpp
 )
 
 set(ENGINE_SOURCES
