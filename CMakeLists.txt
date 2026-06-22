@@ -64,6 +64,7 @@ set(BLAZEBOLT_SOURCES
     core/utils/dr_mp3.cpp
     core/utils/input.cpp
     core/scene.cpp
+    core/sceneFormat.hpp
 )
 
 set(BLAZEBOLT_INCLUDES

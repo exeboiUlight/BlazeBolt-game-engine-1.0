@@ -9,6 +9,7 @@
 #include "imgui.h"
 #include "imgui_internal.h"
 #include "TextEditor.h"
+#include "crude_json.h"
 #include <cstdint>
 typedef unsigned int GLuint;
 
@@ -16,7 +17,7 @@ class NodeEditor;
 
 namespace fs = std::filesystem;
 
-enum class EditorTabType { Code, Image, NodeGraph, None };
+enum class EditorTabType { Code, Image, NodeGraph, Scene, None };
 
 struct EditorTab {
     EditorTabType type = EditorTabType::None;
@@ -26,6 +27,17 @@ struct EditorTab {
 
     std::unique_ptr<TextEditor> code_editor;
     std::unique_ptr<NodeEditor> node_editor;
+
+    // Scene editor data
+    crude_json::value scene_json;
+    int scene_selected_object = -1;
+    int scene_gizmo_mode = 0; // 0=MOVE, 1=ROTATE, 2=SCALE
+    int scene_drag_handle = -1; // -1=none, 0-3=corners, 4-7=edges, 8=rotation, 9=center, 10=Xarrow, 11=Yarrow
+    double scene_drag_wl, scene_drag_wb, scene_drag_wr, scene_drag_wt; // initial bbox when drag started
+    double scene_drag_vx, scene_drag_vy; // initial position when drag started
+    double scene_drag_vsx, scene_drag_vsy; // initial size when drag started
+    char scene_new_name[256] = "";
+    char scene_new_type[64] = "sprite";
 
     unsigned char* image_data = nullptr;
     int img_w = 0, img_h = 0, img_channels = 0;
@@ -76,8 +88,10 @@ private:
     void RenderCodeEditor(EditorTab& tab);
     void RenderImageEditor(EditorTab& tab);
     void RenderNodeEditor(EditorTab& tab);
+    void RenderSceneEditor(EditorTab& tab);
 
     void OpenNodeGraph(const std::string& path);
+    void OpenSceneEditor(const std::string& path);
     void CreateNewNodeGraph(const std::string& path);
     void ExportNodeGraphToLua(EditorTab& tab);
 

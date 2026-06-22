@@ -10,16 +10,18 @@ private:
     int _windowedX, _windowedY, _windowedWidth, _windowedHeight;
     bool _isFullscreen;
     bool _isVSync;
+    bool _ownsWindow;
     GLFWwindow* window;
     const char* _title;
 
 public:
     Window(int width, int height, const char* title) 
         : _width(width), _height(height), _title(title), window(nullptr),
-          _isFullscreen(false), _isVSync(false),
+          _isFullscreen(false), _isVSync(false), _ownsWindow(true),
           _windowedX(0), _windowedY(0), _windowedWidth(width), _windowedHeight(height) {
         
         if (!glfwInit()) {
+            _ownsWindow = false;
             return;
         }
         
@@ -30,6 +32,7 @@ public:
         window = glfwCreateWindow(width, height, title, NULL, NULL);
         if (!window) {
             glfwTerminate();
+            _ownsWindow = false;
             return;
         }
         
@@ -61,14 +64,18 @@ public:
         if (window) {
             glfwDestroyWindow(window);
         }
-        glfwTerminate();
+        if (_ownsWindow) {
+            glfwTerminate();
+        }
     }
     
     Window(Window&& other) noexcept 
         : _width(other._width), _height(other._height), 
-          _title(other._title), window(other.window) {
+          _title(other._title), window(other.window),
+          _ownsWindow(other._ownsWindow) {
         other.window = nullptr;
         other._title = nullptr;
+        other._ownsWindow = false;
     }
     
     Window& operator=(Window&& other) noexcept {
@@ -80,8 +87,10 @@ public:
             _height = other._height;
             _title = other._title;
             window = other.window;
+            _ownsWindow = other._ownsWindow;
             other.window = nullptr;
             other._title = nullptr;
+            other._ownsWindow = false;
         }
         return *this;
     }

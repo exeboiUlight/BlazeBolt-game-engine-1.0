@@ -121,6 +121,30 @@ namespace LuaEngine {
             return 1;
         }
 
+        // Scene file I/O
+        static int LoadSceneFile(lua_State* state) {
+            const char* path = luaL_checkstring(state, 1);
+            LuaEngine* engine = getEngine(state);
+            if (!engine) { lua_pushnil(state); return 1; }
+            auto nameToId = engine->loadSceneFile(path);
+            lua_newtable(state);
+            for (const auto& [name, id] : nameToId) {
+                lua_pushstring(state, name.c_str());
+                lua_pushinteger(state, (lua_Integer)id);
+                lua_rawset(state, -3);
+            }
+            return 1;
+        }
+
+        static int SaveSceneFile(lua_State* state) {
+            const char* path = luaL_checkstring(state, 1);
+            LuaEngine* engine = getEngine(state);
+            if (!engine) { lua_pushboolean(state, false); return 1; }
+            bool result = engine->saveSceneFile(path);
+            lua_pushboolean(state, result);
+            return 1;
+        }
+
         // Sprite functions
         static int CreateSprite(lua_State *state) {
             LuaEngine *engine = _functions::getEngine(state);

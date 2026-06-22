@@ -1,6 +1,7 @@
 #include <engine/luaFunctions.hpp>
 #include <engine/luaMathBindings.hpp>
 #include <engine/luaNetBindings.hpp>
+#include <sceneFormat.hpp>
 #include <cmath>
 
 #ifndef M_PIf
@@ -95,6 +96,10 @@ namespace LuaEngine {
         // Scene management
         {"LoadScene", _functions::LoadScene},
         {"GetCurrentScene", _functions::GetCurrentScene},
+
+        // Scene file I/O
+        {"LoadSceneFile", _functions::LoadSceneFile},
+        {"SaveSceneFile", _functions::SaveSceneFile},
 
         // Screen size functions (global, not in table)
         // These will be registered separately in registerCFunctions()
@@ -750,6 +755,260 @@ namespace LuaEngine {
             return sceneManager->loadScene(sceneName);
         }
         return false;
+    }
+
+    std::unordered_map<std::string, Entity> LuaEngine::loadSceneFile(const std::string& path) {
+        std::unordered_map<std::string, Entity> nameToId;
+        std::ifstream f(path);
+        if (!f.is_open()) return nameToId;
+        std::string content((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
+        f.close();
+
+        BlazeBolt::SceneDocument doc = BlazeBolt::SceneDocument::fromJSON(content);
+        for (const auto& obj : doc.objects) {
+            if (obj.name.empty()) continue;
+            Entity id = 0;
+
+            if (obj.type == "sprite") {
+                std::string tex = obj.getString("texture");
+                double x = obj.getNumber("pos_x");
+                double y = obj.getNumber("pos_y");
+                id = createSprite(tex, Vector2((float)x, (float)y));
+                if (id) {
+                    if (obj.numbers.count("size_x") || obj.numbers.count("size_y"))
+                        spriteSetSize(id, Vector2((float)obj.getNumber("size_x", 64), (float)obj.getNumber("size_y", 64)));
+                    if (obj.numbers.count("rot"))
+                        spriteSetRotation(id, (float)obj.getNumber("rot"));
+                    if (obj.numbers.count("color_r") || obj.numbers.count("color_g") || obj.numbers.count("color_b") || obj.numbers.count("color_a"))
+                        spriteSetColor(id, Vector4((float)obj.getNumber("color_r", 1), (float)obj.getNumber("color_g", 1), (float)obj.getNumber("color_b", 1), (float)obj.getNumber("color_a", 1)));
+                    if (obj.booleans.count("visible"))
+                        spriteSetVisible(id, obj.getBool("visible"));
+                    if (obj.numbers.count("origin_x") || obj.numbers.count("origin_y"))
+                        spriteSetOrigin(id, Vector2((float)obj.getNumber("origin_x", 0.5), (float)obj.getNumber("origin_y", 0.5)));
+                    entityTexturePaths[id] = tex;
+                }
+            } else if (obj.type == "animated_sprite") {
+                std::string tex = obj.getString("texture");
+                double x = obj.getNumber("pos_x");
+                double y = obj.getNumber("pos_y");
+                id = createAnimatedSprite(tex, Vector2((float)x, (float)y));
+                if (id) {
+                    if (obj.numbers.count("size_x") || obj.numbers.count("size_y"))
+                        animatedSpriteSetSize(id, Vector2((float)obj.getNumber("size_x", 64), (float)obj.getNumber("size_y", 64)));
+                    if (obj.numbers.count("rot"))
+                        animatedSpriteSetRotation(id, (float)obj.getNumber("rot"));
+                    if (obj.numbers.count("color_r") || obj.numbers.count("color_g") || obj.numbers.count("color_b") || obj.numbers.count("color_a"))
+                        animatedSpriteSetColor(id, Vector4((float)obj.getNumber("color_r", 1), (float)obj.getNumber("color_g", 1), (float)obj.getNumber("color_b", 1), (float)obj.getNumber("color_a", 1)));
+                    if (obj.booleans.count("visible"))
+                        obj.booleans.at("visible") ? animatedSpritePlay(id) : (void)0;
+                    if (obj.booleans.count("looping"))
+                        animatedSpriteSetLooping(id, obj.getBool("looping"));
+                    if (obj.numbers.count("playback_speed"))
+                        animatedSpriteSetPlaybackSpeed(id, (float)obj.getNumber("playback_speed"));
+                    entityTexturePaths[id] = tex;
+                }
+            } else if (obj.type == "text") {
+                std::string font = obj.getString("font");
+                std::string text = obj.getString("text");
+                double x = obj.getNumber("pos_x");
+                double y = obj.getNumber("pos_y");
+                id = createText(font, text, Vector2((float)x, (float)y));
+                if (id) {
+                    if (obj.numbers.count("scale_x") || obj.numbers.count("scale_y"))
+                        textSetScale(id, Vector2((float)obj.getNumber("scale_x", 1), (float)obj.getNumber("scale_y", 1)));
+                    if (obj.numbers.count("rot"))
+                        textSetRotation(id, (float)obj.getNumber("rot"));
+                    if (obj.numbers.count("color_r") || obj.numbers.count("color_g") || obj.numbers.count("color_b") || obj.numbers.count("color_a"))
+                        textSetColor(id, Vector4((float)obj.getNumber("color_r", 1), (float)obj.getNumber("color_g", 1), (float)obj.getNumber("color_b", 1), (float)obj.getNumber("color_a", 1)));
+                    if (obj.booleans.count("visible"))
+                        textSetVisible(id, obj.getBool("visible"));
+                    if (obj.numbers.count("alignment"))
+                        textSetAlignment(id, static_cast<BlazeBolt::Text2D::Alignment>((int)obj.getNumber("alignment")));
+                    entityFontPaths[id] = font;
+                }
+            } else if (obj.type == "camera") {
+                id = createCamera();
+                if (id) {
+                    if (obj.numbers.count("pos_x") || obj.numbers.count("pos_y"))
+                        cameraSetPosition(id, Vector2((float)obj.getNumber("pos_x"), (float)obj.getNumber("pos_y")));
+                    if (obj.numbers.count("zoom"))
+                        cameraSetZoom(id, (float)obj.getNumber("zoom"));
+                    if (obj.numbers.count("rot"))
+                        cameraSetRotation(id, (float)obj.getNumber("rot"));
+                }
+            } else if (obj.type == "point_light") {
+                id = createPointLight(
+                    (float)obj.getNumber("pos_x"),
+                    (float)obj.getNumber("pos_y"),
+                    (float)obj.getNumber("color_r", 1),
+                    (float)obj.getNumber("color_g", 1),
+                    (float)obj.getNumber("color_b", 1),
+                    (float)obj.getNumber("intensity", 1),
+                    (float)obj.getNumber("radius", 200));
+                if (id && obj.booleans.count("enabled"))
+                    lightSetEnabled(id, obj.getBool("enabled"));
+            } else if (obj.type == "ambient_light") {
+                id = createAmbientLight(
+                    (float)obj.getNumber("color_r", 1),
+                    (float)obj.getNumber("color_g", 1),
+                    (float)obj.getNumber("color_b", 1),
+                    (float)obj.getNumber("intensity", 0.3));
+            } else if (obj.type == "particle_system") {
+                id = createParticleSystem();
+                if (id) {
+                    if (obj.numbers.count("pos_x") || obj.numbers.count("pos_y"))
+                        particleSystemSetPosition(id, Vector2((float)obj.getNumber("pos_x"), (float)obj.getNumber("pos_y")));
+                    std::string ptex = obj.getString("texture");
+                    if (!ptex.empty()) particleSystemSetTexture(id, ptex);
+                    if (obj.numbers.count("emission_rate"))
+                        particleSystemSetEmissionRate(id, (float)obj.getNumber("emission_rate"));
+                    if (obj.booleans.count("active"))
+                        particleSystemSetActive(id, obj.getBool("active"));
+                    if (obj.booleans.count("visible"))
+                        particleSystemSetVisible(id, obj.getBool("visible"));
+                }
+            } else if (obj.type == "tileset") {
+                std::string ttex = obj.getString("texture");
+                auto tw = (uint32_t)obj.getNumber("tile_width", 32);
+                auto th = (uint32_t)obj.getNumber("tile_height", 32);
+                auto ac = (uint32_t)obj.getNumber("atlas_cols", 8);
+                auto ar = (uint32_t)obj.getNumber("atlas_rows", 8);
+                id = createTileset(ttex, tw, th, ac, ar);
+                if (id && (obj.numbers.count("pos_x") || obj.numbers.count("pos_y")))
+                    tilesetSetPosition(id, Vector2((float)obj.getNumber("pos_x"), (float)obj.getNumber("pos_y")));
+            }
+
+            if (id && !obj.name.empty()) {
+                nameToId[obj.name] = id;
+                entityNames[id] = obj.name;
+            }
+        }
+        return nameToId;
+    }
+
+    bool LuaEngine::saveSceneFile(const std::string& path) {
+        BlazeBolt::SceneDocument doc;
+        doc.name = std::filesystem::path(path).stem().string();
+
+        auto saveVec2 = [](const Vector2& v) -> std::vector<double> { return {v.x, v.y}; };
+        auto saveVec3 = [](const Vector3& v) -> std::vector<double> { return {v.x, v.y, v.z}; };
+        auto saveVec4 = [](const Vector4& v) -> std::vector<double> { return {v.x, v.y, v.z, v.w}; };
+
+        for (const auto& pair : spriteWorld.getAllEntities()) {
+            if (!pair.first || pair.second) continue;
+            BlazeBolt::SceneObjectData obj;
+            obj.type = "sprite";
+            { auto it = entityNames.find(pair.second); if (it != entityNames.end()) obj.name = it->second; }
+            obj.numbers["pos_x"] = pair.first->getPosition().x;
+            obj.numbers["pos_y"] = pair.first->getPosition().y;
+            obj.numbers["size_x"] = pair.first->getScale().x;
+            obj.numbers["size_y"] = pair.first->getScale().y;
+            obj.numbers["rot"] = pair.first->getRotation();
+            obj.numbers["origin_x"] = pair.first->getOrigin().x;
+            obj.numbers["origin_y"] = pair.first->getOrigin().y;
+            auto c = pair.first->getColor();
+            obj.numbers["color_r"] = c.x; obj.numbers["color_g"] = c.y;
+            obj.numbers["color_b"] = c.z; obj.numbers["color_a"] = c.w;
+            obj.booleans["visible"] = pair.first->isVisible();
+            auto tit = entityTexturePaths.find(pair.second);
+            if (tit != entityTexturePaths.end()) obj.strings["texture"] = tit->second;
+            doc.objects.push_back(obj);
+        }
+
+        for (const auto& pair : animatedSpriteWorld.getAllEntities()) {
+            if (!pair.first || pair.second) continue;
+            BlazeBolt::SceneObjectData obj;
+            obj.type = "animated_sprite";
+            { auto it = entityNames.find(pair.second); if (it != entityNames.end()) obj.name = it->second; }
+            obj.numbers["pos_x"] = pair.first->getPosition().x;
+            obj.numbers["pos_y"] = pair.first->getPosition().y;
+            obj.numbers["size_x"] = pair.first->getScale().x;
+            obj.numbers["size_y"] = pair.first->getScale().y;
+            obj.numbers["rot"] = pair.first->getRotation();
+            obj.numbers["origin_x"] = pair.first->getOrigin().x;
+            obj.numbers["origin_y"] = pair.first->getOrigin().y;
+            auto c = pair.first->getColor();
+            obj.numbers["color_r"] = c.x; obj.numbers["color_g"] = c.y;
+            obj.numbers["color_b"] = c.z; obj.numbers["color_a"] = c.w;
+            obj.booleans["visible"] = pair.first->isVisible();
+            obj.booleans["looping"] = pair.first->isLooping();
+            obj.numbers["playback_speed"] = pair.first->getPlaybackSpeed();
+            auto tit = entityTexturePaths.find(pair.second);
+            if (tit != entityTexturePaths.end()) obj.strings["texture"] = tit->second;
+            doc.objects.push_back(obj);
+        }
+
+        for (const auto& pair : textWorld.getAllEntities()) {
+            if (!pair.first || pair.second) continue;
+            BlazeBolt::SceneObjectData obj;
+            obj.type = "text";
+            { auto it = entityNames.find(pair.second); if (it != entityNames.end()) obj.name = it->second; }
+            obj.numbers["pos_x"] = pair.first->getPosition().x;
+            obj.numbers["pos_y"] = pair.first->getPosition().y;
+            obj.numbers["scale_x"] = pair.first->getScale().x;
+            obj.numbers["scale_y"] = pair.first->getScale().y;
+            obj.numbers["rot"] = pair.first->getRotation();
+            auto c = pair.first->getColor();
+            obj.numbers["color_r"] = c.x; obj.numbers["color_g"] = c.y;
+            obj.numbers["color_b"] = c.z; obj.numbers["color_a"] = c.w;
+            obj.booleans["visible"] = pair.first->isVisible();
+            obj.numbers["alignment"] = (double)pair.first->getAlignment();
+            obj.strings["text"] = pair.first->getText();
+            auto fit = entityFontPaths.find(pair.second);
+            if (fit != entityFontPaths.end()) obj.strings["font"] = fit->second;
+            doc.objects.push_back(obj);
+        }
+
+        for (const auto& pair : cameraWorld.getAllEntities()) {
+            if (!pair.first || pair.second) continue;
+            BlazeBolt::SceneObjectData obj;
+            obj.type = "camera";
+            { auto it = entityNames.find(pair.second); if (it != entityNames.end()) obj.name = it->second; }
+            obj.numbers["pos_x"] = pair.first->getPosition().x;
+            obj.numbers["pos_y"] = pair.first->getPosition().y;
+            obj.numbers["zoom"] = pair.first->getZoom();
+            obj.numbers["rot"] = pair.first->getRotation();
+            doc.objects.push_back(obj);
+        }
+
+        for (const auto& pair : lightWorld.getAllEntities()) {
+            if (!pair.first || pair.second) continue;
+            BlazeBolt::SceneObjectData obj;
+            if (pair.first->getType() == BlazeBolt::Light2D::POINT) {
+                obj.type = "point_light";
+                obj.numbers["pos_x"] = pair.first->getPosition().x;
+                obj.numbers["pos_y"] = pair.first->getPosition().y;
+                obj.numbers["radius"] = pair.first->getRadius();
+            } else {
+                obj.type = "ambient_light";
+            }
+            { auto it = entityNames.find(pair.second); if (it != entityNames.end()) obj.name = it->second; }
+            auto c = pair.first->getColor();
+            obj.numbers["color_r"] = c.x; obj.numbers["color_g"] = c.y;
+            obj.numbers["color_b"] = c.z;
+            obj.numbers["intensity"] = pair.first->getIntensity();
+            obj.booleans["enabled"] = pair.first->isEnabled();
+            doc.objects.push_back(obj);
+        }
+
+        for (const auto& pair : particleWorld.getAllEntities()) {
+            if (!pair.first || pair.second) continue;
+            BlazeBolt::SceneObjectData obj;
+            obj.type = "particle_system";
+            { auto it = entityNames.find(pair.second); if (it != entityNames.end()) obj.name = it->second; }
+            obj.numbers["pos_x"] = pair.first->getPosition().x;
+            obj.numbers["pos_y"] = pair.first->getPosition().y;
+            obj.booleans["active"] = pair.first->isActive();
+            obj.booleans["visible"] = pair.first->isVisible();
+            doc.objects.push_back(obj);
+        }
+
+        std::string json = doc.toJSON();
+        std::ofstream f(path);
+        if (!f.is_open()) return false;
+        f << json;
+        f.close();
+        return true;
     }
 
     // Sprite implementations

@@ -4,9 +4,10 @@ Input::Input() :
     keysFrames(), mouseButtonsFrames(),
     mouseX(0.0), mouseY(0.0), mouseDeltaX(0.0), mouseDeltaY(0.0), scrollX(0.0), scrollY(0.0),
     gamepadsButtonsFrames(), gamepadsAxes(),
-    currentFrame(1)
+    currentFrame(1), window(nullptr)
 {}
 void Input::keyCallback(GLFWwindow *window, int key, int scancode, int action, int mods) {
+    if (key < 0 || key >= MAX_KEYS) return;
     Input &input = Input::getInstance();
     if (action == GLFW_PRESS) {
         input.keysFrames[key] = input.currentFrame;
@@ -16,6 +17,7 @@ void Input::keyCallback(GLFWwindow *window, int key, int scancode, int action, i
 }
 
 void Input::mouseButtonCallback(GLFWwindow *window, int button, int action, int mods) {
+    if (button < 0 || button >= MAX_MOUSE_BUTTONS) return;
     Input &input = Input::getInstance();
     if (action == GLFW_PRESS) {
         input.mouseButtonsFrames[button] = input.currentFrame;
@@ -75,12 +77,38 @@ Input &Input::getInstance() {
     return instance;
 }
 
-void Input::init(GLFWwindow *window) const {
+void Input::windowFocusCallback(GLFWwindow *window, int focused) {
+    Input &input = getInstance();
+    if (focused && input.window) {
+        for (int key = GLFW_KEY_SPACE; key <= GLFW_KEY_LAST; key++) {
+            if (glfwGetKey(input.window, key) == GLFW_PRESS) {
+                if (input.keysFrames[key] == 0) {
+                    input.keysFrames[key] = input.currentFrame;
+                }
+            } else {
+                input.keysFrames[key] = 0;
+            }
+        }
+        for (int button = GLFW_MOUSE_BUTTON_1; button <= GLFW_MOUSE_BUTTON_LAST; button++) {
+            if (glfwGetMouseButton(input.window, button) == GLFW_PRESS) {
+                if (input.mouseButtonsFrames[button] == 0) {
+                    input.mouseButtonsFrames[button] = input.currentFrame;
+                }
+            } else {
+                input.mouseButtonsFrames[button] = 0;
+            }
+        }
+    }
+}
+
+void Input::init(GLFWwindow *window) {
+    this->window = window;
     glfwSetKeyCallback(window, keyCallback);
     glfwSetMouseButtonCallback(window, mouseButtonCallback);
     glfwSetCursorPosCallback(window, cursorPosCallback);
     glfwSetScrollCallback(window, scrollCallback);
     glfwSetJoystickCallback(joystickCallback);
+    glfwSetWindowFocusCallback(window, windowFocusCallback);
 }
 
 void Input::preUpdate() {
@@ -97,19 +125,19 @@ void Input::postUpdate() {
 }
 
 bool Input::isKeyPressed(int key) const {
-    if (key < 0 || key >= 512) return false;
+    if (key < 0 || key >= MAX_KEYS) return false;
     return this->keysFrames[key] != 0;
 }
 bool Input::isKeyJustPressed(int key) const {
-    if (key < 0 || key >= 512) return false;
+    if (key < 0 || key >= MAX_KEYS) return false;
     return this->keysFrames[key] == this->currentFrame - 1;
 }
 bool Input::isMouseButtonPressed(int button) const {
-    if (button < 0 || button >= 8) return false;
+    if (button < 0 || button >= MAX_MOUSE_BUTTONS) return false;
     return this->mouseButtonsFrames[button] != 0;
 }
 bool Input::isMouseButtonJustPressed(int button) const {
-    if (button < 0 || button >= 8) return false;
+    if (button < 0 || button >= MAX_MOUSE_BUTTONS) return false;
     return this->mouseButtonsFrames[button] == this->currentFrame - 1;
 }
 

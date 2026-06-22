@@ -33,6 +33,7 @@
 
 #include <engine/luaTypes.hpp>
 #include <engine/luaSceneManager.hpp>
+#include <sceneFormat.hpp>
 
 namespace LuaEngine {
 
@@ -60,6 +61,9 @@ namespace LuaEngine {
         std::unordered_map<Entity, RegisteredObject> objectMap;
         std::unordered_map<std::string, int> soundNameToId;
         std::unordered_map<Entity, PhysicsBody*> physicsBodyMap;
+        std::unordered_map<Entity, std::string> entityNames;
+        std::unordered_map<Entity, std::string> entityTexturePaths;
+        std::unordered_map<Entity, std::string> entityFontPaths;
 
         // Script management
         std::vector<ScriptInfo> scripts;
@@ -126,6 +130,10 @@ namespace LuaEngine {
         // Scene management
         SceneManager* getSceneManager() { return sceneManager.get(); }
         bool loadScene(const std::string& sceneName);
+
+        // Scene file I/O (JSON .scene format)
+        std::unordered_map<std::string, Entity> loadSceneFile(const std::string& path);
+        bool saveSceneFile(const std::string& path);
 
         // Lua callbacks
         bool callFunction(const std::string& funcName);
