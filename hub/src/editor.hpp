@@ -117,6 +117,7 @@ private:
     void FMCut(const std::string& src);
     void FMPaste();
     void FMOpenFile(const std::string& path);
+    void RenderFMTree(const fs::path& dir);
 
     void OpenFileInTab(const std::string& path);
     void CloseTab(int idx);

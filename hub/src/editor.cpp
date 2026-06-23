@@ -266,6 +266,13 @@ void Editor::SaveTab(EditorTab& tab) {
             f.write(json.data(), json.size());
             tab.modified = false;
         }
+        for (auto& [path, et] : tab.scene_texture_cache) {
+            if (et.id) {
+                GLuint tex = (GLuint)(intptr_t)et.id;
+                glDeleteTextures(1, &tex);
+            }
+        }
+        tab.scene_texture_cache.clear();
     } else if (tab.type == EditorTabType::Image) {
         if (tab.image_data && tab.img_w > 0 && tab.img_h > 0) {
             std::string ext = fs::path(tab.file_path).extension().string();
@@ -471,6 +478,8 @@ void Editor::Render() {
     RenderMenuBar();
     ImGui::EndMainMenuBar();
 
+    if (ImGui::IsKeyPressed(ImGuiKey_F5)) RunGame();
+
     // DockSpace (always fills below menu bar)
     RenderDockSpace();
 
@@ -551,11 +560,36 @@ void Editor::RenderMenuBar() {
 
 // ======================== FILE BROWSER WINDOW ========================
 
+void Editor::RenderFMTree(const fs::path& dir) {
+    std::string dirname = dir.filename().string();
+    if (dirname.empty()) dirname = dir.string();
+    ImGui::PushID(dir.string().c_str());
+    bool is_open = ImGui::TreeNodeEx(dirname.c_str(), ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_OpenOnDoubleClick);
+    bool clicked = ImGui::IsItemClicked();
+    if (clicked && m_fm_current_dir != dir) {
+        m_fm_current_dir = dir;
+        RefreshFM();
+    }
+    if (is_open) {
+        try {
+            for (auto& entry : fs::directory_iterator(dir)) {
+                if (!entry.is_directory()) continue;
+                std::string name = entry.path().filename().string();
+                if (!m_fm_show_hidden && name.size() > 0 && name[0] == '.') continue;
+                RenderFMTree(entry.path());
+            }
+        } catch (...) {}
+        ImGui::TreePop();
+    }
+    ImGui::PopID();
+}
+
 void Editor::RenderFileBrowserWindow() {
     if (!m_show_file_browser) return;
 
     ImGui::Begin("File Browser", &m_show_file_browser);
 
+    // ── Toolbar ──
     if (m_fm_current_dir != m_fm_root) {
         if (ImGui::Button("..", ImVec2(30, 0))) FMNavigateUp();
     } else {
@@ -565,6 +599,8 @@ void Editor::RenderFileBrowserWindow() {
     if (ImGui::SmallButton("Refresh")) RefreshFM();
     ImGui::SameLine();
     if (ImGui::SmallButton("+ New")) ImGui::OpenPopup("FM_NewItem");
+    ImGui::SameLine();
+    ImGui::Checkbox("Hidden", &m_fm_show_hidden);
 
     if (ImGui::BeginPopup("FM_NewItem")) {
         static char new_name_buf[256] = "";
@@ -574,34 +610,90 @@ void Editor::RenderFileBrowserWindow() {
         ImGui::EndPopup();
     }
 
-    ImGui::Checkbox("Hidden", &m_fm_show_hidden);
+    ImGui::Separator();
+
+    // ── Layout: 30% tree | 70% icon grid ──
+    float avail_w = ImGui::GetContentRegionAvail().x;
+    float tree_w = avail_w * 0.3f;
+
+    // Left: folder tree
+    ImGui::BeginChild("##FMTree", ImVec2(tree_w, 0));
+    ImGui::TextColored(ImVec4(0.5f, 0.5f, 0.55f, 1.0f), "Project");
+    ImGui::Separator();
+    RenderFMTree(m_fm_root);
+    ImGui::EndChild();
+
+    ImGui::SameLine();
+
+    // Right: large icon grid
+    ImGui::BeginChild("##FMIcons", ImVec2(0, 0));
     ImGui::TextColored(ImVec4(0.5f, 0.5f, 0.55f, 1.0f), "%s", m_fm_current_dir.filename().string().c_str());
     ImGui::Separator();
 
-    ImGui::BeginChild("##FMList", ImVec2(0, 0));
+    float icon_size = 64.0f;
+    float cell_w = icon_size + 24.0f;
+    float panel_w = ImGui::GetContentRegionAvail().x;
+    int cols = std::max(1, (int)(panel_w / cell_w));
+    int col = 0;
+
     for (int i = 0; i < (int)m_fm_entries.size(); i++) {
         auto& entry = m_fm_entries[i];
         std::string name = entry.path().filename().string();
+        if (!m_fm_show_hidden && name.size() > 0 && name[0] == '.') continue;
         bool is_dir = entry.is_directory();
         std::string ext = entry.path().extension().string();
         std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
 
         ImGui::PushID(i);
-        if (is_dir) ImGui::TextColored(ImVec4(0.9f, 0.75f, 0.3f, 1.0f), "%s", ">>");
-        else if (IsImageFile(ext)) ImGui::TextColored(ImVec4(0.4f, 0.8f, 0.4f, 1.0f), "%s", "[]");
-        else if (IsCodeFile(ext)) ImGui::TextColored(ImVec4(0.4f, 0.6f, 1.0f, 1.0f), "%s", "{}");
-        else ImGui::TextColored(ImVec4(0.6f, 0.6f, 0.6f, 1.0f), "%s", "--");
-        ImGui::SameLine(30.0f);
 
-        if (m_fm_renaming_idx == i) {
-            ImGui::SetNextItemWidth(-1);
-            if (ImGui::InputText("##rn", m_fm_rename_buf, sizeof(m_fm_rename_buf), ImGuiInputTextFlags_EnterReturnsTrue)) {
-                FMRename(i, m_fm_rename_buf);
-                m_fm_renaming_idx = -1;
-            }
-            if (ImGui::IsItemDeactivated()) m_fm_renaming_idx = -1;
+        if (col > 0) ImGui::SameLine();
+
+        ImVec2 cpos = ImGui::GetCursorScreenPos();
+        ImVec2 icon_min = cpos;
+        ImVec2 icon_max = ImVec2(cpos.x + icon_size, cpos.y + icon_size);
+
+        ImGui::BeginGroup();
+        ImGui::Dummy(ImVec2(icon_size, icon_size + 18.0f));
+
+        ImDrawList* dl = ImGui::GetWindowDrawList();
+        ImU32 icon_col, border_col;
+
+        if (is_dir) {
+            icon_col = IM_COL32(200, 180, 80, 160);
+            border_col = IM_COL32(200, 180, 80, 220);
+        } else if (IsImageFile(ext)) {
+            icon_col = IM_COL32(80, 160, 80, 160);
+            border_col = IM_COL32(80, 160, 80, 220);
+        } else if (IsCodeFile(ext)) {
+            icon_col = IM_COL32(80, 100, 180, 160);
+            border_col = IM_COL32(80, 100, 180, 220);
         } else {
-            if (ImGui::Selectable(name.c_str(), false)) FMOpenFile(entry.path().string());
+            icon_col = IM_COL32(100, 100, 120, 120);
+            border_col = IM_COL32(120, 120, 140, 180);
+        }
+
+        dl->AddRectFilled(icon_min, icon_max, icon_col, 4.0f);
+        dl->AddRect(icon_min, icon_max, border_col, 4.0f, 0, 2.0f);
+
+        const char* letter = is_dir ? ">>" : IsImageFile(ext) ? "[]" : IsCodeFile(ext) ? "{}" : "--";
+        ImVec2 text_size = ImGui::CalcTextSize(letter);
+        dl->AddText(ImVec2(icon_min.x + (icon_size - text_size.x) * 0.5f, icon_min.y + (icon_size - text_size.y) * 0.5f), IM_COL32(255, 255, 255, 180), letter);
+
+        float name_w = ImGui::CalcTextSize(name.c_str()).x;
+        float max_name_w = icon_size + 8.0f;
+        if (name_w > max_name_w) name_w = max_name_w;
+        ImGui::SetCursorScreenPos(ImVec2(cpos.x + (icon_size - name_w) * 0.5f, cpos.y + icon_size + 4.0f));
+        ImGui::Text("%s", name.c_str());
+
+        ImGui::EndGroup();
+
+        if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
+            if (is_dir) {
+                m_fm_current_dir = entry.path();
+                RefreshFM();
+            } else {
+                FMOpenFile(entry.path().string());
+            }
         }
 
         if (ImGui::BeginPopupContextItem()) {
@@ -620,6 +712,9 @@ void Editor::RenderFileBrowserWindow() {
             ImGui::EndPopup();
         }
         ImGui::PopID();
+
+        col++;
+        if (col >= cols) col = 0;
     }
     ImGui::EndChild();
 
@@ -692,14 +787,14 @@ void Editor::RenderSceneViewportWindow() {
     };
 
     auto sizeFor = [](const std::string& t) -> ImVec2 {
-        if (t == "sprite" || t == "animated_sprite") return ImVec2(64, 64);
-        if (t == "text")   return ImVec2(128, 24);
-        if (t == "camera") return ImVec2(32, 32);
-        if (t == "point_light")       return ImVec2(48, 48);
-        if (t == "ambient_light")     return ImVec2(160, 160);
-        if (t == "particle_system")   return ImVec2(48, 48);
-        if (t == "tileset")           return ImVec2(128, 128);
-        return ImVec2(64, 64);
+        if (t == "sprite" || t == "animated_sprite") return ImVec2(0.4f, 0.4f);
+        if (t == "text")   return ImVec2(0.8f, 0.15f);
+        if (t == "camera") return ImVec2(0.2f, 0.2f);
+        if (t == "point_light")       return ImVec2(0.3f, 0.3f);
+        if (t == "ambient_light")     return ImVec2(1.0f, 1.0f);
+        if (t == "particle_system")   return ImVec2(0.3f, 0.3f);
+        if (t == "tileset")           return ImVec2(0.8f, 0.8f);
+        return ImVec2(0.4f, 0.4f);
     };
     auto colorFor = [](const std::string& t) -> ImU32 {
         if (t == "sprite")           return IM_COL32(70, 140, 255, 200);
@@ -833,10 +928,10 @@ void Editor::RenderSceneViewportWindow() {
         double sx  = getNum(obj, "size_x", def.x);
         double sy  = getNum(obj, "size_y", def.y);
 
-        if (type == "point_light") { sx = getNum(obj, "radius", 60); sy = sx; }
+        if (type == "point_light") { sx = getNum(obj, "radius", 0.5); sy = sx; }
         if (type == "tileset") {
-            sx = getNum(obj, "tile_width", 32) * getNum(obj, "atlas_cols", 4);
-            sy = getNum(obj, "tile_height", 32) * getNum(obj, "atlas_rows", 4);
+            sx = getNum(obj, "tile_width", 0.2) * getNum(obj, "atlas_cols", 4);
+            sy = getNum(obj, "tile_height", 0.2) * getNum(obj, "atlas_rows", 4);
         }
 
         // World AABB
@@ -855,42 +950,43 @@ void Editor::RenderSceneViewportWindow() {
         // ── Draw shape ──
         if (type == "point_light") {
             float rw = (float)sx * z;
-            dl->AddCircleFilled(centre, rw, IM_COL32(255, 200, 80, 40));
-            dl->AddCircle(centre, rw, IM_COL32(255, 200, 80, 160), 0, 2.0f * z);
-            dl->AddCircleFilled(centre, 5.0f * z, col);
+            dl->AddCircleFilled(centre, rw, IM_COL32(255, 200, 80, 12));
+            dl->AddCircle(centre, rw, IM_COL32(255, 200, 80, 60), 0, 2.0f * gz);
+            dl->AddCircleFilled(centre, 5.0f * gz, col);
         }
         else if (type == "ambient_light") {
             float rw = (float)sx * z;
-            dl->AddCircleFilled(centre, rw, IM_COL32(255, 240, 140, 25));
-            dl->AddCircle(centre, rw, IM_COL32(255, 240, 140, 80), 0, 1.0f * z);
+            dl->AddCircleFilled(centre, rw, IM_COL32(255, 240, 140, 8));
+            dl->AddCircle(centre, rw, IM_COL32(255, 240, 140, 25), 0, 1.0f * gz);
         }
         else if (type == "camera") {
-            float szz = 20.0f * z;
+            float szz = 20.0f * gz;
             ImVec2 a(centre.x - szz, centre.y - szz);
             ImVec2 b(centre.x + szz, centre.y - szz);
             ImVec2 c(centre.x,        centre.y + szz);
             dl->AddTriangleFilled(a, b, c, col);
-            dl->AddTriangle(a, b, c, IM_COL32(255, 255, 255, 100), 1.5f * z);
+            dl->AddTriangle(a, b, c, IM_COL32(255, 255, 255, 100), 1.5f * gz);
         }
         else if (type == "particle_system") {
             dl->AddRectFilled(scr_min, scr_max, col);
-            dl->AddCircleFilled(toScreen((float)(px + sx * 0.3f), (float)(py + sy * 0.3f)), 3 * z, IM_COL32(255, 255, 255, 180));
-            dl->AddCircleFilled(toScreen((float)(px + sx * 0.7f), (float)(py + sy * 0.7f)), 3 * z, IM_COL32(255, 255, 255, 180));
-            dl->AddCircleFilled(toScreen((float)(px + sx * 0.5f), (float)(py + sy * 0.3f)), 2 * z, IM_COL32(255, 255, 255, 180));
+            dl->AddCircleFilled(toScreen((float)(px + sx * 0.3f), (float)(py + sy * 0.3f)), 3 * gz, IM_COL32(255, 255, 255, 180));
+            dl->AddCircleFilled(toScreen((float)(px + sx * 0.7f), (float)(py + sy * 0.7f)), 3 * gz, IM_COL32(255, 255, 255, 180));
+            dl->AddCircleFilled(toScreen((float)(px + sx * 0.5f), (float)(py + sy * 0.3f)), 2 * gz, IM_COL32(255, 255, 255, 180));
         }
         else if (type == "text") {
-            dl->AddRectFilled(scr_min, scr_max, col);
-            dl->AddText(ImVec2(scr_min.x + 4.0f * z, scr_min.y + 4.0f * z), IM_COL32(255, 255, 255, 220), "T");
+            std::string ttxt = getStr(obj, "text", "");
+            dl->AddText(ImVec2(centre.x + 1, centre.y + 1), IM_COL32(0, 0, 0, 180), ttxt.empty() ? "T" : ttxt.c_str());
+            dl->AddText(centre, IM_COL32(255, 255, 255, 220), ttxt.empty() ? "T" : ttxt.c_str());
         }
         else if (type == "tileset") {
             dl->AddRectFilled(scr_min, scr_max, col);
-            float tw = (float)getNum(obj, "tile_width", 32), th = (float)getNum(obj, "tile_height", 32);
+            float tw = (float)getNum(obj, "tile_width", 0.2), th = (float)getNum(obj, "tile_height", 0.2);
             int ac = (int)getNum(obj, "atlas_cols", 4), ar = (int)getNum(obj, "atlas_rows", 4);
             for (int ri = 0; ri < ar; ri++) {
                 for (int ci = 0; ci < ac; ci++) {
                     ImVec2 t0 = toScreen((float)(l + ci * tw), (float)(b + ri * th));
                     ImVec2 t1 = toScreen((float)(l + (ci + 1) * tw), (float)(b + (ri + 1) * th));
-                    dl->AddRect(t0, t1, IM_COL32(0, 0, 0, 80), 0, 0, 1.0f * z);
+                    dl->AddRect(t0, t1, IM_COL32(0, 0, 0, 80), 0, 0, 1.0f * gz);
                 }
             }
         }
@@ -906,6 +1002,7 @@ void Editor::RenderSceneViewportWindow() {
                     fs::path scene_dir = fs::path(tab.file_path).parent_path();
                     fs::path full = scene_dir / tex_path;
                     if (!fs::exists(full)) full = m_project_path / "engine" / tex_path;
+                    if (!fs::exists(full)) full = m_project_path / tex_path;
                     if (fs::exists(full)) {
                         int w, h, ch;
                         unsigned char* data = stbi_load(full.string().c_str(), &w, &h, &ch, 4);
@@ -947,23 +1044,23 @@ void Editor::RenderSceneViewportWindow() {
                     IM_COL32((int)(cr*255), (int)(cg*255), (int)(cb*255), (int)(ca*255)));
                 dl->AddRect(scr_min, scr_max,
                     selected ? IM_COL32(255, 200, 50, 255) : col, 0, 0,
-                    selected ? (2.0f * z) : (1.0f * z));
+                    selected ? (2.0f * gz) : (1.0f * gz));
             } else {
                 dl->AddRectFilled(scr_min, scr_max, col);
-                dl->AddLine(ImVec2(scr_min.x, scr_min.y), ImVec2(scr_max.x, scr_max.y), IM_COL32(255, 255, 255, 40), 1.0f * z);
-                dl->AddLine(ImVec2(scr_max.x, scr_min.y), ImVec2(scr_min.x, scr_max.y), IM_COL32(255, 255, 255, 40), 1.0f * z);
+                dl->AddLine(ImVec2(scr_min.x, scr_min.y), ImVec2(scr_max.x, scr_max.y), IM_COL32(255, 255, 255, 40), 1.0f * gz);
+                dl->AddLine(ImVec2(scr_max.x, scr_min.y), ImVec2(scr_min.x, scr_max.y), IM_COL32(255, 255, 255, 40), 1.0f * gz);
             }
-            if (type == "animated_sprite") dl->AddCircleFilled(centre, 4.0f * z, IM_COL32(255, 255, 255, 120));
+            if (type == "animated_sprite") dl->AddCircleFilled(centre, 4.0f * gz, IM_COL32(255, 255, 255, 120));
         }
         else {
             dl->AddRectFilled(scr_min, scr_max, col);
-            dl->AddLine(ImVec2(scr_min.x, scr_min.y), ImVec2(scr_max.x, scr_max.y), IM_COL32(255, 255, 255, 40), 1.0f * z);
-            dl->AddLine(ImVec2(scr_max.x, scr_min.y), ImVec2(scr_min.x, scr_max.y), IM_COL32(255, 255, 255, 40), 1.0f * z);
+            dl->AddLine(ImVec2(scr_min.x, scr_min.y), ImVec2(scr_max.x, scr_max.y), IM_COL32(255, 255, 255, 40), 1.0f * gz);
+            dl->AddLine(ImVec2(scr_max.x, scr_min.y), ImVec2(scr_min.x, scr_max.y), IM_COL32(255, 255, 255, 40), 1.0f * gz);
         }
 
         // Label
         if (z > 0.3f) {
-            ImVec2 lp(scr_min.x, scr_max.y + 2.0f * z);
+            ImVec2 lp(scr_min.x, scr_max.y + 2.0f * gz);
             dl->AddText(ImVec2(lp.x + 1, lp.y + 1), IM_COL32(0, 0, 0, 180), name.c_str());
             dl->AddText(lp, IM_COL32(220, 220, 230, 220), name.c_str());
         }
@@ -1081,10 +1178,10 @@ void Editor::RenderSceneViewportWindow() {
                 double spy = getNum(sobj, "pos_y", 0);
                 double ssx = getNum(sobj, "size_x", ssz.x);
                 double ssy = getNum(sobj, "size_y", ssz.y);
-                if (st == "point_light") { ssx = getNum(sobj, "radius", 48); ssy = ssx; }
+                if (st == "point_light") { ssx = getNum(sobj, "radius", 0.5); ssy = ssx; }
                 if (st == "tileset") {
-                    ssx = getNum(sobj, "tile_width", 32) * getNum(sobj, "atlas_cols", 4);
-                    ssy = getNum(sobj, "tile_height", 32) * getNum(sobj, "atlas_rows", 4);
+                    ssx = getNum(sobj, "tile_width", 0.2) * getNum(sobj, "atlas_cols", 4);
+                    ssy = getNum(sobj, "tile_height", 0.2) * getNum(sobj, "atlas_rows", 4);
                 }
                 double swl = spx, swb = spy, swr = spx + ssx, swt = spy + ssy;
                 if (st == "sprite" || st == "animated_sprite") {
@@ -1426,28 +1523,6 @@ void Editor::RenderSceneHierarchyWindow() {
     }();
 
     if (ImGui::Button("Save", ImVec2(80, 0))) SaveTab(tab);
-    ImGui::SameLine();
-    if (ImGui::Button("Export Lua", ImVec2(100, 0))) {
-        std::string name = doc.contains("name") && doc["name"].is_string()
-            ? doc["name"].get<crude_json::string>() : "scene";
-        std::string lua;
-        lua += "-- Auto-generated scene loader: " + name + "\n";
-        lua += "local " + name + " = BlazeBolt.LoadSceneFile(\"" + tab.file_path + "\")\n";
-        lua += "-- Object IDs:\n";
-        if (doc.contains("objects") && doc["objects"].is_array()) {
-            for (auto& obj : doc["objects"].get<crude_json::array>()) {
-                if (obj.is_object() && obj.contains("name") && obj["name"].is_string()) {
-                    lua += "-- " + name + "[\"" + obj["name"].get<crude_json::string>() + "\"] = entity ID\n";
-                }
-            }
-        }
-        std::string lua_path = tab.file_path;
-        auto dot_pos = lua_path.rfind('.');
-        if (dot_pos != std::string::npos) lua_path = lua_path.substr(0, dot_pos);
-        lua_path += ".lua";
-        { std::ofstream f(lua_path, std::ios::binary); if (f.is_open()) { f.write(lua.data(), lua.size()); } }
-        OpenFileInTab(lua_path);
-    }
     ImGui::Separator();
 
     ImGui::BeginChild("##HierarchyContent", ImVec2(0, 0));
@@ -1462,12 +1537,11 @@ void Editor::RenderSceneHierarchyWindow() {
             std::string display_name = getStr(obj, "name", "Unnamed");
             std::string type_str = getStr(obj, "type", "?");
             ImGui::PushID((int)i);
-            ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.6f, 0.8f, 1.0f, 1));
-            ImGui::Text("[%s]", type_str.c_str());
-            ImGui::PopStyleColor();
-            ImGui::SameLine(60);
             bool sel = (tab.scene_selected_object == (int)i);
-            if (ImGui::Selectable(display_name.c_str(), &sel)) {
+            float row_h = ImGui::GetTextLineHeightWithSpacing();
+            ImVec2 pos = ImGui::GetCursorScreenPos();
+            ImVec2 av = ImGui::GetContentRegionAvail();
+            if (ImGui::Selectable("##sel", &sel, ImGuiSelectableFlags_SpanAllColumns, ImVec2(0, row_h))) {
                 tab.scene_selected_object = (int)i;
             }
             if (ImGui::BeginPopupContextItem()) {
@@ -1478,6 +1552,12 @@ void Editor::RenderSceneHierarchyWindow() {
                 }
                 ImGui::EndPopup();
             }
+            ImGui::SetCursorScreenPos(pos);
+            ImGui::Text("  %s", display_name.c_str());
+            std::string type_tag = "[" + type_str + "]";
+            float tag_w = ImGui::CalcTextSize(type_tag.c_str()).x;
+            ImGui::SetCursorScreenPos(ImVec2(pos.x + av.x - tag_w - 4, pos.y));
+            ImGui::TextColored(ImVec4(0.6f, 0.8f, 1.0f, 1), "%s", type_tag.c_str());
             ImGui::PopID();
         }
         if (to_remove >= 0) {
@@ -1498,7 +1578,7 @@ void Editor::RenderSceneHierarchyWindow() {
         if (ImGui::Button("Add Object")) {
             if (tab.scene_new_name[0]) {
                 crude_json::value n{
-                    crude_json::object{{"name", std::string(tab.scene_new_name)}, {"type", std::string(tab.scene_new_type)}}
+                    crude_json::object{{"name", std::string(tab.scene_new_name)}, {"type", std::string(tab.scene_new_type)}, {"visible", true}}
                 };
                 objects.push_back(std::move(n));
                 tab.scene_new_name[0] = '\0';
@@ -1622,7 +1702,6 @@ void Editor::RenderCodeEditorWindow() {
     ImGuiIO& io = ImGui::GetIO();
     if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_S)) { SaveTab(m_tabs[m_active_tab]); }
     if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_W)) { CloseTab(m_active_tab); ImGui::End(); return; }
-    if (ImGui::IsKeyPressed(ImGuiKey_F5)) RunGame();
 
     // Tab bar for code files
     if (ImGui::BeginTabBar("##CodeTabs", ImGuiTabBarFlags_Reorderable | ImGuiTabBarFlags_FittingPolicyScroll)) {
@@ -1633,12 +1712,9 @@ void Editor::RenderCodeEditorWindow() {
             std::string label = t.title;
             if (t.modified) label += " *";
 
-            ImGuiTabItemFlags tab_flags = (idx == m_active_tab) ? ImGuiTabItemFlags_SetSelected : ImGuiTabItemFlags_None;
             bool open = true;
-            if (ImGui::BeginTabItem(label.c_str(), &open, tab_flags)) {
-                if (idx != m_active_tab) {
-                    m_active_tab = idx;
-                }
+            if (ImGui::BeginTabItem(label.c_str(), &open)) {
+                m_active_tab = idx;
                 ImGui::EndTabItem();
             }
             if (!open) {
@@ -1725,15 +1801,15 @@ void Editor::RenderSceneEditor(EditorTab& tab) {
         return (v.is_object() && v.contains(key) && v[key].is_string()) ? v[key].get<crude_json::string>() : def;
     };
     auto getDefaultSize = [](const std::string& type) -> ImVec2 {
-        if (type == "sprite") return ImVec2(64, 64);
-        if (type == "animated_sprite") return ImVec2(64, 64);
-        if (type == "text") return ImVec2(128, 24);
-        if (type == "camera") return ImVec2(32, 32);
-        if (type == "point_light") return ImVec2(48, 48);
-        if (type == "ambient_light") return ImVec2(160, 160);
-        if (type == "particle_system") return ImVec2(48, 48);
-        if (type == "tileset") return ImVec2(128, 128);
-        return ImVec2(64, 64);
+        if (type == "sprite") return ImVec2(0.4f, 0.4f);
+        if (type == "animated_sprite") return ImVec2(0.4f, 0.4f);
+        if (type == "text") return ImVec2(0.8f, 0.15f);
+        if (type == "camera") return ImVec2(0.2f, 0.2f);
+        if (type == "point_light") return ImVec2(0.3f, 0.3f);
+        if (type == "ambient_light") return ImVec2(1.0f, 1.0f);
+        if (type == "particle_system") return ImVec2(0.3f, 0.3f);
+        if (type == "tileset") return ImVec2(0.8f, 0.8f);
+        return ImVec2(0.4f, 0.4f);
     };
     auto getTypeColor = [](const std::string& type) -> ImU32 {
         if (type == "sprite") return IM_COL32(70, 140, 255, 200);
@@ -1750,28 +1826,6 @@ void Editor::RenderSceneEditor(EditorTab& tab) {
     // Toolbar
     {
         if (ImGui::Button("Save", ImVec2(80, 0))) SaveTab(tab);
-        ImGui::SameLine();
-        if (ImGui::Button("Export Lua", ImVec2(100, 0))) {
-            std::string name = doc.contains("name") && doc["name"].is_string()
-                ? doc["name"].get<crude_json::string>() : "scene";
-            std::string lua;
-            lua += "-- Auto-generated scene loader: " + name + "\n";
-            lua += "local " + name + " = BlazeBolt.LoadSceneFile(\"" + tab.file_path + "\")\n";
-            lua += "-- Object IDs:\n";
-            if (doc.contains("objects") && doc["objects"].is_array()) {
-                for (auto& obj : doc["objects"].get<crude_json::array>()) {
-                    if (obj.is_object() && obj.contains("name") && obj["name"].is_string()) {
-                        lua += "-- " + name + "[\"" + obj["name"].get<crude_json::string>() + "\"] = entity ID\n";
-                    }
-                }
-            }
-            std::string lua_path = tab.file_path;
-            auto dot_pos = lua_path.rfind('.');
-            if (dot_pos != std::string::npos) lua_path = lua_path.substr(0, dot_pos);
-            lua_path += ".lua";
-            { std::ofstream f(lua_path, std::ios::binary); if (f.is_open()) { f.write(lua.data(), lua.size()); } }
-            OpenFileInTab(lua_path);
-        }
         ImGui::SameLine();
         ImGui::SeparatorEx(ImGuiSeparatorFlags_Vertical);
         ImGui::SameLine();
@@ -1911,8 +1965,8 @@ void Editor::RenderSceneEditor(EditorTab& tab) {
             ImVec2 ds = getDefaultSize(tp);
             double sx = getNum(obj, "size_x", ds.x);
             double sy = getNum(obj, "size_y", ds.y);
-            if (tp == "point_light") { sx = getNum(obj, "radius", 60); sy = sx; }
-            if (tp == "tileset") { sx = getNum(obj, "tile_width", 32) * getNum(obj, "atlas_cols", 4); sy = getNum(obj, "tile_height", 32) * getNum(obj, "atlas_rows", 4); }
+            if (tp == "point_light") { sx = getNum(obj, "radius", 0.5); sy = sx; }
+            if (tp == "tileset") { sx = getNum(obj, "tile_width", 0.2) * getNum(obj, "atlas_cols", 4); sy = getNum(obj, "tile_height", 0.2) * getNum(obj, "atlas_rows", 4); }
             double wl = px, wb = py, wr = px + sx, wt = py + sy;
             if (tp == "sprite" || tp == "animated_sprite") {
                 double oxx = getNum(obj, "origin_x", 0.5), oyy = getNum(obj, "origin_y", 0.5);
@@ -1926,33 +1980,34 @@ void Editor::RenderSceneEditor(EditorTab& tab) {
 
             if (tp == "point_light") {
                 float r = (float)sx * z;
-                dl->AddCircleFilled(cen, r, IM_COL32(255, 200, 80, 40));
-                dl->AddCircle(cen, r, IM_COL32(255, 200, 80, 160), 0, 2.0f * z);
-                dl->AddCircleFilled(cen, 5 * z, col);
+                dl->AddCircleFilled(cen, r, IM_COL32(255, 200, 80, 12));
+                dl->AddCircle(cen, r, IM_COL32(255, 200, 80, 60), 0, 2.0f * gz);
+                dl->AddCircleFilled(cen, 5 * gz, col);
             } else if (tp == "ambient_light") {
                 float r = (float)sx * z;
-                dl->AddCircleFilled(cen, r, IM_COL32(255, 240, 140, 25));
-                dl->AddCircle(cen, r, IM_COL32(255, 240, 140, 80), 0, 1.0f * z);
+                dl->AddCircleFilled(cen, r, IM_COL32(255, 240, 140, 8));
+                dl->AddCircle(cen, r, IM_COL32(255, 240, 140, 25), 0, 1.0f * gz);
             } else if (tp == "camera") {
-                float szz = 20 * z;
+                float szz = 20 * gz;
                 dl->AddTriangleFilled(ImVec2(cen.x - szz, cen.y - szz), ImVec2(cen.x + szz, cen.y - szz), ImVec2(cen.x, cen.y + szz), col);
-                dl->AddTriangle(ImVec2(cen.x - szz, cen.y - szz), ImVec2(cen.x + szz, cen.y - szz), ImVec2(cen.x, cen.y + szz), IM_COL32(255, 255, 255, 100), 1.5f * z);
+                dl->AddTriangle(ImVec2(cen.x - szz, cen.y - szz), ImVec2(cen.x + szz, cen.y - szz), ImVec2(cen.x, cen.y + szz), IM_COL32(255, 255, 255, 100), 1.5f * gz);
             } else if (tp == "particle_system") {
                 dl->AddRectFilled(sc_min, sc_max, col);
-                dl->AddCircleFilled(w2s((float)(px + sx * 0.3), (float)(py + sy * 0.3)), 3 * z, IM_COL32(255, 255, 255, 180));
-                dl->AddCircleFilled(w2s((float)(px + sx * 0.7), (float)(py + sy * 0.7)), 3 * z, IM_COL32(255, 255, 255, 180));
-                dl->AddCircleFilled(w2s((float)(px + sx * 0.5), (float)(py + sy * 0.3)), 2 * z, IM_COL32(255, 255, 255, 180));
+                dl->AddCircleFilled(w2s((float)(px + sx * 0.3), (float)(py + sy * 0.3)), 3 * gz, IM_COL32(255, 255, 255, 180));
+                dl->AddCircleFilled(w2s((float)(px + sx * 0.7), (float)(py + sy * 0.7)), 3 * gz, IM_COL32(255, 255, 255, 180));
+                dl->AddCircleFilled(w2s((float)(px + sx * 0.5), (float)(py + sy * 0.3)), 2 * gz, IM_COL32(255, 255, 255, 180));
             } else if (tp == "text") {
-                dl->AddRectFilled(sc_min, sc_max, col);
-                dl->AddText(ImVec2(sc_min.x + 4 * z, sc_min.y + 4 * z), IM_COL32(255, 255, 255, 220), "T");
+                std::string ttxt = getStr(obj, "text", "");
+                dl->AddText(ImVec2(cen.x + 1, cen.y + 1), IM_COL32(0, 0, 0, 180), ttxt.empty() ? "T" : ttxt.c_str());
+                dl->AddText(cen, IM_COL32(255, 255, 255, 220), ttxt.empty() ? "T" : ttxt.c_str());
             } else if (tp == "tileset") {
                 dl->AddRectFilled(sc_min, sc_max, col);
-                float tw = (float)getNum(obj, "tile_width", 32), th = (float)getNum(obj, "tile_height", 32);
+                float tw = (float)getNum(obj, "tile_width", 0.2), th = (float)getNum(obj, "tile_height", 0.2);
                 int ac = (int)getNum(obj, "atlas_cols", 4), ar = (int)getNum(obj, "atlas_rows", 4);
                 for (int ri = 0; ri < ar; ri++) for (int ci = 0; ci < ac; ci++) {
                     ImVec2 t_tl = w2s((float)(wl + ci * tw), (float)(wb + ri * th));
                     ImVec2 t_br = w2s((float)(wl + (ci + 1) * tw), (float)(wb + (ri + 1) * th));
-                    dl->AddRect(t_tl, t_br, IM_COL32(0, 0, 0, 80), 0, 0, 1.0f * z);
+                    dl->AddRect(t_tl, t_br, IM_COL32(0, 0, 0, 80), 0, 0, 1.0f * gz);
                 }
             } else if (tp == "sprite" || tp == "animated_sprite") {
                 std::string tex_path = getStr(obj, "texture", "");
@@ -1968,6 +2023,8 @@ void Editor::RenderSceneEditor(EditorTab& tab) {
                         fs::path tex_full = scene_dir / tex_path;
                         if (!fs::exists(tex_full))
                             tex_full = m_project_path / "engine" / tex_path;
+                        if (!fs::exists(tex_full))
+                            tex_full = m_project_path / tex_path;
                         if (fs::exists(tex_full)) {
                             int w, h, ch;
                             unsigned char* data = stbi_load(tex_full.string().c_str(), &w, &h, &ch, 4);
@@ -2014,21 +2071,21 @@ void Editor::RenderSceneEditor(EditorTab& tab) {
                         IM_COL32((int)(cr*255), (int)(cg*255), (int)(cb*255), (int)(ca*255)));
                     dl->AddRect(sc_min, sc_max,
                         sel ? IM_COL32(255, 200, 50, 255) : col, 0, 0,
-                        sel ? (2.0f * z) : (1.0f * z));
+                        sel ? (2.0f * gz) : (1.0f * gz));
                 } else {
                     dl->AddRectFilled(sc_min, sc_max, col);
-                    dl->AddLine(ImVec2(sc_min.x, sc_min.y), ImVec2(sc_max.x, sc_max.y), IM_COL32(255, 255, 255, 40), 1.0f * z);
-                    dl->AddLine(ImVec2(sc_max.x, sc_min.y), ImVec2(sc_min.x, sc_max.y), IM_COL32(255, 255, 255, 40), 1.0f * z);
+                    dl->AddLine(ImVec2(sc_min.x, sc_min.y), ImVec2(sc_max.x, sc_max.y), IM_COL32(255, 255, 255, 40), 1.0f * gz);
+                    dl->AddLine(ImVec2(sc_max.x, sc_min.y), ImVec2(sc_min.x, sc_max.y), IM_COL32(255, 255, 255, 40), 1.0f * gz);
                 }
-                if (tp == "animated_sprite") dl->AddCircleFilled(cen, 4 * z, IM_COL32(255, 255, 255, 120));
+                if (tp == "animated_sprite") dl->AddCircleFilled(cen, 4 * gz, IM_COL32(255, 255, 255, 120));
             } else {
                 dl->AddRectFilled(sc_min, sc_max, col);
-                dl->AddLine(ImVec2(sc_min.x, sc_min.y), ImVec2(sc_max.x, sc_max.y), IM_COL32(255, 255, 255, 40), 1.0f * z);
-                dl->AddLine(ImVec2(sc_max.x, sc_min.y), ImVec2(sc_min.x, sc_max.y), IM_COL32(255, 255, 255, 40), 1.0f * z);
+                dl->AddLine(ImVec2(sc_min.x, sc_min.y), ImVec2(sc_max.x, sc_max.y), IM_COL32(255, 255, 255, 40), 1.0f * gz);
+                dl->AddLine(ImVec2(sc_max.x, sc_min.y), ImVec2(sc_min.x, sc_max.y), IM_COL32(255, 255, 255, 40), 1.0f * gz);
             }
             // Name label
             if (z > 0.3f) {
-                ImVec2 lp = ImVec2(sc_min.x, sc_max.y + 2 * z);
+                ImVec2 lp = ImVec2(sc_min.x, sc_max.y + 2 * gz);
                 dl->AddText(ImVec2(lp.x + 1, lp.y + 1), IM_COL32(0, 0, 0, 180), nm.c_str());
                 dl->AddText(lp, IM_COL32(220, 220, 230, 220), nm.c_str());
             }
@@ -2136,8 +2193,8 @@ void Editor::RenderSceneEditor(EditorTab& tab) {
                     double spy = getNum(sobj, "pos_y", 0);
                     double ssx = getNum(sobj, "size_x", ssz.x);
                     double ssy = getNum(sobj, "size_y", ssz.y);
-                    if (st == "point_light") { ssx = getNum(sobj, "radius", 48); ssy = ssx; }
-                    if (st == "tileset") { ssx = getNum(sobj, "tile_width", 32) * getNum(sobj, "atlas_cols", 4); ssy = getNum(sobj, "tile_height", 32) * getNum(sobj, "atlas_rows", 4); }
+                if (st == "point_light") { ssx = getNum(sobj, "radius", 0.5); ssy = ssx; }
+                    if (st == "tileset") { ssx = getNum(sobj, "tile_width", 0.2) * getNum(sobj, "atlas_cols", 4); ssy = getNum(sobj, "tile_height", 0.2) * getNum(sobj, "atlas_rows", 4); }
                     double swl = spx, swb = spy, swr = spx + ssx, swt = spy + ssy;
                     if (st == "sprite" || st == "animated_sprite") {
                         double sorx = getNum(sobj, "origin_x", 0.5), sory = getNum(sobj, "origin_y", 0.5);
