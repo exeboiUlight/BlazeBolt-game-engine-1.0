@@ -7,7 +7,7 @@
 
 namespace fs = std::filesystem;
 
-enum class ProjectType { Code, NodeGraph };
+enum class ProjectType { Code };
 
 class Hub {
 public:

@@ -2,6 +2,7 @@
 
 #include <string>
 #include <vector>
+#include <unordered_map>
 #include <filesystem>
 #include <functional>
 #include <cstring>
@@ -17,7 +18,13 @@ class NodeEditor;
 
 namespace fs = std::filesystem;
 
-enum class EditorTabType { Code, Image, NodeGraph, Scene, None };
+enum class EditorTabType { Code, Image, Scene, None };
+
+struct EditorTexture {
+    ImTextureID id = (ImTextureID)0;
+    int width = 0;
+    int height = 0;
+};
 
 struct EditorTab {
     EditorTabType type = EditorTabType::None;
@@ -26,7 +33,6 @@ struct EditorTab {
     bool modified = false;
 
     std::unique_ptr<TextEditor> code_editor;
-    std::unique_ptr<NodeEditor> node_editor;
 
     // Scene editor data
     crude_json::value scene_json;
@@ -44,6 +50,8 @@ struct EditorTab {
     ImTextureID image_texture = (ImTextureID)0;
     float zoom = 1.0f;
     float pan_x = 0.0f, pan_y = 0.0f;
+    bool scene_view_initialized = false;
+    std::unordered_map<std::string, EditorTexture> scene_texture_cache;
 };
 
 struct ClipboardEntry {
@@ -79,21 +87,26 @@ private:
 
     int m_current_theme = 0;
 
-    void RenderMenuBar();
-    void RenderToolBar();
-    void RenderSidePanel();
-    void RenderTabBar();
-    void RenderTabContent();
+    // Window visibility toggles
+    bool m_show_file_browser = true;
+    bool m_show_scene_viewport = true;
+    bool m_show_scene_hierarchy = true;
+    bool m_show_scene_inspector = true;
+    bool m_show_code_editor = true;
 
+    // Dockable window rendering
+    void RenderDockSpace();
+    void RenderFileBrowserWindow();
+    void RenderSceneViewportWindow();
+    void RenderSceneHierarchyWindow();
+    void RenderSceneInspectorWindow();
+    void RenderCodeEditorWindow();
+
+    void RenderMenuBar();
     void RenderCodeEditor(EditorTab& tab);
-    void RenderImageEditor(EditorTab& tab);
-    void RenderNodeEditor(EditorTab& tab);
     void RenderSceneEditor(EditorTab& tab);
 
-    void OpenNodeGraph(const std::string& path);
     void OpenSceneEditor(const std::string& path);
-    void CreateNewNodeGraph(const std::string& path);
-    void ExportNodeGraphToLua(EditorTab& tab);
 
     void RefreshFM();
     void FMNavigateUp();
@@ -121,5 +134,4 @@ private:
 
     bool IsImageFile(const std::string& ext);
     bool IsCodeFile(const std::string& ext);
-    bool IsNodeGraphFile(const std::string& ext);
 };

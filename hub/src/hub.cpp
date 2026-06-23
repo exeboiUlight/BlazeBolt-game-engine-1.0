@@ -1,5 +1,4 @@
 #include "hub.hpp"
-#include "title_bar.hpp"
 #include "stb_image.h"
 #include <glad/glad.h>
 #include <cstdio>
@@ -80,21 +79,10 @@ void Hub::CreateProject(const std::string& name, const std::string& path, Projec
         return;
     }
 
-    if (type == ProjectType::NodeGraph) {
+    if (type == ProjectType::Code) {
         fs::path engine_dir = project_dir / "engine";
         if (!fs::exists(engine_dir)) {
             fs::create_directories(engine_dir);
-        }
-
-        std::ofstream main_script(engine_dir / "main.nodemap");
-        if (main_script.is_open()) {
-            main_script << "[NODEMAP]\n";
-            main_script << "VERSION=1\n";
-            main_script << "[NODES]\n";
-            main_script << "ID=0;TYPE=1000;X=200;Y=200\n";
-            main_script << "ID=1;TYPE=1001;X=200;Y=400\n";
-            main_script << "[CONNECTIONS]\n";
-            main_script.close();
         }
     }
 
@@ -285,11 +273,9 @@ void Hub::Render() {
     hub_style.WindowBorderSize = 0.0f;
     hub_style.FrameBorderSize = 0.0f;
 
-    float title_bar_h = GetTitleBar().GetHeight();
-
     const ImGuiViewport* vp = ImGui::GetMainViewport();
-    ImGui::SetNextWindowPos(ImVec2(vp->Pos.x, vp->Pos.y + title_bar_h));
-    ImGui::SetNextWindowSize(ImVec2(vp->Size.x, vp->Size.y - title_bar_h));
+    ImGui::SetNextWindowPos(vp->Pos);
+    ImGui::SetNextWindowSize(vp->Size);
 
     ImGuiWindowFlags flags = ImGuiWindowFlags_NoDecoration
         | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize
@@ -541,56 +527,7 @@ void Hub::Render() {
             ImGui::TextColored(ImVec4(0.5f, 0.5f, 0.55f, 1.0f), "Will create: %s", preview.string().c_str());
         }
 
-        ImGui::Spacing();
-        ImGui::Text("Project Type:");
-        ImGui::Spacing();
-
-        float radio_w = (popup_w - ImGui::GetStyle().ItemSpacing.x * 2 - ImGui::GetStyle().FramePadding.x * 2) * 0.5f;
-
-        bool is_code = (m_new_project_type == ProjectType::Code);
-        bool is_nodes = (m_new_project_type == ProjectType::NodeGraph);
-
-        ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 6.0f);
-        ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(12.0f, 8.0f));
-
-        if (is_code) {
-            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.20f, 0.50f, 0.80f, 0.80f));
-            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.24f, 0.56f, 0.88f, 0.90f));
-            ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.16f, 0.42f, 0.72f, 1.00f));
-        } else {
-            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.18f, 0.18f, 0.22f, 1.0f));
-            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.24f, 0.24f, 0.28f, 1.0f));
-            ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.14f, 0.14f, 0.18f, 1.0f));
-        }
-        if (ImGui::Button("Code Editor", ImVec2(radio_w, 40))) {
-            m_new_project_type = ProjectType::Code;
-        }
-        ImGui::PopStyleColor(3);
-
-        ImGui::SameLine();
-
-        if (is_nodes) {
-            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.20f, 0.50f, 0.80f, 0.80f));
-            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.24f, 0.56f, 0.88f, 0.90f));
-            ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.16f, 0.42f, 0.72f, 1.00f));
-        } else {
-            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.18f, 0.18f, 0.22f, 1.0f));
-            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.24f, 0.24f, 0.28f, 1.0f));
-            ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.14f, 0.14f, 0.18f, 1.0f));
-        }
-        if (ImGui::Button("Node Graph", ImVec2(radio_w, 40))) {
-            m_new_project_type = ProjectType::NodeGraph;
-        }
-        ImGui::PopStyleColor(3);
-
-        ImGui::PopStyleVar(2);
-
-        ImGui::Spacing();
-        if (m_new_project_type == ProjectType::Code) {
-            ImGui::TextColored(ImVec4(0.5f, 0.5f, 0.55f, 1.0f), "Create a Lua code project with text editor");
-        } else {
-            ImGui::TextColored(ImVec4(0.5f, 0.5f, 0.55f, 1.0f), "Create a visual node-based scripting project");
-        }
+        ImGui::Text("Project type: Code Editor (Lua)");
 
         ImGui::Spacing();
 
