@@ -78,6 +78,7 @@ private:
 
     std::vector<EditorTab> m_tabs;
     int m_active_tab = -1;
+    int m_active_edit_tab = -1;
 
     fs::path m_fm_current_dir;
     std::vector<fs::directory_entry> m_fm_entries;
@@ -85,6 +86,7 @@ private:
     bool m_fm_show_hidden = false;
     char m_fm_rename_buf[512] = "";
     int m_fm_renaming_idx = -1;
+    std::string m_fm_rename_ext;
 
     int m_current_theme = 0;
 
@@ -97,17 +99,17 @@ private:
 
     // Window visibility toggles
     bool m_show_file_browser = true;
-    bool m_show_scene_viewport = true;
     bool m_show_scene_hierarchy = true;
     bool m_show_scene_inspector = true;
+    bool m_show_scene_editor = true;
     bool m_show_code_editor = true;
 
     // Dockable window rendering
     void RenderDockSpace();
     void RenderFileBrowserWindow();
-    void RenderSceneViewportWindow();
     void RenderSceneHierarchyWindow();
     void RenderSceneInspectorWindow();
+    void RenderSceneEditorWindow();
     void RenderCodeEditorWindow();
 
     void RenderMenuBar();
@@ -145,5 +147,6 @@ private:
     void SaveTheme();
 
     bool IsImageFile(const std::string& ext);
+    bool IsSceneFile(const std::string& ext);
     bool IsCodeFile(const std::string& ext);
 };

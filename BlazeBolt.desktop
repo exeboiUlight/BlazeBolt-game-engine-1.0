@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=BlazeBolt
+Comment=BlazeBolt Game Engine
+Icon=blazebolt
+Categories=Development;Game;
+Terminal=true
+Exec=BlazeBolt

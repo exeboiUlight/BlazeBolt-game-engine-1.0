@@ -102,6 +102,7 @@ void Editor::OpenProject(fs::path project_path) {
     m_fm_root = engine_dir;
     m_tabs.clear();
     m_active_tab = -1;
+    m_active_edit_tab = -1;
     RefreshFM();
 }
 
@@ -142,12 +143,36 @@ void Editor::FMCreateFile(const std::string& name) {
     if (f.is_open()) {
         f.close();
         RefreshFM();
+        for (int i = 0; i < (int)m_fm_entries.size(); i++) {
+            if (m_fm_entries[i].path().filename() == name) {
+                m_fm_renaming_idx = i;
+                std::string ns(name);
+                size_t dot = ns.find_last_of('.');
+                if (dot != std::string::npos && dot > 0) {
+                    m_fm_rename_ext = ns.substr(dot);
+                    strncpy(m_fm_rename_buf, ns.substr(0, dot).c_str(), sizeof(m_fm_rename_buf) - 1);
+                } else {
+                    m_fm_rename_ext.clear();
+                    strncpy(m_fm_rename_buf, name.c_str(), sizeof(m_fm_rename_buf) - 1);
+                }
+                break;
+            }
+        }
     }
 }
 
 void Editor::FMCreateFolder(const std::string& name) {
-    fs::create_directories(m_fm_current_dir / name);
-    RefreshFM();
+    if (fs::create_directories(m_fm_current_dir / name)) {
+        RefreshFM();
+        for (int i = 0; i < (int)m_fm_entries.size(); i++) {
+            if (m_fm_entries[i].path().filename() == name) {
+                m_fm_renaming_idx = i;
+                m_fm_rename_ext.clear();
+                strncpy(m_fm_rename_buf, name.c_str(), sizeof(m_fm_rename_buf) - 1);
+                break;
+            }
+        }
+    }
 }
 
 void Editor::FMRename(int idx, const std::string& new_name) {
@@ -199,9 +224,13 @@ bool Editor::IsImageFile(const std::string& ext) {
     return ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".bmp" || ext == ".gif" || ext == ".tga";
 }
 
+bool Editor::IsSceneFile(const std::string& ext) {
+    return ext == ".scene";
+}
+
 bool Editor::IsCodeFile(const std::string& ext) {
     return ext == ".lua" || ext == ".luau" || ext == ".txt" || ext == ".json" ||
-           ext == ".scene" || ext == ".xml" || ext == ".yaml" || ext == ".yml" || ext == ".cfg" ||
+           ext == ".xml" || ext == ".yaml" || ext == ".yml" || ext == ".cfg" ||
            ext == ".ini" || ext == ".cpp" || ext == ".h" || ext == ".hpp" ||
            ext == ".c" || ext == ".py" || ext == ".js" || ext == ".ts" ||
            ext == ".md" || ext == ".cmake" || ext == ".toml";
@@ -211,6 +240,9 @@ void Editor::OpenFileInTab(const std::string& path) {
     for (int i = 0; i < (int)m_tabs.size(); i++) {
         if (m_tabs[i].file_path == path) {
             m_active_tab = i;
+            if (m_tabs[i].type == EditorTabType::Code || m_tabs[i].type == EditorTabType::Image) {
+                m_active_edit_tab = i;
+            }
             return;
         }
     }
@@ -277,7 +309,11 @@ void Editor::OpenFileInTab(const std::string& path) {
     }
 
     m_tabs.push_back(std::move(tab));
-    m_active_tab = (int)m_tabs.size() - 1;
+    int new_idx = (int)m_tabs.size() - 1;
+    m_active_tab = new_idx;
+    if (m_tabs[new_idx].type == EditorTabType::Code || m_tabs[new_idx].type == EditorTabType::Image) {
+        m_active_edit_tab = new_idx;
+    }
 }
 
 void Editor::CloseTab(int idx) {
@@ -296,8 +332,21 @@ void Editor::CloseTab(int idx) {
     }
     tab.scene_texture_cache.clear();
     m_tabs.erase(m_tabs.begin() + idx);
-    if (m_active_tab >= (int)m_tabs.size()) m_active_tab = (int)m_tabs.size() - 1;
-    if (m_active_tab == idx && m_active_tab > 0) m_active_tab--;
+
+    auto fix_idx = [&](int& tab_idx) {
+        if (tab_idx > idx) {
+            tab_idx--;
+        } else if (tab_idx == idx) {
+            if (tab_idx >= (int)m_tabs.size()) {
+                tab_idx = (int)m_tabs.size() - 1;
+            } else if (tab_idx > 0) {
+                tab_idx--;
+            }
+        }
+    };
+
+    fix_idx(m_active_tab);
+    fix_idx(m_active_edit_tab);
 }
 
 void Editor::SaveTab(EditorTab& tab) {
@@ -534,9 +583,9 @@ void Editor::Render() {
 
     // Always-visible dockable windows
     RenderFileBrowserWindow();
-    RenderSceneViewportWindow();
     RenderSceneHierarchyWindow();
     RenderSceneInspectorWindow();
+    RenderSceneEditorWindow();
     RenderCodeEditorWindow();
 }
 
@@ -577,7 +626,7 @@ void Editor::RenderMenuBar() {
             OpenFileInTab((m_fm_current_dir / name).string());
         }
         ImGui::Separator();
-        if (ImGui::MenuItem("Save", "Ctrl+S", false, m_active_tab >= 0)) SaveTab(m_tabs[m_active_tab]);
+        if (ImGui::MenuItem("Save", "Ctrl+S", false, m_active_edit_tab >= 0)) SaveTab(m_tabs[m_active_edit_tab]);
         if (ImGui::MenuItem("Save All")) { for (auto& t : m_tabs) SaveTab(t); }
         ImGui::Separator();
         if (ImGui::MenuItem("Close Tab", "Ctrl+W", false, m_active_tab >= 0)) CloseTab(m_active_tab);
@@ -588,9 +637,9 @@ void Editor::RenderMenuBar() {
         if (ImGui::MenuItem("Refresh Files")) RefreshFM();
         ImGui::Separator();
         ImGui::MenuItem("File Browser", nullptr, &m_show_file_browser);
-        ImGui::MenuItem("Scene Viewport", nullptr, &m_show_scene_viewport);
         ImGui::MenuItem("Scene Hierarchy", nullptr, &m_show_scene_hierarchy);
         ImGui::MenuItem("Scene Inspector", nullptr, &m_show_scene_inspector);
+        ImGui::MenuItem("Scene Editor", nullptr, &m_show_scene_editor);
         ImGui::MenuItem("Code Editor", nullptr, &m_show_code_editor);
         ImGui::Separator();
         if (ImGui::BeginMenu("Theme")) {
@@ -652,10 +701,13 @@ void Editor::RenderFileBrowserWindow() {
     ImGui::Checkbox("Hidden", &m_fm_show_hidden);
 
     if (ImGui::BeginPopup("FM_NewItem")) {
-        static char new_name_buf[256] = "";
-        ImGui::InputText("Name", new_name_buf, sizeof(new_name_buf));
-        if (ImGui::MenuItem("Create File")) { if (new_name_buf[0]) { FMCreateFile(new_name_buf); new_name_buf[0] = '\0'; } }
-        if (ImGui::MenuItem("Create Folder")) { if (new_name_buf[0]) { FMCreateFolder(new_name_buf); new_name_buf[0] = '\0'; } }
+        ImGui::TextDisabled("Create New");
+        ImGui::Separator();
+        if (ImGui::MenuItem("Folder")) { ImGui::CloseCurrentPopup(); FMCreateFolder("new_folder"); }
+        if (ImGui::MenuItem("Lua Script")) { ImGui::CloseCurrentPopup(); FMCreateFile("new_script.lua"); }
+        if (ImGui::MenuItem("Scene")) { ImGui::CloseCurrentPopup(); FMCreateFile("new_scene.scene"); }
+        if (ImGui::MenuItem("Text File")) { ImGui::CloseCurrentPopup(); FMCreateFile("new_text.txt"); }
+        if (ImGui::MenuItem("JSON")) { ImGui::CloseCurrentPopup(); FMCreateFile("new_data.json"); }
         ImGui::EndPopup();
     }
 
@@ -684,6 +736,7 @@ void Editor::RenderFileBrowserWindow() {
     float panel_w = ImGui::GetContentRegionAvail().x;
     int cols = std::max(1, (int)(panel_w / cell_w));
     int col = 0;
+    bool fm_any_hovered = false;
 
     for (int i = 0; i < (int)m_fm_entries.size(); i++) {
         auto& entry = m_fm_entries[i];
@@ -705,6 +758,7 @@ void Editor::RenderFileBrowserWindow() {
         // Невидимая кнопка, занимающая всю область ячейки
         ImGui::InvisibleButton("##cell", ImVec2(cell_w, cell_h));
         bool hovered = ImGui::IsItemHovered();
+        if (hovered) fm_any_hovered = true;
         bool double_clicked = ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left);
 
         // Координаты кнопки для отрисовки
@@ -722,6 +776,9 @@ void Editor::RenderFileBrowserWindow() {
         } else if (IsImageFile(ext)) {
             icon_col = IM_COL32(80, 160, 80, 160);
             border_col = IM_COL32(80, 160, 80, 220);
+        } else if (IsSceneFile(ext)) {
+            icon_col = IM_COL32(200, 100, 60, 160);
+            border_col = IM_COL32(200, 100, 60, 220);
         } else if (IsCodeFile(ext)) {
             icon_col = IM_COL32(80, 100, 180, 160);
             border_col = IM_COL32(80, 100, 180, 220);
@@ -737,19 +794,41 @@ void Editor::RenderFileBrowserWindow() {
         dl->AddRect(icon_min, icon_max, border_col, 4.0f, 0, 2.0f);
 
         // Буква-символ внутри иконки
-        const char* letter = is_dir ? ">>" : IsImageFile(ext) ? "[]" : IsCodeFile(ext) ? "{}" : "--";
+        const char* letter = is_dir ? ">>" : IsImageFile(ext) ? "[]" : IsSceneFile(ext) ? "Sd" : IsCodeFile(ext) ? "{}" : "--";
         ImVec2 text_size = ImGui::CalcTextSize(letter);
         ImVec2 text_pos = ImVec2(icon_min.x + (icon_size - text_size.x) * 0.5f,
                                  icon_min.y + (icon_size - text_size.y) * 0.5f);
         dl->AddText(text_pos, IM_COL32(255, 255, 255, 180), letter);
 
-        // Имя файла под иконкой
+        // Имя файла под иконкой (или поле для переименования)
         float name_w = ImGui::CalcTextSize(name.c_str()).x;
         float max_name_w = icon_size + 8.0f;
         if (name_w > max_name_w) name_w = max_name_w;
-        ImVec2 name_pos = ImVec2(cpos.x + (cell_w - name_w) * 0.5f,
+        ImVec2 name_pos = ImVec2(cpos.x + (cell_w - max_name_w) * 0.5f,
                                  icon_max.y + 4.0f);
-        dl->AddText(name_pos, IM_COL32(220, 220, 230, 255), name.c_str());
+
+        if (m_fm_renaming_idx == i) {
+            ImGui::SetKeyboardFocusHere(0);
+            ImGui::SetCursorScreenPos(name_pos);
+            ImGui::PushItemWidth(max_name_w + 8.0f);
+            bool commit = ImGui::InputText("##rename", m_fm_rename_buf, sizeof(m_fm_rename_buf),
+                ImGuiInputTextFlags_EnterReturnsTrue);
+            bool cancelled = ImGui::IsItemDeactivatedAfterEdit() && !commit;
+            if (commit) {
+                std::string new_name = m_fm_rename_buf;
+                if (!m_fm_rename_ext.empty() && new_name.find('.') == std::string::npos)
+                    new_name += m_fm_rename_ext;
+                FMRename(i, new_name);
+                m_fm_renaming_idx = -1;
+                m_fm_rename_ext.clear();
+            } else if (cancelled) {
+                m_fm_renaming_idx = -1;
+                m_fm_rename_ext.clear();
+            }
+            ImGui::PopItemWidth();
+        } else {
+            dl->AddText(name_pos, IM_COL32(220, 220, 230, 255), name.c_str());
+        }
 
         // Контекстное меню (привязывается к нашей кнопке)
         if (ImGui::BeginPopupContextItem()) {
@@ -761,7 +840,14 @@ void Editor::RenderFileBrowserWindow() {
             ImGui::Separator();
             if (ImGui::MenuItem("Rename")) {
                 m_fm_renaming_idx = i;
-                strncpy(m_fm_rename_buf, name.c_str(), sizeof(m_fm_rename_buf) - 1);
+                size_t dot = name.find_last_of('.');
+                if (dot != std::string::npos && dot > 0) {
+                    m_fm_rename_ext = name.substr(dot);
+                    strncpy(m_fm_rename_buf, name.substr(0, dot).c_str(), sizeof(m_fm_rename_buf) - 1);
+                } else {
+                    m_fm_rename_ext.clear();
+                    strncpy(m_fm_rename_buf, name.c_str(), sizeof(m_fm_rename_buf) - 1);
+                }
             }
             if (ImGui::MenuItem("Copy")) FMCopy(entry.path().string());
             if (ImGui::MenuItem("Cut")) FMCut(entry.path().string());
@@ -799,729 +885,24 @@ void Editor::RenderFileBrowserWindow() {
     col++;
     if (col >= cols) col = 0;
 }
+    // Right-click on empty area -> context menu (only if no item was hovered)
+    if (!fm_any_hovered && ImGui::BeginPopupContextWindow("##FMEmpyArea", ImGuiPopupFlags_MouseButtonRight)) {
+        ImGui::TextDisabled("Create New");
+        ImGui::Separator();
+        if (ImGui::MenuItem("Folder")) { ImGui::CloseCurrentPopup(); FMCreateFolder("new_folder"); }
+        if (ImGui::MenuItem("Lua Script")) { ImGui::CloseCurrentPopup(); FMCreateFile("new_script.lua"); }
+        if (ImGui::MenuItem("Scene")) { ImGui::CloseCurrentPopup(); FMCreateFile("new_scene.scene"); }
+        if (ImGui::MenuItem("Text File")) { ImGui::CloseCurrentPopup(); FMCreateFile("new_text.txt"); }
+        if (ImGui::MenuItem("JSON")) { ImGui::CloseCurrentPopup(); FMCreateFile("new_data.json"); }
+        ImGui::EndPopup();
+    }
+
+    // Cancel rename on Escape
+    if (m_fm_renaming_idx >= 0 && ImGui::IsKeyPressed(ImGuiKey_Escape)) {
+        m_fm_renaming_idx = -1;
+    }
+
     ImGui::EndChild();
-
-    ImGui::End();
-}
-
-// ======================== SCENE VIEWPORT WINDOW ========================
-
-void Editor::RenderSceneViewportWindow() {
-    if (!m_show_scene_viewport) return;
-
-    ImGui::Begin("Scene Viewport", &m_show_scene_viewport);
-
-    int scene_tab_idx = -1;
-    for (int i = 0; i < (int)m_tabs.size(); i++) {
-        if (m_tabs[i].type == EditorTabType::Scene) { scene_tab_idx = i; break; }
-    }
-
-    if (scene_tab_idx < 0) {
-        float avail = ImGui::GetContentRegionAvail().y;
-        ImGui::SetCursorPosY(ImGui::GetCursorPosY() + avail * 0.5f - 20.0f);
-        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.4f, 0.4f, 0.45f, 1.0f));
-        ImGui::Text("Open a .scene file to edit");
-        ImGui::PopStyleColor();
-        ImGui::End();
-        return;
-    }
-
-    auto& tab = m_tabs[scene_tab_idx];
-    m_active_tab = scene_tab_idx;
-    ImGuiIO& io = ImGui::GetIO();
-
-    if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_S)) SaveTab(tab);
-    if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_W)) { CloseTab(m_active_tab); ImGui::End(); return; }
-
-    const char* gizmo_names[3] = { "Move", "Rotate", "Scale" };
-    if (ImGui::Button("Save")) SaveTab(tab);
-    ImGui::SameLine();
-    if (ImGui::Button("Fit##vp")) { tab.pan_x = 0; tab.pan_y = 0; tab.zoom = 1.0f; }
-    ImGui::SameLine(); ImGui::SeparatorEx(ImGuiSeparatorFlags_Vertical); ImGui::SameLine();
-    for (int gm = 0; gm < 3; gm++) {
-        if (gm > 0) ImGui::SameLine(0, 2);
-        bool active = (tab.scene_gizmo_mode == gm);
-        if (active) ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.25f, 0.50f, 0.85f, 1));
-        if (ImGui::Button(gizmo_names[gm])) { tab.scene_gizmo_mode = gm; tab.scene_drag_handle = -1; }
-        if (active) ImGui::PopStyleColor();
-    }
-    ImGui::SameLine(); ImGui::SeparatorEx(ImGuiSeparatorFlags_Vertical); ImGui::SameLine();
-    ImGui::Text("  [%c] %s  |  Zoom: %.0f%%",
-        "WER"[tab.scene_gizmo_mode], gizmo_names[tab.scene_gizmo_mode], tab.zoom * 100);
-    ImGui::Separator();
-
-    // --- Canvas setup ---
-    auto& doc = tab.scene_json;
-    auto& objects = [&]() -> crude_json::array& {
-        static crude_json::array empty;
-        if (doc.is_object() && doc.contains("objects") && doc["objects"].is_array())
-            return doc["objects"].get<crude_json::array>();
-        return empty;
-    }();
-
-    auto getNum = [](crude_json::value& v, const std::string& k, double d) {
-        return (v.is_object() && v.contains(k) && v[k].is_number()) ? v[k].get<crude_json::number>() : d;
-    };
-    auto getStr = [](crude_json::value& v, const std::string& k, const std::string& d) {
-        return (v.is_object() && v.contains(k) && v[k].is_string()) ? v[k].get<crude_json::string>() : d;
-    };
-    auto setNum = [](crude_json::value& v, const std::string& k, double val) {
-        if (v.is_object()) v[k] = (crude_json::number)val;
-    };
-
-    auto sizeFor = [](const std::string& t) -> ImVec2 {
-        if (t == "sprite" || t == "animated_sprite") return ImVec2(0.4f, 0.4f);
-        if (t == "text")   return ImVec2(0.8f, 0.15f);
-        if (t == "camera") return ImVec2(0.2f, 0.2f);
-        if (t == "point_light")       return ImVec2(0.3f, 0.3f);
-        if (t == "ambient_light")     return ImVec2(1.0f, 1.0f);
-        if (t == "particle_system")   return ImVec2(0.3f, 0.3f);
-        if (t == "tileset")           return ImVec2(0.8f, 0.8f);
-        if (t == "physics_body")      return ImVec2(0.4f, 0.4f);
-        return ImVec2(0.4f, 0.4f);
-    };
-    auto colorFor = [](const std::string& t) -> ImU32 {
-        if (t == "sprite")           return IM_COL32(70, 140, 255, 200);
-        if (t == "animated_sprite")  return IM_COL32(0, 200, 255, 200);
-        if (t == "text")             return IM_COL32(80, 220, 80, 200);
-        if (t == "camera")           return IM_COL32(255, 220, 50, 200);
-        if (t == "point_light")      return IM_COL32(255, 160, 40, 200);
-        if (t == "ambient_light")    return IM_COL32(255, 240, 140, 100);
-        if (t == "particle_system")  return IM_COL32(200, 80, 255, 200);
-        if (t == "tileset")          return IM_COL32(180, 140, 100, 200);
-        if (t == "physics_body")     return IM_COL32(0, 200, 255, 120);
-        return IM_COL32(150, 150, 150, 200);
-    };
-
-    ImVec2 canvas_min = ImGui::GetCursorScreenPos();
-    ImVec2 canvas_sz  = ImGui::GetContentRegionAvail();
-    if (canvas_sz.x < 50) canvas_sz.x = 50;
-    if (canvas_sz.y < 50) canvas_sz.y = 50;
-    ImVec2 canvas_max = ImVec2(canvas_min.x + canvas_sz.x, canvas_min.y + canvas_sz.y);
-    ImDrawList* dl = ImGui::GetWindowDrawList();
-    dl->AddRectFilled(canvas_min, canvas_max, IM_COL32(30, 30, 35, 255));
-
-    // Camera-aware first frame initialisation
-    constexpr float PPM = 160.0f;
-    if (!tab.scene_view_initialized) {
-        for (auto& o : objects) {
-            if (o.is_object() && getStr(o, "type", "") == "camera") {
-                double cx = getNum(o, "pos_x", 0);
-                double cy = getNum(o, "pos_y", 0);
-                double cz = getNum(o, "zoom", 1);
-                tab.pan_x = (float)(-cx * cz * PPM);
-                tab.pan_y = (float)(cy * cz * PPM);
-                tab.zoom = std::max(0.05f, std::min((float)cz, 20.0f));
-                break;
-            }
-        }
-        tab.scene_view_initialized = true;
-    }
-
-    // Camera: origin = centre of canvas, Y‑up, zoom scales both axes
-    float ox = canvas_min.x + canvas_sz.x * 0.5f + tab.pan_x;
-    float oy = canvas_min.y + canvas_sz.y * 0.5f + tab.pan_y;
-    float z  = tab.zoom * PPM;
-    float gz = tab.zoom;
-
-    auto toScreen = [&](float wx, float wy) { return ImVec2(ox + wx * z, oy - wy * z); };
-    auto toWorld  = [&](float sx, float sy) { return ImVec2((sx - ox) / z, -(sy - oy) / z); };
-
-    // World‑space bounding box in screen pixels
-    auto worldRect = [&](double l, double b, double w, double h) {
-        ImVec2 bl = toScreen((float)l, (float)b);
-        ImVec2 br = toScreen((float)(l + w), (float)b);
-        ImVec2 tl = toScreen((float)l, (float)(b + h));
-        ImVec2 tr = toScreen((float)(l + w), (float)(b + h));
-        return std::pair{
-            ImVec2(std::min({bl.x, br.x, tl.x, tr.x}), std::min({bl.y, br.y, tl.y, tr.y})),
-            ImVec2(std::max({bl.x, br.x, tl.x, tr.x}), std::max({bl.y, br.y, tl.y, tr.y}))
-        };
-    };
-
-    // Expand a rect by padding (world units converted to screen)
-    auto growRect = [&](const ImVec2& mn, const ImVec2& mx, float pad_wu) {
-        float p = pad_wu * z;
-        return std::pair{ImVec2(mn.x - p, mn.y - p), ImVec2(mx.x + p, mx.y + p)};
-    };
-
-    // ── GRID ──────────────────────────────────────────────────────────────
-    {
-        static const float steps[] = {0.1f, 0.2f, 0.5f, 1, 2, 5, 10, 20, 50, 100, 200, 500, 1000, 2000, 5000};
-        float gs = steps[0];
-        for (float s : steps) { if (s * z >= 50.0f) { gs = s; break; } }
-        float ms = gs * 0.25f;
-
-        ImVec2 wtl = toWorld(canvas_min.x, canvas_min.y);
-        ImVec2 wbr = toWorld(canvas_max.x, canvas_max.y);
-        float x0 = std::floor(wtl.x / gs) * gs;
-        float y0 = std::floor(wtl.y / gs) * gs;
-
-        // Minor grid
-        if (ms * z > 8.0f) {
-            for (float wx = x0; wx <= wbr.x + gs; wx += ms) {
-                ImVec2 a = toScreen(wx, wtl.y), b = toScreen(wx, wbr.y);
-                dl->AddLine(a, b, IM_COL32(40, 40, 48, 255));
-            }
-            for (float wy = y0; wy >= wbr.y - gs; wy -= ms) {
-                ImVec2 a = toScreen(wtl.x, wy), b = toScreen(wbr.x, wy);
-                dl->AddLine(a, b, IM_COL32(40, 40, 48, 255));
-            }
-        }
-        // Major grid + labels
-        float fs = ImGui::GetFontSize();
-        char buf[64];
-        for (float wx = x0; wx <= wbr.x + gs; wx += gs) {
-            ImVec2 a = toScreen(wx, wtl.y), b = toScreen(wx, wbr.y);
-            dl->AddLine(a, b, IM_COL32(60, 60, 75, 255));
-            if (a.x > canvas_min.x + 4 && a.x < canvas_max.x - 4) {
-                snprintf(buf, sizeof(buf), gs < 1.0f ? "%.1f" : "%.0f", wx);
-                ImVec2 ts = ImGui::CalcTextSize(buf);
-                dl->AddText(ImVec2(a.x - ts.x * 0.5f, canvas_max.y - fs - 2), IM_COL32(140, 140, 160, 220), buf);
-            }
-        }
-        for (float wy = y0; wy >= wbr.y - gs; wy -= gs) {
-            ImVec2 a = toScreen(wtl.x, wy), b = toScreen(wbr.x, wy);
-            dl->AddLine(a, b, IM_COL32(60, 60, 75, 255));
-            if (a.y > canvas_min.y + 4 && a.y < canvas_max.y - 4) {
-                snprintf(buf, sizeof(buf), gs < 1.0f ? "%.1f" : "%.0f", wy);
-                dl->AddText(ImVec2(canvas_min.x + 4, a.y - fs * 0.5f), IM_COL32(140, 140, 160, 220), buf);
-            }
-        }
-        // Origin axes
-        ImVec2 o = toScreen(0, 0);
-        if (o.x >= canvas_min.x && o.x <= canvas_max.x)
-            dl->AddLine(ImVec2(o.x, canvas_min.y), ImVec2(o.x, canvas_max.y), IM_COL32(180, 60, 60, 200), 1.5f);
-        if (o.y >= canvas_min.y && o.y <= canvas_max.y)
-            dl->AddLine(ImVec2(canvas_min.x, o.y), ImVec2(canvas_max.x, o.y), IM_COL32(60, 180, 60, 200), 1.5f);
-        ImVec2 ol = toScreen(0, -0.5f);
-        if (ol.x > canvas_min.x && ol.x < canvas_max.x - 20 && ol.y > canvas_min.y && ol.y < canvas_max.y - fs)
-            dl->AddText(ImVec2(ol.x + 4, ol.y), IM_COL32(200, 200, 200, 180), "0");
-    }
-
-    // ── OBJECT RENDERING ──────────────────────────────────────────────────
-    int hovered_idx = -1;
-    for (size_t i = 0; i < objects.size(); i++) {
-        auto& obj = objects[i];
-        if (!obj.is_object()) continue;
-
-        double px  = getNum(obj, "pos_x", 0);
-        double py  = getNum(obj, "pos_y", 0);
-        std::string type  = getStr(obj, "type", "");
-        std::string name  = getStr(obj, "name", "");
-        ImVec2 def = sizeFor(type);
-        double sx  = getNum(obj, "size_x", def.x);
-        double sy  = getNum(obj, "size_y", def.y);
-
-        if (type == "point_light") { sx = getNum(obj, "radius", 0.5); sy = sx; }
-        if (type == "tileset") {
-            sx = getNum(obj, "tile_width", 0.2) * getNum(obj, "atlas_cols", 4);
-            sy = getNum(obj, "tile_height", 0.2) * getNum(obj, "atlas_rows", 4);
-        }
-
-        // World AABB
-        double l = px, b = py, r = px + sx, t = py + sy;
-        if (type == "sprite" || type == "animated_sprite") {
-            double oxx = getNum(obj, "origin_x", 0.5);
-            double oyy = getNum(obj, "origin_y", 0.5);
-            l = px - sx * oxx; b = py - sy * oyy;
-            r = l + sx; t = b + sy;
-        }
-        auto [scr_min, scr_max] = worldRect(l, b, r - l, t - b);
-        ImU32 col = colorFor(type);
-        bool selected = ((int)i == tab.scene_selected_object);
-        ImVec2 centre = toScreen((float)px, (float)py);
-
-        // ── Draw shape ──
-        if (type == "point_light") {
-            float rw = (float)sx * z;
-            dl->AddCircleFilled(centre, rw, IM_COL32(255, 200, 80, 12));
-            dl->AddCircle(centre, rw, IM_COL32(255, 200, 80, 60), 0, 2.0f * gz);
-            dl->AddCircleFilled(centre, 5.0f * gz, col);
-        }
-        else if (type == "ambient_light") {
-            float rw = (float)sx * z;
-            dl->AddCircleFilled(centre, rw, IM_COL32(255, 240, 140, 8));
-            dl->AddCircle(centre, rw, IM_COL32(255, 240, 140, 25), 0, 1.0f * gz);
-        }
-        else if (type == "camera") {
-            float szz = 20.0f * gz;
-            ImVec2 a(centre.x - szz, centre.y - szz);
-            ImVec2 b(centre.x + szz, centre.y - szz);
-            ImVec2 c(centre.x,        centre.y + szz);
-            dl->AddTriangleFilled(a, b, c, col);
-            dl->AddTriangle(a, b, c, IM_COL32(255, 255, 255, 100), 1.5f * gz);
-        }
-        else if (type == "particle_system") {
-            dl->AddRectFilled(scr_min, scr_max, col);
-            dl->AddCircleFilled(toScreen((float)(px + sx * 0.3f), (float)(py + sy * 0.3f)), 3 * gz, IM_COL32(255, 255, 255, 180));
-            dl->AddCircleFilled(toScreen((float)(px + sx * 0.7f), (float)(py + sy * 0.7f)), 3 * gz, IM_COL32(255, 255, 255, 180));
-            dl->AddCircleFilled(toScreen((float)(px + sx * 0.5f), (float)(py + sy * 0.3f)), 2 * gz, IM_COL32(255, 255, 255, 180));
-        }
-        else if (type == "text") {
-            std::string ttxt = getStr(obj, "text", "");
-            dl->AddRectFilled(scr_min, scr_max, col);
-            if (!ttxt.empty() && m_textInitialized) {
-                BlazeBolt::Text2D* textObj = new BlazeBolt::Text2D(m_quadVBO, m_font);
-                textObj->setPosition((float)px, (float)py);
-                textObj->setScale(
-                    (float)getNum(obj, "scale_x", 1.0),
-                    (float)getNum(obj, "scale_y", 1.0)
-                );
-                textObj->setOrigin(
-                    (float)getNum(obj, "origin_x", 0.0),
-                    (float)getNum(obj, "origin_y", 0.0)
-                );
-                textObj->setColor(
-                    (float)getNum(obj, "color_r", 1.0),
-                    (float)getNum(obj, "color_g", 1.0),
-                    (float)getNum(obj, "color_b", 1.0),
-                    (float)getNum(obj, "color_a", 1.0)
-                );
-                int align = (int)getNum(obj, "alignment", 0);
-                if (align == 1) textObj->setAlignment(BlazeBolt::Text2D::Alignment::Center);
-                else if (align == 2) textObj->setAlignment(BlazeBolt::Text2D::Alignment::Right);
-                else textObj->setAlignment(BlazeBolt::Text2D::Alignment::Left);
-                textObj->setText(ttxt);
-                textObj->setVisible(true);
-
-                float ar = canvas_sz.x / canvas_sz.y;
-                float wx_min = (canvas_min.x - ox) / z;
-                float wx_max = (canvas_max.x - ox) / z;
-                float wy_min = -(canvas_max.y - oy) / z;
-                float wy_max = -(canvas_min.y - oy) / z;
-
-                Matrix3x3 projView;
-                projView.m[0][0] = 2.0f * ar / (wx_max - wx_min);
-                projView.m[1][1] = 2.0f / (wy_max - wy_min);
-                projView.m[2][0] = -ar * (wx_max + wx_min) / (wx_max - wx_min);
-                projView.m[2][1] = -(wy_max + wy_min) / (wy_max - wy_min);
-
-                struct TextCB {
-                    BlazeBolt::Text2D* text;
-                    BlazeBolt::FontShader2D* shader;
-                    Matrix3x3 pv;
-                    float aspect;
-                    ImVec2 cm;
-                    ImVec2 cM;
-                };
-                TextCB* cb = new TextCB{textObj, &m_fontShader, projView, ar, canvas_min, canvas_max};
-                dl->AddCallback([](const ImDrawList*, const ImDrawCmd* cmd) {
-                    TextCB* d = (TextCB*)cmd->UserCallbackData;
-                    GLint prevVp[4], prevVAO, prevProg;
-                    glGetIntegerv(GL_VIEWPORT, prevVp);
-                    glGetIntegerv(GL_VERTEX_ARRAY_BINDING, &prevVAO);
-                    glGetIntegerv(GL_CURRENT_PROGRAM, &prevProg);
-                    glViewport((GLint)d->cm.x, (GLint)(ImGui::GetIO().DisplaySize.y - d->cM.y),
-                               (GLsizei)(d->cM.x - d->cm.x), (GLsizei)(d->cM.y - d->cm.y));
-                    d->shader->bind();
-                    d->shader->setAspectRatio(d->aspect);
-                    d->text->draw(*d->shader, d->pv);
-                    glViewport(prevVp[0], prevVp[1], prevVp[2], prevVp[3]);
-                    glBindVertexArray(prevVAO);
-                    glUseProgram(prevProg);
-                    delete d->text;
-                    delete d;
-                }, cb);
-                dl->AddCallback([](const ImDrawList*, const ImDrawCmd*) {}, nullptr);
-            } else {
-                dl->AddText(ImVec2(scr_min.x + 4.0f * gz, scr_min.y + 4.0f * gz), IM_COL32(255, 255, 255, 220),
-                    ttxt.empty() ? "T" : ttxt.c_str());
-            }
-        }
-        else if (type == "tileset") {
-            dl->AddRectFilled(scr_min, scr_max, col);
-            float tw = (float)getNum(obj, "tile_width", 0.2), th = (float)getNum(obj, "tile_height", 0.2);
-            int ac = (int)getNum(obj, "atlas_cols", 4), ar = (int)getNum(obj, "atlas_rows", 4);
-            for (int ri = 0; ri < ar; ri++) {
-                for (int ci = 0; ci < ac; ci++) {
-                    ImVec2 t0 = toScreen((float)(l + ci * tw), (float)(b + ri * th));
-                    ImVec2 t1 = toScreen((float)(l + (ci + 1) * tw), (float)(b + (ri + 1) * th));
-                    dl->AddRect(t0, t1, IM_COL32(0, 0, 0, 80), 0, 0, 1.0f * gz);
-                }
-            }
-        }
-        else if (type == "sprite" || type == "animated_sprite") {
-            std::string tex_path = getStr(obj, "texture", "");
-            ImTextureID tex_id = (ImTextureID)0;
-            bool tex_ok = false;
-            if (!tex_path.empty()) {
-                auto it = tab.scene_texture_cache.find(tex_path);
-                if (it != tab.scene_texture_cache.end()) {
-                    tex_id = it->second.id; tex_ok = true;
-                } else {
-                    fs::path scene_dir = fs::path(tab.file_path).parent_path();
-                    fs::path full = scene_dir / tex_path;
-                    if (!fs::exists(full)) full = m_project_path / "engine" / tex_path;
-                    if (!fs::exists(full)) full = m_project_path / tex_path;
-                    if (fs::exists(full)) {
-                        int w, h, ch;
-                        unsigned char* data = stbi_load(full.string().c_str(), &w, &h, &ch, 4);
-                        if (data) {
-                            GLuint gl;
-                            glGenTextures(1, &gl);
-                            glBindTexture(GL_TEXTURE_2D, gl);
-                            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-                            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-                            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-                            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-                            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
-                            stbi_image_free(data);
-                            tex_id = (ImTextureID)(intptr_t)gl;
-                            tab.scene_texture_cache[tex_path] = {tex_id, w, h};
-                            tex_ok = true;
-                        }
-                    }
-                }
-            }
-            if (tex_ok) {
-                double tu = 0, tv = 0, tw = 1, th = 1;
-                if (obj.is_object() && obj.contains("texture_rect") && obj["texture_rect"].is_array()) {
-                    auto& arr = obj["texture_rect"].get<crude_json::array>();
-                    if (arr.size() >= 4) {
-                        tu = arr[0].get<crude_json::number>(); tv = arr[1].get<crude_json::number>();
-                        tw = arr[2].get<crude_json::number>(); th = arr[3].get<crude_json::number>();
-                    }
-                } else {
-                    tu = getNum(obj, "texture_u", 0); tv = getNum(obj, "texture_v", 0);
-                    tw = getNum(obj, "texture_w", 1); th = getNum(obj, "texture_h", 1);
-                }
-                float cr = (float)getNum(obj, "color_r", 1);
-                float cg = (float)getNum(obj, "color_g", 1);
-                float cb = (float)getNum(obj, "color_b", 1);
-                float ca = (float)getNum(obj, "color_a", 1);
-                dl->AddImage(tex_id, scr_min, scr_max,
-                    ImVec2((float)tu, (float)tv), ImVec2((float)(tu + tw), (float)(tv + th)),
-                    IM_COL32((int)(cr*255), (int)(cg*255), (int)(cb*255), (int)(ca*255)));
-                dl->AddRect(scr_min, scr_max,
-                    selected ? IM_COL32(255, 200, 50, 255) : col, 0, 0,
-                    selected ? (2.0f * gz) : (1.0f * gz));
-            } else {
-                dl->AddRectFilled(scr_min, scr_max, col);
-                dl->AddLine(ImVec2(scr_min.x, scr_min.y), ImVec2(scr_max.x, scr_max.y), IM_COL32(255, 255, 255, 40), 1.0f * gz);
-                dl->AddLine(ImVec2(scr_max.x, scr_min.y), ImVec2(scr_min.x, scr_max.y), IM_COL32(255, 255, 255, 40), 1.0f * gz);
-            }
-            if (type == "animated_sprite") dl->AddCircleFilled(centre, 4.0f * gz, IM_COL32(255, 255, 255, 120));
-        }
-        else {
-            dl->AddRectFilled(scr_min, scr_max, col);
-            dl->AddLine(ImVec2(scr_min.x, scr_min.y), ImVec2(scr_max.x, scr_max.y), IM_COL32(255, 255, 255, 40), 1.0f * gz);
-            dl->AddLine(ImVec2(scr_max.x, scr_min.y), ImVec2(scr_min.x, scr_max.y), IM_COL32(255, 255, 255, 40), 1.0f * gz);
-        }
-
-        // ── Physics body wireframe overlay ──
-        if (obj.is_object() && obj.contains("body_type") && obj["body_type"].is_number()) {
-            double ph_px = px, ph_py = py;
-            double rot = getNum(obj, "rot", 0);
-            ImVec2 pc = toScreen((float)ph_px, (float)ph_py);
-            std::string collider = getStr(obj, "collider_shape", "circle");
-            ImU32 ph_col = IM_COL32(0, 200, 255, 200);
-            float ph_w = std::max(1.5f, 2.0f * gz);
-            if (collider == "circle") {
-                double cr = getNum(obj, "circle_radius", 32.0);
-                double cox = getNum(obj, "circle_offset_x", 0.0);
-                double coy = getNum(obj, "circle_offset_y", 0.0);
-                ImVec2 cc = toScreen((float)(ph_px + cox), (float)(ph_py + coy));
-                float rr = (float)cr * z;
-                dl->AddCircle(cc, rr, ph_col, 0, ph_w);
-                dl->AddLine(cc, ImVec2(cc.x + rr, cc.y), ph_col, 1.0f * gz);
-            } else {
-                double hw = getNum(obj, "rect_half_width", 32.0);
-                double hh = getNum(obj, "rect_half_height", 32.0);
-                double rox = getNum(obj, "rect_offset_x", 0.0);
-                double roy = getNum(obj, "rect_offset_y", 0.0);
-                double rl = ph_px + rox - hw, rb = ph_py + roy - hh;
-                auto [rmin, rmax] = worldRect(rl, rb, hw * 2, hh * 2);
-                dl->AddRect(rmin, rmax, ph_col, 0, 0, ph_w);
-            }
-        }
-
-        // Label
-        if (z > 0.3f) {
-            ImVec2 lp(scr_min.x, scr_max.y + 2.0f * gz);
-            dl->AddText(ImVec2(lp.x + 1, lp.y + 1), IM_COL32(0, 0, 0, 180), name.c_str());
-            dl->AddText(lp, IM_COL32(220, 220, 230, 220), name.c_str());
-        }
-
-        // ── Selection gizmo ──
-        if (selected && gz > 0.05f) {
-            float pd = 5.0f * gz;
-            float sel_pad = 5.0f * gz;
-            auto [sm, sM] = std::pair{ImVec2(scr_min.x - sel_pad, scr_min.y - sel_pad), ImVec2(scr_max.x + sel_pad, scr_max.y + sel_pad)};
-            float cx = (float)(l + r) * 0.5f, cy = (float)(b + t) * 0.5f;
-            ImVec2 oc = toScreen(cx, cy);
-            ImU32 oc_col = IM_COL32(255, 200, 50, 255);
-            dl->AddRect(sm, sM, oc_col, 0, 0, 2.0f * gz);
-
-            if (tab.scene_gizmo_mode == 0) {              // MOVE
-                float al = 36.0f * gz, hl = 10.0f * gz, hw = 6.0f * gz, cs = 5.0f * gz;
-                ImVec2 xe(oc.x + al, oc.y);
-                ImVec2 ye(oc.x, oc.y - al);
-                dl->AddLine(oc, xe, tab.scene_drag_handle == 10 ? IM_COL32(255, 230, 50, 255) : IM_COL32(220, 70, 70, 255), 3);
-                dl->AddTriangleFilled(ImVec2(xe.x + hl, oc.y), ImVec2(xe.x, oc.y - hw), ImVec2(xe.x, oc.y + hw), IM_COL32(220, 70, 70, 255));
-                dl->AddLine(oc, ye, tab.scene_drag_handle == 11 ? IM_COL32(255, 230, 50, 255) : IM_COL32(70, 180, 70, 255), 3);
-                dl->AddTriangleFilled(ImVec2(oc.x, ye.y - hl), ImVec2(oc.x - hw, ye.y), ImVec2(oc.x + hw, ye.y), IM_COL32(70, 180, 70, 255));
-                ImU32 cc = tab.scene_drag_handle == 9 ? IM_COL32(255, 230, 50, 255) : IM_COL32(255, 255, 255, 230);
-                dl->AddRectFilled(ImVec2(oc.x - cs, oc.y - cs), ImVec2(oc.x + cs, oc.y + cs), cc);
-                dl->AddRect(ImVec2(oc.x - cs, oc.y - cs), ImVec2(oc.x + cs, oc.y + cs), IM_COL32(60, 60, 60, 200));
-            }
-            else if (tab.scene_gizmo_mode == 1) {         // ROTATE
-                float rr = std::max((float)sx, (float)sy) * 0.5f * z + 16.0f * gz;
-                dl->AddCircle(oc, rr, IM_COL32(80, 180, 255, 180), 0, 2.0f * gz);
-                double ang = getNum(obj, "rot", 0);
-                float rad = (float)(ang * 3.14159265f / 180.0f);
-                ImVec2 hp(oc.x + cosf(rad) * rr, oc.y - sinf(rad) * rr);
-                float hr = 6.0f * gz;
-                dl->AddLine(oc, hp, IM_COL32(80, 180, 255, 120), 1.5f * gz);
-                dl->AddCircleFilled(hp, hr, tab.scene_drag_handle == 8 ? IM_COL32(255, 230, 50, 255) : IM_COL32(80, 200, 255, 230));
-                dl->AddCircle(hp, hr, oc_col, 0, 1.5f * gz);
-            }
-            else if (tab.scene_gizmo_mode == 2) {         // SCALE
-                float hs = 8.0f * gz, hhs = hs * 0.5f, sp = pd;
-                ImVec2 corners[4] = {
-                    {sm.x - sp - hhs, sm.y - sp - hhs},
-                    {sM.x + sp - hhs, sm.y - sp - hhs},
-                    {sM.x + sp - hhs, sM.y + sp - hhs},
-                    {sm.x - sp - hhs, sM.y + sp - hhs}
-                };
-                ImVec2 edges[4] = {
-                    {(sm.x + sM.x) * 0.5f - hhs, sm.y - sp - hhs},
-                    {sM.x + sp - hhs, (sm.y + sM.y) * 0.5f - hhs},
-                    {(sm.x + sM.x) * 0.5f - hhs, sM.y + sp - hhs},
-                    {sm.x - sp - hhs, (sm.y + sM.y) * 0.5f - hhs}
-                };
-                for (int ci = 0; ci < 4; ci++) dl->AddLine(oc, ImVec2(corners[ci].x + hhs, corners[ci].y + hhs), IM_COL32(200, 200, 200, 80), 1.0f * gz);
-                for (int ci = 0; ci < 4; ci++) dl->AddLine(oc, ImVec2(edges[ci].x + hhs, edges[ci].y + hhs), IM_COL32(200, 200, 200, 60), 1.0f * gz);
-                auto hcol = [&](int hid, ImU32 normal) { return tab.scene_drag_handle == hid ? IM_COL32(255, 230, 50, 255) : normal; };
-                for (int ci = 0; ci < 4; ci++) {
-                    dl->AddRectFilled(corners[ci], ImVec2(corners[ci].x + hs, corners[ci].y + hs), hcol(ci, IM_COL32(255, 255, 255, 230)));
-                    dl->AddRect(corners[ci], ImVec2(corners[ci].x + hs, corners[ci].y + hs), IM_COL32(100, 100, 100, 200));
-                }
-                for (int ci = 0; ci < 4; ci++) {
-                    dl->AddRectFilled(edges[ci], ImVec2(edges[ci].x + hs, edges[ci].y + hs), hcol(ci + 4, IM_COL32(200, 200, 220, 230)));
-                    dl->AddRect(edges[ci], ImVec2(edges[ci].x + hs, edges[ci].y + hs), IM_COL32(100, 100, 100, 200));
-                }
-                float cs = 5.0f * gz;
-                ImU32 cc = tab.scene_drag_handle == 9 ? IM_COL32(255, 230, 50, 255) : IM_COL32(255, 255, 255, 200);
-                dl->AddRectFilled(ImVec2(oc.x - cs, oc.y - cs), ImVec2(oc.x + cs, oc.y + cs), cc);
-                dl->AddRect(ImVec2(oc.x - cs, oc.y - cs), ImVec2(oc.x + cs, oc.y + cs), IM_COL32(60, 60, 60, 200));
-            }
-        }
-
-        // Hover test
-        if (ImGui::IsWindowHovered() && ImGui::IsMouseHoveringRect(canvas_min, canvas_max)) {
-            ImVec2 mw = toWorld(io.MousePos.x, io.MousePos.y);
-            if (mw.x >= l && mw.x <= r && mw.y >= b && mw.y <= t) hovered_idx = (int)i;
-        }
-    }
-
-    // ── VIEWPORT INTERACTION ──────────────────────────────────────────────
-    if (ImGui::IsWindowHovered() && ImGui::IsMouseHoveringRect(canvas_min, canvas_max)) {
-        // Zoom toward mouse cursor
-        if (io.MouseWheel != 0.0f) {
-            float old_z = z;
-            tab.zoom *= (io.MouseWheel > 0) ? 1.1f : 0.9f;
-            tab.zoom = std::max(0.05f, std::min(tab.zoom, 20.0f));
-            z = tab.zoom * PPM;
-            // Keep world point under cursor stationary
-            ImVec2 mw = toWorld(io.MousePos.x, io.MousePos.y);
-            float scale = z / old_z;
-            tab.pan_x = (tab.pan_x + canvas_sz.x * 0.5f) * scale - canvas_sz.x * 0.5f - mw.x * z + mw.x * old_z * scale;
-            tab.pan_y = (tab.pan_y + canvas_sz.y * 0.5f) * scale - canvas_sz.y * 0.5f + mw.y * z - mw.y * old_z * scale;
-
-            ox = canvas_min.x + canvas_sz.x * 0.5f + tab.pan_x;
-            oy = canvas_min.y + canvas_sz.y * 0.5f + tab.pan_y;
-        }
-        // Pan with middle mouse
-        if (ImGui::IsMouseDragging(ImGuiMouseButton_Middle)) {
-            tab.pan_x += io.MouseDelta.x;
-            tab.pan_y += io.MouseDelta.y;
-            ox = canvas_min.x + canvas_sz.x * 0.5f + tab.pan_x;
-            oy = canvas_min.y + canvas_sz.y * 0.5f + tab.pan_y;
-        }
-        // Gizmo mode shortcuts
-        if (ImGui::IsKeyPressed(ImGuiKey_W)) { tab.scene_gizmo_mode = 0; tab.scene_drag_handle = -1; }
-        if (ImGui::IsKeyPressed(ImGuiKey_E)) { tab.scene_gizmo_mode = 1; tab.scene_drag_handle = -1; }
-        if (ImGui::IsKeyPressed(ImGuiKey_R)) { tab.scene_gizmo_mode = 2; tab.scene_drag_handle = -1; }
-
-        int sel = tab.scene_selected_object;
-        bool on_handle = false;
-
-        if (sel >= 0 && sel < (int)objects.size()) {
-            auto& sobj = objects[sel];
-            if (sobj.is_object()) {
-                std::string st = getStr(sobj, "type", "");
-                ImVec2 ssz = sizeFor(st);
-                double spx = getNum(sobj, "pos_x", 0);
-                double spy = getNum(sobj, "pos_y", 0);
-                double ssx = getNum(sobj, "size_x", ssz.x);
-                double ssy = getNum(sobj, "size_y", ssz.y);
-                if (st == "point_light") { ssx = getNum(sobj, "radius", 0.5); ssy = ssx; }
-                if (st == "tileset") {
-                    ssx = getNum(sobj, "tile_width", 0.2) * getNum(sobj, "atlas_cols", 4);
-                    ssy = getNum(sobj, "tile_height", 0.2) * getNum(sobj, "atlas_rows", 4);
-                }
-                double swl = spx, swb = spy, swr = spx + ssx, swt = spy + ssy;
-                if (st == "sprite" || st == "animated_sprite") {
-                    double sorx = getNum(sobj, "origin_x", 0.5);
-                    double sory = getNum(sobj, "origin_y", 0.5);
-                    swl = spx - ssx * sorx; swb = spy - ssy * sory;
-                    swr = swl + ssx; swt = swb + ssy;
-                }
-                auto [ssmin, ssmax] = worldRect(swl, swb, swr - swl, swt - swb);
-                float spd = 5.0f * gz;
-                float scx = (float)(swl + swr) * 0.5f;
-                float scy = (float)(swb + swt) * 0.5f;
-                ImVec2 soc = toScreen(scx, scy);
-                ImVec2 ms = io.MousePos;
-
-                // ── Drag active ──
-                if (tab.scene_drag_handle >= 0) {
-                    on_handle = true;
-                    ImVec2 mw = toWorld(ms.x, ms.y);
-                    if (tab.scene_gizmo_mode == 0) {
-                        if (tab.scene_drag_handle == 10)
-                            setNum(sobj, "pos_x", tab.scene_drag_vx + (mw.x - tab.scene_drag_vx));
-                        else if (tab.scene_drag_handle == 11)
-                            setNum(sobj, "pos_y", tab.scene_drag_vy + (mw.y - tab.scene_drag_vy));
-                        else {
-                            setNum(sobj, "pos_x", spx + io.MouseDelta.x / z);
-                            setNum(sobj, "pos_y", spy - io.MouseDelta.y / z);
-                        }
-                        tab.modified = true;
-                    }
-                    else if (tab.scene_gizmo_mode == 1) {
-                        float dx = mw.x - scx, dy = mw.y - scy;
-                        setNum(sobj, "rot", atan2((double)dy, (double)dx) * 180.0 / 3.141592653589793);
-                        tab.modified = true;
-                    }
-                    else if (tab.scene_gizmo_mode == 2) {
-                        double nwl = tab.scene_drag_wl, nwb = tab.scene_drag_wb;
-                        double nwr = tab.scene_drag_wr, nwt = tab.scene_drag_wt;
-                        if (tab.scene_drag_handle == 9) {
-                            double dx = io.MouseDelta.x / z, dy = -io.MouseDelta.y / z;
-                            double avg = (dx + dy) * 0.5;
-                            double nsx = tab.scene_drag_vsx + avg;
-                            double nsy = tab.scene_drag_vsy + avg;
-                            if (nsx < 0.1) nsx = 0.1; if (nsy < 0.1) nsy = 0.1;
-                            double sorx = getNum(sobj, "origin_x", 0.5);
-                            double sory = getNum(sobj, "origin_y", 0.5);
-                            double wlo = tab.scene_drag_vx - tab.scene_drag_vsx * sorx;
-                            double wbo = tab.scene_drag_vy - tab.scene_drag_vsy * sory;
-                            setNum(sobj, "pos_x", wlo + nsx * sorx);
-                            setNum(sobj, "pos_y", wbo + nsy * sory);
-                            setNum(sobj, "size_x", nsx); setNum(sobj, "size_y", nsy);
-                        } else {
-                            switch (tab.scene_drag_handle) {
-                                case 0: nwl = mw.x; nwt = mw.y; break;
-                                case 1: nwr = mw.x; nwt = mw.y; break;
-                                case 2: nwr = mw.x; nwb = mw.y; break;
-                                case 3: nwl = mw.x; nwb = mw.y; break;
-                                case 4: nwt = mw.y; break;
-                                case 5: nwr = mw.x; break;
-                                case 6: nwb = mw.y; break;
-                                case 7: nwl = mw.x; break;
-                            }
-                            double mn = 0.1; int dh = tab.scene_drag_handle;
-                            if ((dh == 1 || dh == 2 || dh == 5) && nwr - nwl < mn) nwr = nwl + mn;
-                            else if ((dh == 0 || dh == 3 || dh == 7) && nwr - nwl < mn) nwl = nwr - mn;
-                            if ((dh == 0 || dh == 1 || dh == 4) && nwt - nwb < mn) nwt = nwb + mn;
-                            else if ((dh == 2 || dh == 3 || dh == 6) && nwt - nwb < mn) nwb = nwt - mn;
-                            double nsx = nwr - nwl, nsy = nwt - nwb;
-                            double sorx = getNum(sobj, "origin_x", 0.5), sory = getNum(sobj, "origin_y", 0.5);
-                            double npx = nwl + nsx * sorx, npy = nwb + nsy * sory;
-                            setNum(sobj, "pos_x", npx); setNum(sobj, "pos_y", npy);
-                            setNum(sobj, "size_x", nsx); setNum(sobj, "size_y", nsy);
-                        }
-                        tab.modified = true;
-                    }
-                    if (!ImGui::IsMouseDown(ImGuiMouseButton_Left)) tab.scene_drag_handle = -1;
-                }
-                // ── Hit test for handles ──
-                else {
-                    float hsz = 8.0f * gz;
-                    if (tab.scene_gizmo_mode == 0) {
-                        float al = 36.0f * gz, aw = 8.0f * gz, cs = 7.0f * gz;
-                        bool on_x = ms.x >= soc.x - 5.0f * gz && ms.x <= soc.x + al + 10.0f * gz && ms.y >= soc.y - aw && ms.y <= soc.y + aw;
-                        bool on_y = ms.x >= soc.x - aw && ms.x <= soc.x + aw && ms.y >= soc.y - al - 10.0f * gz && ms.y <= soc.y + 5.0f * gz;
-                        bool on_ct = fabsf(ms.x - soc.x) < cs && fabsf(ms.y - soc.y) < cs;
-                        if (on_x) { on_handle = true; if (ImGui::IsMouseClicked(ImGuiMouseButton_Left)) { tab.scene_drag_handle = 10; tab.scene_drag_vx = spx; tab.scene_drag_vy = spy; } }
-                        else if (on_y) { on_handle = true; if (ImGui::IsMouseClicked(ImGuiMouseButton_Left)) { tab.scene_drag_handle = 11; tab.scene_drag_vx = spx; tab.scene_drag_vy = spy; } }
-                        else if (on_ct) { on_handle = true; if (ImGui::IsMouseClicked(ImGuiMouseButton_Left)) { tab.scene_drag_handle = 9; tab.scene_drag_vx = spx; tab.scene_drag_vy = spy; } }
-                    }
-                    else if (tab.scene_gizmo_mode == 1) {
-                        float rr = std::max((float)ssx, (float)ssy) * 0.5f * z + 16.0f * gz;
-                        double ang = getNum(sobj, "rot", 0);
-                        float rad = (float)(ang * 3.14159265f / 180.0f);
-                        float hx = soc.x + cosf(rad) * rr, hy = soc.y - sinf(rad) * rr, hr = 8.0f * gz;
-                        if (fabsf(ms.x - hx) < hr && fabsf(ms.y - hy) < hr) {
-                            on_handle = true;
-                            if (ImGui::IsMouseClicked(ImGuiMouseButton_Left)) { tab.scene_drag_handle = 8; tab.scene_drag_vx = spx; tab.scene_drag_vy = spy; }
-                        }
-                    }
-                    else if (tab.scene_gizmo_mode == 2) {
-                        float shs = hsz * 0.5f;
-                        ImVec2 handles[9] = {
-                            {ssmin.x - spd - shs, ssmin.y - spd - shs},
-                            {ssmax.x + spd - shs, ssmin.y - spd - shs},
-                            {ssmax.x + spd - shs, ssmax.y + spd - shs},
-                            {ssmin.x - spd - shs, ssmax.y + spd - shs},
-                            {(ssmin.x + ssmax.x) * 0.5f - shs, ssmin.y - spd - shs},
-                            {ssmax.x + spd - shs, (ssmin.y + ssmax.y) * 0.5f - shs},
-                            {(ssmin.x + ssmax.x) * 0.5f - shs, ssmax.y + spd - shs},
-                            {ssmin.x - spd - shs, (ssmin.y + ssmax.y) * 0.5f - shs},
-                            {soc.x - 7.0f * gz, soc.y - 7.0f * gz}
-                        };
-                        for (int hi = 0; hi < 9; hi++) {
-                            int hid = (hi == 8) ? 9 : hi;
-                            ImVec2 hm = handles[hi];
-                            float hw = (hi == 8) ? 14.0f * gz : hsz;
-                            if (fabsf(ms.x - hm.x - hw * 0.5f) < hw * 0.5f && fabsf(ms.y - hm.y - hw * 0.5f) < hw * 0.5f) {
-                                on_handle = true;
-                                if (ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
-                                    tab.scene_drag_handle = hid;
-                                    tab.scene_drag_wl = swl; tab.scene_drag_wb = swb;
-                                    tab.scene_drag_wr = swr; tab.scene_drag_wt = swt;
-                                    tab.scene_drag_vx = spx; tab.scene_drag_vy = spy;
-                                    tab.scene_drag_vsx = ssx; tab.scene_drag_vsy = ssy;
-                                }
-                                break;
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        // Click to select / deselect
-        if (!on_handle && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
-            tab.scene_selected_object = (hovered_idx >= 0) ? hovered_idx : -1;
-
-        // Drag-move selected object (not on handle)
-        if (!on_handle && tab.scene_drag_handle < 0 && ImGui::IsMouseDragging(ImGuiMouseButton_Left)
-            && sel >= 0 && sel < (int)objects.size()) {
-            auto& mobj = objects[sel];
-            if (mobj.is_object()) {
-                setNum(mobj, "pos_x", getNum(mobj, "pos_x", 0) + io.MouseDelta.x / z);
-                setNum(mobj, "pos_y", getNum(mobj, "pos_y", 0) - io.MouseDelta.y / z);
-                tab.modified = true;
-            }
-        }
-        if (tab.scene_drag_handle >= 0 && !ImGui::IsMouseDown(ImGuiMouseButton_Left)) tab.scene_drag_handle = -1;
-    }
-
-    // ── Tooltip ──
-    if (hovered_idx >= 0 && hovered_idx < (int)objects.size()) {
-        auto& obj = objects[hovered_idx];
-        std::string nm = getStr(obj, "name", "Unnamed");
-        std::string tp = getStr(obj, "type", "?");
-        ImVec2 ds = sizeFor(tp);
-        double px = getNum(obj, "pos_x", 0), py = getNum(obj, "pos_y", 0);
-        double sx = getNum(obj, "size_x", ds.x), sy = getNum(obj, "size_y", ds.y);
-        double rot = getNum(obj, "rot", 0);
-        ImGui::SetTooltip("[%s] %s\npos: %.2f, %.2f  size: %.2f x %.2f  rot: %.1f\xC2\xB0",
-            tp.c_str(), nm.c_str(), px, py, sx, sy, rot);
-    }
 
     ImGui::End();
 }
@@ -1712,8 +1093,12 @@ void Editor::RenderSceneHierarchyWindow() {
     ImGui::Begin("Scene Hierarchy", &m_show_scene_hierarchy);
 
     int scene_tab_idx = -1;
-    for (int i = 0; i < (int)m_tabs.size(); i++) {
-        if (m_tabs[i].type == EditorTabType::Scene) { scene_tab_idx = i; break; }
+    if (m_active_tab >= 0 && m_tabs[m_active_tab].type == EditorTabType::Scene) {
+        scene_tab_idx = m_active_tab;
+    } else {
+        for (int i = 0; i < (int)m_tabs.size(); i++) {
+            if (m_tabs[i].type == EditorTabType::Scene) { scene_tab_idx = i; break; }
+        }
     }
 
     if (scene_tab_idx < 0) {
@@ -1817,8 +1202,12 @@ void Editor::RenderSceneInspectorWindow() {
     ImGui::Begin("Scene Inspector", &m_show_scene_inspector);
 
     int scene_tab_idx = -1;
-    for (int i = 0; i < (int)m_tabs.size(); i++) {
-        if (m_tabs[i].type == EditorTabType::Scene) { scene_tab_idx = i; break; }
+    if (m_active_tab >= 0 && m_tabs[m_active_tab].type == EditorTabType::Scene) {
+        scene_tab_idx = m_active_tab;
+    } else {
+        for (int i = 0; i < (int)m_tabs.size(); i++) {
+            if (m_tabs[i].type == EditorTabType::Scene) { scene_tab_idx = i; break; }
+        }
     }
 
     if (scene_tab_idx < 0) {
@@ -1893,15 +1282,15 @@ void Editor::RenderCodeEditorWindow() {
 
     ImGui::Begin("Code Editor", &m_show_code_editor);
 
-    // Collect all code tabs
-    std::vector<int> code_tab_indices;
+    // Collect all editable tabs (code + image)
+    std::vector<int> edit_tab_indices;
     for (int i = 0; i < (int)m_tabs.size(); i++) {
-        if (m_tabs[i].type == EditorTabType::Code) {
-            code_tab_indices.push_back(i);
+        if (m_tabs[i].type == EditorTabType::Code || m_tabs[i].type == EditorTabType::Image) {
+            edit_tab_indices.push_back(i);
         }
     }
 
-    if (code_tab_indices.empty()) {
+    if (edit_tab_indices.empty()) {
         ImGui::SetCursorPosY(ImGui::GetCursorPosY() + ImGui::GetContentRegionAvail().y * 0.5f - 20.0f);
         ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.4f, 0.4f, 0.45f, 1.0f));
         ImGui::Text("Open a file to start editing");
@@ -1910,33 +1299,63 @@ void Editor::RenderCodeEditorWindow() {
         return;
     }
 
-    // Ensure m_active_tab points to a code tab if possible
-    bool active_is_code = false;
-    for (int idx : code_tab_indices) {
-        if (idx == m_active_tab) { active_is_code = true; break; }
+    // Use separate active tab tracker for editor
+    bool active_is_editable = false;
+    for (int idx : edit_tab_indices) {
+        if (idx == m_active_edit_tab) { active_is_editable = true; break; }
     }
-    if (!active_is_code) {
-        m_active_tab = code_tab_indices[0];
+    if (!active_is_editable) {
+        m_active_edit_tab = edit_tab_indices[0];
     }
 
     ImGuiIO& io = ImGui::GetIO();
-    if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_S)) { SaveTab(m_tabs[m_active_tab]); }
-    if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_W)) { CloseTab(m_active_tab); ImGui::End(); return; }
+    if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_S)) { SaveTab(m_tabs[m_active_edit_tab]); }
+    if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_W)) { CloseTab(m_active_edit_tab); ImGui::End(); return; }
 
-    // Tab bar for code files
+    // Tab bar for editable files (stable label = title only, no " *" to prevent ImGui ID from changing)
     if (ImGui::BeginTabBar("##CodeTabs", ImGuiTabBarFlags_Reorderable | ImGuiTabBarFlags_FittingPolicyScroll)) {
-        for (int idx : code_tab_indices) {
+        for (int idx : edit_tab_indices) {
             auto& t = m_tabs[idx];
-            if (!t.code_editor) continue;
 
-            std::string label = t.title;
-            if (t.modified) label += " *";
-
+            const char* label = t.title.c_str();
+            ImGui::PushID(t.file_path.c_str());
+            if (t.modified) {
+                ImGui::PushStyleColor(ImGuiCol_Tab, ImVec4(0.30f, 0.25f, 0.10f, 1.0f));
+                ImGui::PushStyleColor(ImGuiCol_TabActive, ImVec4(0.40f, 0.33f, 0.12f, 1.0f));
+                ImGui::PushStyleColor(ImGuiCol_TabHovered, ImVec4(0.35f, 0.28f, 0.11f, 1.0f));
+            }
             bool open = true;
-            if (ImGui::BeginTabItem(label.c_str(), &open)) {
-                m_active_tab = idx;
+            bool active = ImGui::BeginTabItem(label, &open);
+            if (t.modified) ImGui::PopStyleColor(3);
+            if (active) {
+                m_active_edit_tab = idx;
+                if (t.type == EditorTabType::Code && t.code_editor) {
+                    ImVec2 avail = ImGui::GetContentRegionAvail();
+                    t.code_editor->Render(t.title.c_str(), avail);
+                    if (t.code_editor->IsTextChanged()) t.modified = true;
+                } else if (t.type == EditorTabType::Image && t.image_texture) {
+                    ImVec2 avail = ImGui::GetContentRegionAvail();
+                    float img_ar = (float)t.img_w / (float)t.img_h;
+                    float area_ar = avail.x / avail.y;
+
+                    float draw_w, draw_h;
+                    if (img_ar > area_ar) {
+                        draw_w = avail.x;
+                        draw_h = avail.x / img_ar;
+                    } else {
+                        draw_h = avail.y;
+                        draw_w = avail.y * img_ar;
+                    }
+                    float offset_x = (avail.x - draw_w) * 0.5f;
+                    float offset_y = (avail.y - draw_h) * 0.5f;
+                    ImVec2 image_min = ImVec2(ImGui::GetCursorScreenPos().x + offset_x, ImGui::GetCursorScreenPos().y + offset_y);
+                    ImVec2 image_max = ImVec2(image_min.x + draw_w, image_min.y + draw_h);
+                    ImGui::GetWindowDrawList()->AddImage(t.image_texture, image_min, image_max);
+                    ImGui::Text("  %d x %d  |  Zoom: %.0f%%", t.img_w, t.img_h, t.zoom * 100);
+                }
                 ImGui::EndTabItem();
             }
+            ImGui::PopID();
             if (!open) {
                 CloseTab(idx);
                 ImGui::EndTabBar();
@@ -1947,14 +1366,67 @@ void Editor::RenderCodeEditorWindow() {
         ImGui::EndTabBar();
     }
 
-    // Render active code editor
-    auto& tab = m_tabs[m_active_tab];
-    if (!tab.code_editor) { ImGui::End(); return; }
+    ImGui::End();
+}
 
-    ImVec2 avail = ImGui::GetContentRegionAvail();
-    tab.code_editor->Render(tab.title.c_str(), avail);
+// ======================== SCENE EDITOR WINDOW ========================
 
-    if (tab.code_editor->IsTextChanged()) tab.modified = true;
+void Editor::RenderSceneEditorWindow() {
+    if (!m_show_scene_editor) return;
+
+    ImGui::Begin("Scene Editor", &m_show_scene_editor);
+
+    std::vector<int> scene_tab_indices;
+    for (int i = 0; i < (int)m_tabs.size(); i++) {
+        if (m_tabs[i].type == EditorTabType::Scene) scene_tab_indices.push_back(i);
+    }
+
+    if (scene_tab_indices.empty()) {
+        float avail = ImGui::GetContentRegionAvail().y;
+        ImGui::SetCursorPosY(ImGui::GetCursorPosY() + avail * 0.5f - 20.0f);
+        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.4f, 0.4f, 0.45f, 1.0f));
+        ImGui::Text("Open a .scene file to edit");
+        ImGui::PopStyleColor();
+        ImGui::End();
+        return;
+    }
+
+    int active_scene_idx = -1;
+    {
+        if (scene_tab_indices.size() > 1) {
+            if (ImGui::BeginTabBar("##SceneEditorTabs", ImGuiTabBarFlags_Reorderable | ImGuiTabBarFlags_FittingPolicyScroll)) {
+                for (int idx : scene_tab_indices) {
+                    auto& t = m_tabs[idx];
+                    ImGui::PushID(t.file_path.c_str());
+                    if (t.modified) {
+                        ImGui::PushStyleColor(ImGuiCol_Tab, ImVec4(0.30f, 0.25f, 0.10f, 1.0f));
+                        ImGui::PushStyleColor(ImGuiCol_TabActive, ImVec4(0.40f, 0.33f, 0.12f, 1.0f));
+                        ImGui::PushStyleColor(ImGuiCol_TabHovered, ImVec4(0.35f, 0.28f, 0.11f, 1.0f));
+                    }
+                    bool open = true;
+                    if (ImGui::BeginTabItem(t.title.c_str(), &open)) {
+                        active_scene_idx = idx;
+                        ImGui::EndTabItem();
+                    }
+                    if (t.modified) ImGui::PopStyleColor(3);
+                    ImGui::PopID();
+                    if (!open) {
+                        CloseTab(idx);
+                        ImGui::End();
+                        return;
+                    }
+                }
+                ImGui::EndTabBar();
+            }
+        } else {
+            active_scene_idx = scene_tab_indices[0];
+        }
+    }
+
+    if (active_scene_idx >= 0) {
+        m_active_tab = active_scene_idx;
+        RenderSceneEditor(m_tabs[active_scene_idx]);
+    }
 
     ImGui::End();
 }

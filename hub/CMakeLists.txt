@@ -80,6 +80,10 @@ if(WIN32)
         IMGUI_IMPL_OPENGL_LOADER_GLAD
         GLFW_INCLUDE_NONE
     )
+
+    set_target_properties(${PROJECT_NAME} PROPERTIES
+        WIN32_EXECUTABLE TRUE
+    )
 else()
     find_package(OpenGL REQUIRED)
     find_package(X11 REQUIRED)

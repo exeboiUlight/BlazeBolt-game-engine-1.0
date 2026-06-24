@@ -8,11 +8,55 @@
 #include <algorithm>
 
 #ifdef PLATFORM_WINDOWS
-#define POPEN _popen
-#define PCLOSE _pclose
+#include <windows.h>
+#include <shlobj.h>
+#undef LoadIcon
+
+static std::string PickFolder(const char* title = "Select Folder") {
+    std::string result;
+    WCHAR wtitle[256];
+    MultiByteToWideChar(CP_UTF8, 0, title, -1, wtitle, 256);
+    BROWSEINFOW bi = {0};
+    bi.lpszTitle = wtitle;
+    bi.ulFlags = BIF_RETURNONLYFSDIRS | BIF_NEWDIALOGSTYLE;
+    LPITEMIDLIST pidl = SHBrowseForFolderW(&bi);
+    if (pidl) {
+        WCHAR path[MAX_PATH];
+        if (SHGetPathFromIDListW(pidl, path)) {
+            int len = WideCharToMultiByte(CP_UTF8, 0, path, -1, NULL, 0, NULL, NULL);
+            if (len > 0) {
+                result.resize(len - 1);
+                WideCharToMultiByte(CP_UTF8, 0, path, -1, &result[0], len, NULL, NULL);
+            }
+        }
+        IMalloc* pMalloc = nullptr;
+        if (SUCCEEDED(SHGetMalloc(&pMalloc))) {
+            pMalloc->Free(pidl);
+            pMalloc->Release();
+        }
+    }
+    return result;
+}
 #else
-#define POPEN popen
-#define PCLOSE pclose
+#include <cstring>
+
+static std::string PickFolder(const char* title = "Select Folder") {
+    std::string cmd = "zenity --file-selection --directory --title=\"";
+    cmd += title;
+    cmd += "\" 2>/dev/null";
+    std::string result;
+    FILE* f = popen(cmd.c_str(), "r");
+    if (f) {
+        char buf[1024];
+        if (fgets(buf, sizeof(buf), f)) {
+            result = buf;
+            while (!result.empty() && (result.back() == '\n' || result.back() == '\r'))
+                result.pop_back();
+        }
+        pclose(f);
+    }
+    return result;
+}
 #endif
 
 Hub::Hub(fs::path engine_root)
@@ -444,23 +488,10 @@ void Hub::Render() {
     }
     ImGui::SameLine();
     if (ImGui::Button("Open Folder", ImVec2(button_width, 0))) {
-#ifdef PLATFORM_WINDOWS
-        FILE* f = POPEN("powershell -NoProfile -Command \"(New-Object -ComObject Shell.Application).BrowseForFolder(0,'Select Project Folder',0).Path\"", "r");
-#else
-        FILE* f = POPEN("zenity --file-selection --directory 2>/dev/null || xdg-open .", "r");
-#endif
-        if (f) {
-            char buf[1024];
-            if (fgets(buf, sizeof(buf), f)) {
-                std::string result(buf);
-                while (!result.empty() && (result.back() == '\n' || result.back() == '\r'))
-                    result.pop_back();
-                if (!result.empty()) {
-                    m_selected_path = result;
-                    m_open_editor = true;
-                }
-            }
-            PCLOSE(f);
+        std::string folder = PickFolder("Select Project Folder");
+        if (!folder.empty()) {
+            m_selected_path = folder;
+            m_open_editor = true;
         }
     }
 
@@ -504,21 +535,9 @@ void Hub::Render() {
         ImGui::InputText("##path", m_new_path, sizeof(m_new_path));
         ImGui::SameLine();
         if (ImGui::Button("Browse...", ImVec2(browse_w, 0))) {
-#ifdef PLATFORM_WINDOWS
-            // Simple folder selection via PowerShell
-            FILE* f = POPEN("powershell -NoProfile -Command \"(New-Object -ComObject Shell.Application).BrowseForFolder(0,'Select Folder',0).Path\"", "r");
-#else
-            FILE* f = POPEN("zenity --file-selection --directory 2>/dev/null || xdg-open .", "r");
-#endif
-            if (f) {
-                char buf[1024];
-                if (fgets(buf, sizeof(buf), f)) {
-                    std::string result(buf);
-                    while (!result.empty() && (result.back() == '\n' || result.back() == '\r'))
-                        result.pop_back();
-                    if (!result.empty()) strncpy(m_new_path, result.c_str(), sizeof(m_new_path) - 1);
-                }
-                PCLOSE(f);
+            std::string folder = PickFolder("Select Project Location");
+            if (!folder.empty()) {
+                strncpy(m_new_path, folder.c_str(), sizeof(m_new_path) - 1);
             }
         }
 

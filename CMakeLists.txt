@@ -91,7 +91,26 @@ if(WIN32)
     target_link_libraries(BlazeBoltLib PRIVATE ws2_32)
 endif()
 
-add_executable(BlazeBolt ${BLAZEBOLT_SOURCES})
+find_package(Python3 QUIET COMPONENTS Interpreter)
+
+if(WIN32)
+    configure_file("BlazeBolt.rc.in" "BlazeBolt.rc" @ONLY)
+    set(BLAZEBOLT_RC "${CMAKE_CURRENT_BINARY_DIR}/BlazeBolt.rc")
+
+    if(Python3_FOUND)
+        add_custom_command(
+            OUTPUT "${CMAKE_SOURCE_DIR}/assets/icon.ico"
+            DEPENDS "${CMAKE_SOURCE_DIR}/assets/icon.png"
+            COMMAND Python3::Interpreter -c
+                "from PIL import Image; img=Image.open('${CMAKE_SOURCE_DIR}/assets/icon.png'); img.save('${CMAKE_SOURCE_DIR}/assets/icon.ico', format='ICO', sizes=[(16,16),(32,32),(48,48),(64,64),(256,256)])"
+            COMMENT "Generating icon.ico from icon.png"
+        )
+    endif()
+else()
+    set(BLAZEBOLT_RC "")
+endif()
+
+add_executable(BlazeBolt ${BLAZEBOLT_SOURCES} ${BLAZEBOLT_RC})
 target_include_directories(BlazeBolt PRIVATE ${BLAZEBOLT_INCLUDES})
 target_link_libraries(BlazeBolt PRIVATE ${BLAZEBOLT_LIBS})
 if(WIN32)
@@ -106,7 +125,7 @@ add_custom_command(TARGET BlazeBolt POST_BUILD
 )
 
 if(WIN32)
-    add_executable(BlazeBoltWin ${BLAZEBOLT_SOURCES})
+    add_executable(BlazeBoltWin ${BLAZEBOLT_SOURCES} ${BLAZEBOLT_RC})
     set_target_properties(BlazeBoltWin PROPERTIES WIN32_EXECUTABLE TRUE)
     target_include_directories(BlazeBoltWin PRIVATE ${BLAZEBOLT_INCLUDES})
     target_link_libraries(BlazeBoltWin PRIVATE ${BLAZEBOLT_LIBS})
@@ -118,4 +137,13 @@ if(WIN32)
         COMMAND ${CMAKE_COMMAND} -E copy_directory
             ${CMAKE_SOURCE_DIR}/assets/ $<TARGET_FILE_DIR:BlazeBoltWin>
     )
+endif()
+
+if(UNIX AND NOT APPLE)
+    install(TARGETS BlazeBolt RUNTIME DESTINATION bin)
+    install(FILES "${CMAKE_SOURCE_DIR}/BlazeBolt.desktop"
+        DESTINATION share/applications)
+    install(FILES "${CMAKE_SOURCE_DIR}/assets/icon.png"
+        DESTINATION share/icons/hicolor/256x256/apps
+        RENAME blazebolt.png)
 endif()

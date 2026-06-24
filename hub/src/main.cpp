@@ -51,6 +51,21 @@ int main(int argc, char** argv) {
     glfwMakeContextCurrent(window);
     glfwSwapInterval(1);
 
+    // Set window icon
+    {
+        int w, h, ch;
+        unsigned char* data = stbi_load("icon.png", &w, &h, &ch, 4);
+        if (!data) data = stbi_load("assets/icon.png", &w, &h, &ch, 4);
+        if (data) {
+            GLFWimage img;
+            img.width = w;
+            img.height = h;
+            img.pixels = data;
+            glfwSetWindowIcon(window, 1, &img);
+            stbi_image_free(data);
+        }
+    }
+
     if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
         fprintf(stderr, "Failed to initialize GLAD\n");
         glfwTerminate();
