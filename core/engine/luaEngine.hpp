@@ -61,6 +61,7 @@ namespace LuaEngine {
         std::unordered_map<Entity, RegisteredObject> objectMap;
         std::unordered_map<std::string, int> soundNameToId;
         std::unordered_map<Entity, PhysicsBody*> physicsBodyMap;
+        std::unordered_map<Entity, Entity> visualToPhysicsMap;
         std::unordered_map<Entity, std::string> entityNames;
         std::unordered_map<Entity, std::string> entityTexturePaths;
         std::unordered_map<Entity, std::string> entityFontPaths;

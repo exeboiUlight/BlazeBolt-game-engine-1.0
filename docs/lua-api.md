@@ -1,6 +1,6 @@
 # BlazeBolt Engine — Lua API Reference
 
-> **Version:** 1.1  
+> **Version:** 1.2  
 > **Lua version:** 5.4  
 > **Engine:** BlazeBolt Game Engine
 
@@ -25,13 +25,14 @@
 15. [Окна (Window)](#окна-window)
 16. [Скрипты (Script Management)](#скрипты-script-management)
 17. [Сцены (Scene Management)](#сцены-scene-management)
-18. [Ввод (Input)](#ввод-input)
-19. [Математические типы (Math Types)](#математические-типы-math-types)
-20. [Шумы (Noise)](#шумы-noise)
-21. [Утилиты (Utility)](#утилиты-utility)
-22. [Сетевые функции (Networking)](#сетевые-функции-networking)
-23. [Порядок рендера (Render Order)](#порядок-рендера-render-order)
-24. [Константы (Constants)](#константы-constants)
+18. [Формат .scene файлов (Scene File Format)](#формат-scene-файлов-scene-file-format)
+19. [Ввод (Input)](#ввод-input)
+20. [Математические типы (Math Types)](#математические-типы-math-types)
+21. [Шумы (Noise)](#шумы-noise)
+22. [Утилиты (Utility)](#утилиты-utility)
+23. [Сетевые функции (Networking)](#сетевые-функции-networking)
+24. [Порядок рендера (Render Order)](#порядок-рендера-render-order)
+25. [Константы (Constants)](#константы-constants)
 
 ---
 
@@ -4539,6 +4540,170 @@ function Update(dt)
         end
     end
 end
+```
+
+---
+
+## Формат .scene файлов (Scene File Format)
+
+Файлы `.scene` хранят сцены в формате JSON. Каждый файл содержит массив объектов `objects`, где каждый объект описывает один элемент сцены.
+
+### Структура корневого документа
+
+```json
+{
+    "name": "my_level",
+    "version": 1,
+    "objects": [ ... ]
+}
+```
+
+### Общие поля
+
+Каждый объект в массиве `objects` может содержать:
+
+| Поле | Тип | Описание |
+|---|---|---|
+| `name` | string | Уникальное имя объекта |
+| `type` | string | Тип объекта (см. ниже) |
+| `pos_x`, `pos_y` | number | Позиция в мировых координатах (Y-up) |
+| `rot` | number | Поворот в градусах |
+
+### Типы объектов
+
+#### `sprite`
+
+| Поле | Тип | По умолчанию | Описание |
+|---|---|---|---|
+| `texture` | string | — | Путь к текстуре |
+| `texture_rect` | array[4] | `[0,0,1,1]` | UV-прямоугольник `[u, v, w, h]` |
+| `size_x`, `size_y` | number | `64` | Размер спрайта |
+| `origin_x`, `origin_y` | number | `0.5` | Точка привязки (0–1) |
+| `color_r`, `color_g`, `color_b`, `color_a` | number | `1` | Цвет |
+| `visible` | bool | `true` | Видимость |
+
+#### `animated_sprite`
+
+| Поле | Тип | По умолчанию | Описание |
+|---|---|---|---|
+| `texture` | string | — | Путь к текстуре анимации |
+| `size_x`, `size_y` | number | `64` | Размер |
+| `origin_x`, `origin_y` | number | `0.5` | Точка привязки |
+| `color_r`, `color_g`, `color_b`, `color_a` | number | `1` | Цвет |
+| `visible` | bool | `true` | Видимость |
+| `looping` | bool | `false` | Зацикливание анимации |
+| `playback_speed` | number | `1` | Скорость воспроизведения |
+| `rot` | number | `0` | Поворот |
+
+#### `text`
+
+| Поле | Тип | По умолчанию | Описание |
+|---|---|---|---|
+| `font` | string | — | Путь к шрифту |
+| `text` | string | — | Текст |
+| `scale_x`, `scale_y` | number | `1` | Масштаб |
+| `color_r`, `color_g`, `color_b`, `color_a` | number | `1` | Цвет |
+| `visible` | bool | `true` | Видимость |
+| `alignment` | number | `0` | Выравнивание (`0`=Left, `1`=Center, `2`=Right) |
+| `rot` | number | `0` | Поворот |
+
+#### `camera`
+
+| Поле | Тип | По умолчанию | Описание |
+|---|---|---|---|
+| `zoom` | number | `1` | Зум камеры |
+| `rot` | number | `0` | Поворот |
+
+#### `point_light`
+
+| Поле | Тип | По умолчанию | Описание |
+|---|---|---|---|
+| `color_r`, `color_g`, `color_b` | number | `1` | Цвет |
+| `intensity` | number | `1` | Интенсивность |
+| `radius` | number | `200` | Радиус |
+| `enabled` | bool | `true` | Включён |
+
+#### `ambient_light`
+
+| Поле | Тип | По умолчанию | Описание |
+|---|---|---|---|
+| `color_r`, `color_g`, `color_b` | number | `1` | Цвет |
+| `intensity` | number | `0.3` | Интенсивность |
+
+#### `particle_system`
+
+| Поле | Тип | По умолчанию | Описание |
+|---|---|---|---|
+| `texture` | string | — | Путь к текстуре частиц |
+| `emission_rate` | number | — | Скорость эмиссии |
+| `active` | bool | `true` | Активность |
+| `visible` | bool | `true` | Видимость |
+
+#### `tileset`
+
+| Поле | Тип | По умолчанию | Описание |
+|---|---|---|---|
+| `texture` | string | — | Путь к текстуре атласа |
+| `tile_width`, `tile_height` | number | `32` | Размер тайла |
+| `atlas_cols`, `atlas_rows` | number | `8` | Количество тайлов в атласе |
+
+#### `physics_body`
+
+Объект-коллайдер без визуального представления.
+
+| Поле | Тип | По умолчанию | Описание |
+|---|---|---|---|
+| `rot` | number | `0` | Поворот в градусах |
+
+### Поля физики (Physics Body)
+
+Любой объект (sprite, text, tileset и т.д.) может содержать поля физики. Для этого достаточно добавить `body_type`.
+
+| Поле | Тип | По умолчанию | Описание |
+|---|---|---|---|
+| `body_type` | number | — | Тип тела: `0`=Static, `1`=Dynamic, `2`=Kinematic. Если отсутствует — физика не создаётся |
+| `mass` | number | `1.0` | Масса |
+| `friction` | number | `0.3` | Трение |
+| `restitution` | number | `0.5` | Упругость (отскок) |
+| `collider_shape` | string | `"circle"` | Форма коллайдера: `"circle"` или `"rectangle"` |
+| `circle_radius` | number | `32.0` | Радиус круга |
+| `circle_offset_x`, `circle_offset_y` | number | `0` | Смещение круга относительно объекта |
+| `rect_half_width`, `rect_half_height` | number | `32.0` | Половина ширины/высоты прямоугольника |
+| `gravity_scale` | number | `1.0` | Масштаб гравитации |
+| `fixed_rotation` | bool | `false` | Заблокировать вращение |
+| `bullet` | bool | `false` | Режим пули (непрерывное обнаружение) |
+
+### Пример: спрайт с физикой
+
+```json
+{
+    "objects": [
+        {
+            "name": "player",
+            "type": "sprite",
+            "texture": "player.png",
+            "pos_x": 100,
+            "pos_y": 200,
+            "size_x": 64,
+            "size_y": 64,
+            "body_type": 1,
+            "mass": 1.0,
+            "friction": 0.3,
+            "collider_shape": "circle",
+            "circle_radius": 32
+        },
+        {
+            "name": "wall",
+            "type": "physics_body",
+            "pos_x": 300,
+            "pos_y": 0,
+            "body_type": 0,
+            "collider_shape": "rectangle",
+            "rect_half_width": 200,
+            "rect_half_height": 20
+        }
+    ]
+}
 ```
 
 ---

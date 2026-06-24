@@ -11,6 +11,7 @@
 #include "imgui_internal.h"
 #include "TextEditor.h"
 #include "crude_json.h"
+#include <subject/text2D.hpp>
 #include <cstdint>
 typedef unsigned int GLuint;
 
@@ -87,6 +88,13 @@ private:
 
     int m_current_theme = 0;
 
+    // Text2D rendering for scene viewport
+    BlazeBolt::FreeType m_freetype;
+    BlazeBolt::Font m_font;
+    BlazeBolt::FontShader2D m_fontShader;
+    BlazeBolt::QuadVertexBufferObject2D m_quadVBO;
+    bool m_textInitialized = false;
+
     // Window visibility toggles
     bool m_show_file_browser = true;
     bool m_show_scene_viewport = true;
@@ -123,6 +131,9 @@ private:
     void CloseTab(int idx);
     void SaveTab(EditorTab& tab);
     void RunGame();
+
+    void initTextRenderer();
+    void renderText2DInViewport(BlazeBolt::Text2D& text, const Matrix3x3& projView, ImVec2 canvas_min, ImVec2 canvas_max);
 
     void ApplyTheme(int idx);
     void ApplyThemeDark();

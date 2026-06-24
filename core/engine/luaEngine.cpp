@@ -765,6 +765,39 @@ namespace LuaEngine {
         f.close();
 
         BlazeBolt::SceneDocument doc = BlazeBolt::SceneDocument::fromJSON(content);
+
+        auto createPhysicsFromObj = [&](Entity visualId, const BlazeBolt::SceneObjectData& obj) -> Entity {
+            if (!obj.numbers.count("body_type")) return 0;
+            int bodyType = (int)obj.getNumber("body_type");
+            float x = (float)obj.getNumber("pos_x", 0);
+            float y = (float)obj.getNumber("pos_y", 0);
+            float mass = (float)obj.getNumber("mass", 1);
+            float friction = (float)obj.getNumber("friction", 0.3f);
+            float restitution = (float)obj.getNumber("restitution", 0.5f);
+            Entity bodyEntity = physicsCreateBody(bodyType, x, y, mass, friction, restitution);
+            if (!bodyEntity) return 0;
+            std::string colliderShape = obj.getString("collider_shape", "circle");
+            if (colliderShape == "circle") {
+                float radius = (float)obj.getNumber("circle_radius", 32);
+                float ox = (float)obj.getNumber("circle_offset_x", 0);
+                float oy = (float)obj.getNumber("circle_offset_y", 0);
+                physicsAddCircle(bodyEntity, radius, ox, oy);
+            } else {
+                float hw = (float)obj.getNumber("rect_half_width", 32);
+                float hh = (float)obj.getNumber("rect_half_height", 32);
+                physicsAddRectangle(bodyEntity, hw, hh);
+            }
+            if (obj.numbers.count("gravity_scale"))
+                physicsSetGravityScale(bodyEntity, (float)obj.getNumber("gravity_scale"));
+            if (obj.booleans.count("fixed_rotation"))
+                physicsSetFixedRotation(bodyEntity, obj.getBool("fixed_rotation"));
+            if (obj.booleans.count("bullet"))
+                physicsSetBullet(bodyEntity, obj.getBool("bullet"));
+            if (visualId)
+                visualToPhysicsMap[visualId] = bodyEntity;
+            return bodyEntity;
+        };
+
         for (const auto& obj : doc.objects) {
             if (obj.name.empty()) continue;
             Entity id = 0;
@@ -786,6 +819,7 @@ namespace LuaEngine {
                     if (obj.numbers.count("origin_x") || obj.numbers.count("origin_y"))
                         spriteSetOrigin(id, Vector2((float)obj.getNumber("origin_x", 0.5), (float)obj.getNumber("origin_y", 0.5)));
                     entityTexturePaths[id] = tex;
+                    createPhysicsFromObj(id, obj);
                 }
             } else if (obj.type == "animated_sprite") {
                 std::string tex = obj.getString("texture");
@@ -806,6 +840,7 @@ namespace LuaEngine {
                     if (obj.numbers.count("playback_speed"))
                         animatedSpriteSetPlaybackSpeed(id, (float)obj.getNumber("playback_speed"));
                     entityTexturePaths[id] = tex;
+                    createPhysicsFromObj(id, obj);
                 }
             } else if (obj.type == "text") {
                 std::string font = obj.getString("font");
@@ -825,6 +860,7 @@ namespace LuaEngine {
                     if (obj.numbers.count("alignment"))
                         textSetAlignment(id, static_cast<BlazeBolt::Text2D::Alignment>((int)obj.getNumber("alignment")));
                     entityFontPaths[id] = font;
+                    createPhysicsFromObj(id, obj);
                 }
             } else if (obj.type == "camera") {
                 id = createCamera();
@@ -835,6 +871,7 @@ namespace LuaEngine {
                         cameraSetZoom(id, (float)obj.getNumber("zoom"));
                     if (obj.numbers.count("rot"))
                         cameraSetRotation(id, (float)obj.getNumber("rot"));
+                    createPhysicsFromObj(id, obj);
                 }
             } else if (obj.type == "point_light") {
                 id = createPointLight(
@@ -847,12 +884,14 @@ namespace LuaEngine {
                     (float)obj.getNumber("radius", 200));
                 if (id && obj.booleans.count("enabled"))
                     lightSetEnabled(id, obj.getBool("enabled"));
+                createPhysicsFromObj(id, obj);
             } else if (obj.type == "ambient_light") {
                 id = createAmbientLight(
                     (float)obj.getNumber("color_r", 1),
                     (float)obj.getNumber("color_g", 1),
                     (float)obj.getNumber("color_b", 1),
                     (float)obj.getNumber("intensity", 0.3));
+                createPhysicsFromObj(id, obj);
             } else if (obj.type == "particle_system") {
                 id = createParticleSystem();
                 if (id) {
@@ -866,6 +905,7 @@ namespace LuaEngine {
                         particleSystemSetActive(id, obj.getBool("active"));
                     if (obj.booleans.count("visible"))
                         particleSystemSetVisible(id, obj.getBool("visible"));
+                    createPhysicsFromObj(id, obj);
                 }
             } else if (obj.type == "tileset") {
                 std::string ttex = obj.getString("texture");
@@ -876,6 +916,16 @@ namespace LuaEngine {
                 id = createTileset(ttex, tw, th, ac, ar);
                 if (id && (obj.numbers.count("pos_x") || obj.numbers.count("pos_y")))
                     tilesetSetPosition(id, Vector2((float)obj.getNumber("pos_x"), (float)obj.getNumber("pos_y")));
+                createPhysicsFromObj(id, obj);
+            } else if (obj.type == "physics_body") {
+                float x = (float)obj.getNumber("pos_x", 0);
+                float y = (float)obj.getNumber("pos_y", 0);
+                id = createPhysicsFromObj(0, obj);
+                if (id && obj.numbers.count("rot")) {
+                    auto it = physicsBodyMap.find(id);
+                    if (it != physicsBodyMap.end())
+                        it->second->setAngle((float)obj.getNumber("rot") * 3.14159265f / 180.0f);
+                }
             }
 
             if (id && !obj.name.empty()) {
@@ -893,6 +943,33 @@ namespace LuaEngine {
         auto saveVec2 = [](const Vector2& v) -> std::vector<double> { return {v.x, v.y}; };
         auto saveVec3 = [](const Vector3& v) -> std::vector<double> { return {v.x, v.y, v.z}; };
         auto saveVec4 = [](const Vector4& v) -> std::vector<double> { return {v.x, v.y, v.z, v.w}; };
+
+        auto savePhysicsProps = [&](BlazeBolt::SceneObjectData& obj, Entity visualId) {
+            auto it = visualToPhysicsMap.find(visualId);
+            if (it == visualToPhysicsMap.end()) return;
+            auto bit = physicsBodyMap.find(it->second);
+            if (bit == physicsBodyMap.end()) return;
+            PhysicsBody* body = bit->second;
+            obj.numbers["body_type"] = (double)(int)body->getType();
+            obj.numbers["mass"] = body->getMass();
+            obj.numbers["friction"] = body->getFriction();
+            obj.numbers["restitution"] = body->getRestitution();
+            obj.numbers["gravity_scale"] = body->getGravityScale();
+            obj.booleans["fixed_rotation"] = body->isFixedRotation();
+            obj.booleans["bullet"] = body->isBullet();
+            const auto& circles = body->getCircles();
+            const auto& rects = body->getRectangles();
+            if (!circles.empty()) {
+                obj.strings["collider_shape"] = "circle";
+                obj.numbers["circle_radius"] = circles[0].radius;
+                obj.numbers["circle_offset_x"] = circles[0].offsetX;
+                obj.numbers["circle_offset_y"] = circles[0].offsetY;
+            } else if (!rects.empty()) {
+                obj.strings["collider_shape"] = "rectangle";
+                obj.numbers["rect_half_width"] = rects[0].halfWidth;
+                obj.numbers["rect_half_height"] = rects[0].halfHeight;
+            }
+        };
 
         for (const auto& pair : spriteWorld.getAllEntities()) {
             if (!pair.first || pair.second) continue;
@@ -912,6 +989,7 @@ namespace LuaEngine {
             obj.booleans["visible"] = pair.first->isVisible();
             auto tit = entityTexturePaths.find(pair.second);
             if (tit != entityTexturePaths.end()) obj.strings["texture"] = tit->second;
+            savePhysicsProps(obj, pair.second);
             doc.objects.push_back(obj);
         }
 
@@ -935,6 +1013,7 @@ namespace LuaEngine {
             obj.numbers["playback_speed"] = pair.first->getPlaybackSpeed();
             auto tit = entityTexturePaths.find(pair.second);
             if (tit != entityTexturePaths.end()) obj.strings["texture"] = tit->second;
+            savePhysicsProps(obj, pair.second);
             doc.objects.push_back(obj);
         }
 
@@ -956,6 +1035,7 @@ namespace LuaEngine {
             obj.strings["text"] = pair.first->getText();
             auto fit = entityFontPaths.find(pair.second);
             if (fit != entityFontPaths.end()) obj.strings["font"] = fit->second;
+            savePhysicsProps(obj, pair.second);
             doc.objects.push_back(obj);
         }
 
@@ -968,6 +1048,7 @@ namespace LuaEngine {
             obj.numbers["pos_y"] = pair.first->getPosition().y;
             obj.numbers["zoom"] = pair.first->getZoom();
             obj.numbers["rot"] = pair.first->getRotation();
+            savePhysicsProps(obj, pair.second);
             doc.objects.push_back(obj);
         }
 
@@ -988,6 +1069,7 @@ namespace LuaEngine {
             obj.numbers["color_b"] = c.z;
             obj.numbers["intensity"] = pair.first->getIntensity();
             obj.booleans["enabled"] = pair.first->isEnabled();
+            savePhysicsProps(obj, pair.second);
             doc.objects.push_back(obj);
         }
 
@@ -1000,6 +1082,41 @@ namespace LuaEngine {
             obj.numbers["pos_y"] = pair.first->getPosition().y;
             obj.booleans["active"] = pair.first->isActive();
             obj.booleans["visible"] = pair.first->isVisible();
+            savePhysicsProps(obj, pair.second);
+            doc.objects.push_back(obj);
+        }
+
+        // Save standalone physics bodies (physics_body type)
+        for (const auto& pair : meshWorld.getAllEntities()) {
+            if (!pair.first || pair.second) continue;
+            auto bit = physicsBodyMap.find(pair.second);
+            if (bit == physicsBodyMap.end()) continue;
+            BlazeBolt::SceneObjectData obj;
+            obj.type = "physics_body";
+            { auto it = entityNames.find(pair.second); if (it != entityNames.end()) obj.name = it->second; }
+            PhysicsBody* body = bit->second;
+            obj.numbers["pos_x"] = body->getPosition().x;
+            obj.numbers["pos_y"] = body->getPosition().y;
+            obj.numbers["rot"] = body->getAngle() * 180.0 / 3.14159265;
+            obj.numbers["body_type"] = (double)(int)body->getType();
+            obj.numbers["mass"] = body->getMass();
+            obj.numbers["friction"] = body->getFriction();
+            obj.numbers["restitution"] = body->getRestitution();
+            obj.numbers["gravity_scale"] = body->getGravityScale();
+            obj.booleans["fixed_rotation"] = body->isFixedRotation();
+            obj.booleans["bullet"] = body->isBullet();
+            const auto& circles = body->getCircles();
+            const auto& rects = body->getRectangles();
+            if (!circles.empty()) {
+                obj.strings["collider_shape"] = "circle";
+                obj.numbers["circle_radius"] = circles[0].radius;
+                obj.numbers["circle_offset_x"] = circles[0].offsetX;
+                obj.numbers["circle_offset_y"] = circles[0].offsetY;
+            } else if (!rects.empty()) {
+                obj.strings["collider_shape"] = "rectangle";
+                obj.numbers["rect_half_width"] = rects[0].halfWidth;
+                obj.numbers["rect_half_height"] = rects[0].halfHeight;
+            }
             doc.objects.push_back(obj);
         }
 

@@ -75,7 +75,7 @@ p code,li code,td code{background:rgba(255,107,53,.1);color:var(--accent);paddin
 <aside id="sidebar">
 <div id="sidebar-header">
 <div class="logo"><span class="fire">&#128293;</span> BlazeBolt</div>
-<div class="version">Lua API Reference v1.1</div>
+<div class="version">Lua API Reference v1.2</div>
 <input type="text" id="search-box" placeholder="Search API..." autocomplete="off">
 </div>
 <nav id="sidebar-nav">
@@ -121,6 +121,8 @@ p code,li code,td code{background:rgba(255,107,53,.1);color:var(--accent);paddin
 <div class="nav-divider"></div>
 <a class="nav-item" href="#scenes">Scene Management</a>
 <div class="nav-divider"></div>
+<a class="nav-item" href="#scenefile">Scene File Format (.scene)</a>
+<div class="nav-divider"></div>
 <a class="nav-item" href="#input">Input</a>
 <div class="nav-divider"></div>
 <a class="nav-item" href="#mathtypes">Math Types</a>
@@ -154,7 +156,7 @@ p code,li code,td code{background:rgba(255,107,53,.1);color:var(--accent);paddin
 <section class="hero">
 <h1>&#128293; BlazeBolt Engine</h1>
 <p class="subtitle">Lua API Reference &mdash; Complete Documentation</p>
-<span class="version-badge">Version 1.1 &middot; Lua 5.4 &middot; OpenGL 3.3</span>
+<span class="version-badge">Version 1.2 &middot; Lua 5.4 &middot; OpenGL 3.3</span>
 </section>
 <!-- OVERVIEW -->
 <section class="doc-section" id="overview">
@@ -727,6 +729,55 @@ BlazeBolt.GetCurrentScene() &#8594; sceneName</div></div>
     <span class="kw">if</span> <span class="var">s</span> == <span class="str">"main_menu"</span> <span class="kw">and</span> <span class="bi">BlazeBolt</span>.<span class="fn">IsKeyJustPressed</span>(<span class="bi">Keys</span>.ENTER) <span class="kw">then</span> <span class="bi">BlazeBolt</span>.<span class="fn">LoadScene</span>(<span class="str">"game"</span>) <span class="kw">end</span>
     <span class="kw">if</span> <span class="var">s</span> == <span class="str">"game"</span> <span class="kw">and</span> <span class="bi">BlazeBolt</span>.<span class="fn">IsKeyJustPressed</span>(<span class="bi">Keys</span>.ESCAPE) <span class="kw">then</span> <span class="bi">BlazeBolt</span>.<span class="fn">LoadScene</span>(<span class="str">"main_menu"</span>) <span class="kw">end</span>
 <span class="kw">end</span></pre><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+</section>
+<!-- SCENE FILE FORMAT -->
+<section class="doc-section" id="scenefile">
+<h2>Scene File Format (.scene)</h2>
+<p>Scene files use JSON format with an array of <code>objects</code>. Each object describes one scene element.</p>
+<h3>Document Structure</h3>
+<div class="code-wrap"><pre class="code-block">{ <span class="str">"name"</span>: <span class="str">"my_level"</span>, <span class="str">"version"</span>: <span class="num">1</span>, <span class="str">"objects"</span>: [...] }</pre></div>
+<h3>Supported Types</h3>
+<p>Each object has a <code>type</code> field: <code>sprite</code>, <code>animated_sprite</code>, <code>text</code>, <code>camera</code>, <code>point_light</code>, <code>ambient_light</code>, <code>particle_system</code>, <code>tileset</code>, <code>physics_body</code>.</p>
+<h3>Physics Body Properties</h3>
+<p>Any object can include physics by adding a <code>body_type</code> field:</p>
+<table><thead><tr><th>Field</th><th>Type</th><th>Description</th></tr></thead>
+<tbody>
+<tr><td><code>body_type</code></td><td>number</td><td>0=Static, 1=Dynamic, 2=Kinematic (omit for no physics)</td></tr>
+<tr><td><code>mass</code></td><td>number</td><td>Mass (default 1.0)</td></tr>
+<tr><td><code>friction</code></td><td>number</td><td>Friction (default 0.3)</td></tr>
+<tr><td><code>restitution</code></td><td>number</td><td>Restitution / bounciness (default 0.5)</td></tr>
+<tr><td><code>collider_shape</code></td><td>string</td><td><code>"circle"</code> or <code>"rectangle"</code></td></tr>
+<tr><td><code>circle_radius</code></td><td>number</td><td>Circle radius (default 32)</td></tr>
+<tr><td><code>circle_offset_x/y</code></td><td>number</td><td>Circle offset from object position</td></tr>
+<tr><td><code>rect_half_width/height</code></td><td>number</td><td>Half-size for rectangle collider (default 32)</td></tr>
+<tr><td><code>gravity_scale</code></td><td>number</td><td>Gravity scale (default 1.0)</td></tr>
+<tr><td><code>fixed_rotation</code></td><td>bool</td><td>Lock rotation</td></tr>
+<tr><td><code>bullet</code></td><td>bool</td><td>Continuous collision detection</td></tr>
+</tbody></table>
+<h3>Example: Sprite with Physics</h3>
+<div class="code-wrap"><pre class="code-block">{
+    <span class="str">"objects"</span>: [
+        {
+            <span class="str">"name"</span>: <span class="str">"player"</span>,
+            <span class="str">"type"</span>: <span class="str">"sprite"</span>,
+            <span class="str">"texture"</span>: <span class="str">"player.png"</span>,
+            <span class="str">"pos_x"</span>: <span class="num">100</span>,
+            <span class="str">"pos_y"</span>: <span class="num">200</span>,
+            <span class="str">"body_type"</span>: <span class="num">1</span>,
+            <span class="str">"mass"</span>: <span class="num">1.0</span>,
+            <span class="str">"collider_shape"</span>: <span class="str">"circle"</span>,
+            <span class="str">"circle_radius"</span>: <span class="num">32</span>
+        },
+        {
+            <span class="str">"name"</span>: <span class="str">"wall"</span>,
+            <span class="str">"type"</span>: <span class="str">"physics_body"</span>,
+            <span class="str">"body_type"</span>: <span class="num">0</span>,
+            <span class="str">"collider_shape"</span>: <span class="str">"rectangle"</span>,
+            <span class="str">"rect_half_width"</span>: <span class="num">200</span>,
+            <span class="str">"rect_half_height"</span>: <span class="num">20</span>
+        }
+    ]
+}</pre></div>
 </section>
 <!-- INPUT -->
 <section class="doc-section" id="input">

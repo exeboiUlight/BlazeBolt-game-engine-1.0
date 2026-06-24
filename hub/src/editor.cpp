@@ -21,9 +21,58 @@
 
 Editor::Editor(fs::path engine_root)
     : m_engine_root(engine_root)
+    , m_font(m_freetype, (engine_root / "arial.ttf").string())
 {
     LoadTheme();
     ApplyTheme(m_current_theme);
+    initTextRenderer();
+}
+
+void Editor::initTextRenderer() {
+    if (!m_freetype.isValid()) {
+        fprintf(stderr, "[Editor] Failed to initialize FreeType for text rendering\n");
+        return;
+    }
+    if (!m_font.isValid()) {
+        fprintf(stderr, "[Editor] Failed to load default font for text rendering\n");
+        return;
+    }
+    m_textInitialized = true;
+}
+
+void Editor::renderText2DInViewport(BlazeBolt::Text2D& text, const Matrix3x3& projView, ImVec2 canvas_min, ImVec2 canvas_max) {
+    if (!m_textInitialized) return;
+
+    GLint prevVAO, prevProg, prevActiveTex, prevTex, prevScissor[4];
+    GLboolean blendEnabled = glIsEnabled(GL_BLEND);
+    glGetIntegerv(GL_VERTEX_ARRAY_BINDING, &prevVAO);
+    glGetIntegerv(GL_CURRENT_PROGRAM, &prevProg);
+    glGetIntegerv(GL_ACTIVE_TEXTURE, &prevActiveTex);
+    glGetIntegerv(GL_TEXTURE_BINDING_2D, &prevTex);
+    glGetIntegerv(GL_SCISSOR_BOX, prevScissor);
+
+    if (!blendEnabled) glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+    glViewport(
+        static_cast<GLint>(canvas_min.x),
+        static_cast<GLint>(ImGui::GetIO().DisplaySize.y - canvas_max.y),
+        static_cast<GLsizei>(canvas_max.x - canvas_min.x),
+        static_cast<GLsizei>(canvas_max.y - canvas_min.y)
+    );
+
+    text.draw(m_fontShader, projView);
+
+    glViewport(0, 0,
+        static_cast<GLsizei>(ImGui::GetIO().DisplaySize.x),
+        static_cast<GLsizei>(ImGui::GetIO().DisplaySize.y));
+
+    if (!blendEnabled) glDisable(GL_BLEND);
+    glBindVertexArray(prevVAO);
+    glUseProgram(prevProg);
+    glActiveTexture(prevActiveTex);
+    glBindTexture(GL_TEXTURE_2D, prevTex);
+    glScissor(prevScissor[0], prevScissor[1], prevScissor[2], prevScissor[3]);
 }
 
 Editor::~Editor() {
@@ -648,13 +697,22 @@ void Editor::RenderFileBrowserWindow() {
 
         if (col > 0) ImGui::SameLine();
 
-        ImVec2 cpos = ImGui::GetCursorScreenPos();
-        ImVec2 icon_min = cpos;
-        ImVec2 icon_max = ImVec2(cpos.x + icon_size, cpos.y + icon_size);
+        // Размеры ячейки (иконка + отступы под текст)
+        float icon_size = 64.0f;
+        float cell_w = icon_size + 24.0f;
+        float cell_h = icon_size + 24.0f; // + место для имени
 
-        ImGui::BeginGroup();
-        ImGui::Dummy(ImVec2(icon_size, icon_size + 18.0f));
+        // Невидимая кнопка, занимающая всю область ячейки
+        ImGui::InvisibleButton("##cell", ImVec2(cell_w, cell_h));
+        bool hovered = ImGui::IsItemHovered();
+        bool double_clicked = ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left);
 
+        // Координаты кнопки для отрисовки
+        ImVec2 rect_min = ImGui::GetItemRectMin();
+        ImVec2 rect_max = ImGui::GetItemRectMax();
+        ImVec2 cpos = rect_min;
+
+        // Рисование иконки и текста
         ImDrawList* dl = ImGui::GetWindowDrawList();
         ImU32 icon_col, border_col;
 
@@ -672,50 +730,75 @@ void Editor::RenderFileBrowserWindow() {
             border_col = IM_COL32(120, 120, 140, 180);
         }
 
+        // Иконка
+        ImVec2 icon_min = ImVec2(cpos.x + (cell_w - icon_size) * 0.5f, cpos.y + 4.0f);
+        ImVec2 icon_max = ImVec2(icon_min.x + icon_size, icon_min.y + icon_size);
         dl->AddRectFilled(icon_min, icon_max, icon_col, 4.0f);
         dl->AddRect(icon_min, icon_max, border_col, 4.0f, 0, 2.0f);
 
+        // Буква-символ внутри иконки
         const char* letter = is_dir ? ">>" : IsImageFile(ext) ? "[]" : IsCodeFile(ext) ? "{}" : "--";
         ImVec2 text_size = ImGui::CalcTextSize(letter);
-        dl->AddText(ImVec2(icon_min.x + (icon_size - text_size.x) * 0.5f, icon_min.y + (icon_size - text_size.y) * 0.5f), IM_COL32(255, 255, 255, 180), letter);
+        ImVec2 text_pos = ImVec2(icon_min.x + (icon_size - text_size.x) * 0.5f,
+                                 icon_min.y + (icon_size - text_size.y) * 0.5f);
+        dl->AddText(text_pos, IM_COL32(255, 255, 255, 180), letter);
 
+        // Имя файла под иконкой
         float name_w = ImGui::CalcTextSize(name.c_str()).x;
         float max_name_w = icon_size + 8.0f;
         if (name_w > max_name_w) name_w = max_name_w;
-        ImGui::SetCursorScreenPos(ImVec2(cpos.x + (icon_size - name_w) * 0.5f, cpos.y + icon_size + 4.0f));
-        ImGui::Text("%s", name.c_str());
+        ImVec2 name_pos = ImVec2(cpos.x + (cell_w - name_w) * 0.5f,
+                                 icon_max.y + 4.0f);
+        dl->AddText(name_pos, IM_COL32(220, 220, 230, 255), name.c_str());
 
-        ImGui::EndGroup();
-
-        if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
-            if (is_dir) {
-                m_fm_current_dir = entry.path();
-                RefreshFM();
-            } else {
-                FMOpenFile(entry.path().string());
-            }
-        }
-
+        // Контекстное меню (привязывается к нашей кнопке)
         if (ImGui::BeginPopupContextItem()) {
-            if (is_dir) { if (ImGui::MenuItem("Open")) FMOpenFile(entry.path().string()); }
-            else { if (ImGui::MenuItem("Open in Editor")) OpenFileInTab(entry.path().string()); }
+            if (is_dir) {
+                if (ImGui::MenuItem("Open")) FMOpenFile(entry.path().string());
+            } else {
+                if (ImGui::MenuItem("Open in Editor")) OpenFileInTab(entry.path().string());
+            }
             ImGui::Separator();
-            if (ImGui::MenuItem("Rename")) { m_fm_renaming_idx = i; strncpy(m_fm_rename_buf, name.c_str(), sizeof(m_fm_rename_buf) - 1); }
+            if (ImGui::MenuItem("Rename")) {
+                m_fm_renaming_idx = i;
+                strncpy(m_fm_rename_buf, name.c_str(), sizeof(m_fm_rename_buf) - 1);
+            }
             if (ImGui::MenuItem("Copy")) FMCopy(entry.path().string());
             if (ImGui::MenuItem("Cut")) FMCut(entry.path().string());
             if (!m_clipboard.path.empty() && ImGui::MenuItem("Paste Here")) FMPaste();
             ImGui::Separator();
-            if (ImGui::MenuItem("Delete")) { fs::remove_all(entry.path()); RefreshFM(); ImGui::EndPopup(); ImGui::PopID(); break; }
-            if (ImGui::MenuItem("Show in Explorer")) {
-                system(("explorer /select,\"" + entry.path().string() + "\"").c_str());
+            if (ImGui::MenuItem("Delete")) {
+                fs::remove_all(entry.path());
+                RefreshFM();
+                ImGui::EndPopup();
+                ImGui::PopID();
+                break; // выход из цикла после удаления, т.к. список обновился
             }
-            ImGui::EndPopup();
+            if (ImGui::MenuItem("Show in Explorer")) {
+            #ifdef PLATFORM_WINDOWS
+                        system(("explorer /select,\"" + entry.path().string() + "\"").c_str());
+            #else
+                        system(("xdg-open \"" + entry.path().parent_path().string() + "\"").c_str());
+            #endif
         }
-        ImGui::PopID();
-
-        col++;
-        if (col >= cols) col = 0;
+        ImGui::EndPopup();
     }
+
+    // Двойной клик
+    if (double_clicked) {
+        if (is_dir) {
+            m_fm_current_dir = entry.path();
+            RefreshFM();
+        } else {
+            FMOpenFile(entry.path().string());
+        }
+    }
+
+    ImGui::PopID();
+
+    col++;
+    if (col >= cols) col = 0;
+}
     ImGui::EndChild();
 
     ImGui::End();
@@ -794,6 +877,7 @@ void Editor::RenderSceneViewportWindow() {
         if (t == "ambient_light")     return ImVec2(1.0f, 1.0f);
         if (t == "particle_system")   return ImVec2(0.3f, 0.3f);
         if (t == "tileset")           return ImVec2(0.8f, 0.8f);
+        if (t == "physics_body")      return ImVec2(0.4f, 0.4f);
         return ImVec2(0.4f, 0.4f);
     };
     auto colorFor = [](const std::string& t) -> ImU32 {
@@ -805,6 +889,7 @@ void Editor::RenderSceneViewportWindow() {
         if (t == "ambient_light")    return IM_COL32(255, 240, 140, 100);
         if (t == "particle_system")  return IM_COL32(200, 80, 255, 200);
         if (t == "tileset")          return IM_COL32(180, 140, 100, 200);
+        if (t == "physics_body")     return IM_COL32(0, 200, 255, 120);
         return IM_COL32(150, 150, 150, 200);
     };
 
@@ -975,8 +1060,74 @@ void Editor::RenderSceneViewportWindow() {
         }
         else if (type == "text") {
             std::string ttxt = getStr(obj, "text", "");
-            dl->AddText(ImVec2(centre.x + 1, centre.y + 1), IM_COL32(0, 0, 0, 180), ttxt.empty() ? "T" : ttxt.c_str());
-            dl->AddText(centre, IM_COL32(255, 255, 255, 220), ttxt.empty() ? "T" : ttxt.c_str());
+            dl->AddRectFilled(scr_min, scr_max, col);
+            if (!ttxt.empty() && m_textInitialized) {
+                BlazeBolt::Text2D* textObj = new BlazeBolt::Text2D(m_quadVBO, m_font);
+                textObj->setPosition((float)px, (float)py);
+                textObj->setScale(
+                    (float)getNum(obj, "scale_x", 1.0),
+                    (float)getNum(obj, "scale_y", 1.0)
+                );
+                textObj->setOrigin(
+                    (float)getNum(obj, "origin_x", 0.0),
+                    (float)getNum(obj, "origin_y", 0.0)
+                );
+                textObj->setColor(
+                    (float)getNum(obj, "color_r", 1.0),
+                    (float)getNum(obj, "color_g", 1.0),
+                    (float)getNum(obj, "color_b", 1.0),
+                    (float)getNum(obj, "color_a", 1.0)
+                );
+                int align = (int)getNum(obj, "alignment", 0);
+                if (align == 1) textObj->setAlignment(BlazeBolt::Text2D::Alignment::Center);
+                else if (align == 2) textObj->setAlignment(BlazeBolt::Text2D::Alignment::Right);
+                else textObj->setAlignment(BlazeBolt::Text2D::Alignment::Left);
+                textObj->setText(ttxt);
+                textObj->setVisible(true);
+
+                float ar = canvas_sz.x / canvas_sz.y;
+                float wx_min = (canvas_min.x - ox) / z;
+                float wx_max = (canvas_max.x - ox) / z;
+                float wy_min = -(canvas_max.y - oy) / z;
+                float wy_max = -(canvas_min.y - oy) / z;
+
+                Matrix3x3 projView;
+                projView.m[0][0] = 2.0f * ar / (wx_max - wx_min);
+                projView.m[1][1] = 2.0f / (wy_max - wy_min);
+                projView.m[2][0] = -ar * (wx_max + wx_min) / (wx_max - wx_min);
+                projView.m[2][1] = -(wy_max + wy_min) / (wy_max - wy_min);
+
+                struct TextCB {
+                    BlazeBolt::Text2D* text;
+                    BlazeBolt::FontShader2D* shader;
+                    Matrix3x3 pv;
+                    float aspect;
+                    ImVec2 cm;
+                    ImVec2 cM;
+                };
+                TextCB* cb = new TextCB{textObj, &m_fontShader, projView, ar, canvas_min, canvas_max};
+                dl->AddCallback([](const ImDrawList*, const ImDrawCmd* cmd) {
+                    TextCB* d = (TextCB*)cmd->UserCallbackData;
+                    GLint prevVp[4], prevVAO, prevProg;
+                    glGetIntegerv(GL_VIEWPORT, prevVp);
+                    glGetIntegerv(GL_VERTEX_ARRAY_BINDING, &prevVAO);
+                    glGetIntegerv(GL_CURRENT_PROGRAM, &prevProg);
+                    glViewport((GLint)d->cm.x, (GLint)(ImGui::GetIO().DisplaySize.y - d->cM.y),
+                               (GLsizei)(d->cM.x - d->cm.x), (GLsizei)(d->cM.y - d->cm.y));
+                    d->shader->bind();
+                    d->shader->setAspectRatio(d->aspect);
+                    d->text->draw(*d->shader, d->pv);
+                    glViewport(prevVp[0], prevVp[1], prevVp[2], prevVp[3]);
+                    glBindVertexArray(prevVAO);
+                    glUseProgram(prevProg);
+                    delete d->text;
+                    delete d;
+                }, cb);
+                dl->AddCallback([](const ImDrawList*, const ImDrawCmd*) {}, nullptr);
+            } else {
+                dl->AddText(ImVec2(scr_min.x + 4.0f * gz, scr_min.y + 4.0f * gz), IM_COL32(255, 255, 255, 220),
+                    ttxt.empty() ? "T" : ttxt.c_str());
+            }
         }
         else if (type == "tileset") {
             dl->AddRectFilled(scr_min, scr_max, col);
@@ -1056,6 +1207,33 @@ void Editor::RenderSceneViewportWindow() {
             dl->AddRectFilled(scr_min, scr_max, col);
             dl->AddLine(ImVec2(scr_min.x, scr_min.y), ImVec2(scr_max.x, scr_max.y), IM_COL32(255, 255, 255, 40), 1.0f * gz);
             dl->AddLine(ImVec2(scr_max.x, scr_min.y), ImVec2(scr_min.x, scr_max.y), IM_COL32(255, 255, 255, 40), 1.0f * gz);
+        }
+
+        // ── Physics body wireframe overlay ──
+        if (obj.is_object() && obj.contains("body_type") && obj["body_type"].is_number()) {
+            double ph_px = px, ph_py = py;
+            double rot = getNum(obj, "rot", 0);
+            ImVec2 pc = toScreen((float)ph_px, (float)ph_py);
+            std::string collider = getStr(obj, "collider_shape", "circle");
+            ImU32 ph_col = IM_COL32(0, 200, 255, 200);
+            float ph_w = std::max(1.5f, 2.0f * gz);
+            if (collider == "circle") {
+                double cr = getNum(obj, "circle_radius", 32.0);
+                double cox = getNum(obj, "circle_offset_x", 0.0);
+                double coy = getNum(obj, "circle_offset_y", 0.0);
+                ImVec2 cc = toScreen((float)(ph_px + cox), (float)(ph_py + coy));
+                float rr = (float)cr * z;
+                dl->AddCircle(cc, rr, ph_col, 0, ph_w);
+                dl->AddLine(cc, ImVec2(cc.x + rr, cc.y), ph_col, 1.0f * gz);
+            } else {
+                double hw = getNum(obj, "rect_half_width", 32.0);
+                double hh = getNum(obj, "rect_half_height", 32.0);
+                double rox = getNum(obj, "rect_offset_x", 0.0);
+                double roy = getNum(obj, "rect_offset_y", 0.0);
+                double rl = ph_px + rox - hw, rb = ph_py + roy - hh;
+                auto [rmin, rmax] = worldRect(rl, rb, hw * 2, hh * 2);
+                dl->AddRect(rmin, rmax, ph_col, 0, 0, ph_w);
+            }
         }
 
         // Label
@@ -1476,12 +1654,54 @@ static void SceneEditTypeProps(const char* type, crude_json::value& obj) {
         SceneEditNumber("pos_x", obj, "pos_x"); SceneEditNumber("pos_y", obj, "pos_y");
         SceneEditNumber("tile_width", obj, "tile_width"); SceneEditNumber("tile_height", obj, "tile_height");
         SceneEditNumber("atlas_cols", obj, "atlas_cols"); SceneEditNumber("atlas_rows", obj, "atlas_rows");
+    } else if (t == "physics_body") {
+        SceneEditNumber("pos_x", obj, "pos_x"); SceneEditNumber("pos_y", obj, "pos_y");
+        SceneEditNumber("rot", obj, "rot");
+    }
+    // ── Physics body properties (common to all types) ──
+    {
+        double rawBT = (obj.is_object() && obj.contains("body_type") && obj["body_type"].is_number()) ? obj["body_type"].get<crude_json::number>() : -1;
+        int bodyType = (int)rawBT;
+        const char* typeNames[] = { "None", "Static", "Dynamic", "Kinematic" };
+        int typeIdx = bodyType < 0 ? 0 : (bodyType + 1);
+        if (ImGui::Combo("Body Type", &typeIdx, typeNames, 4)) {
+            if (typeIdx <= 0) {
+                obj.erase("body_type");
+            } else {
+                obj["body_type"] = (crude_json::number)(typeIdx - 1);
+            }
+        }
+        if (bodyType >= 0) {
+            ImGui::Indent(16.0f);
+            SceneEditNumber("mass", obj, "mass", 1.0);
+            SceneEditNumber("friction", obj, "friction", 0.3);
+            SceneEditNumber("restitution", obj, "restitution", 0.5);
+            const char* shapeNames[] = { "Circle", "Rectangle" };
+            std::string curShape = (obj.is_object() && obj.contains("collider_shape") && obj["collider_shape"].is_string()) ? obj["collider_shape"].get<crude_json::string>() : "circle";
+            int shapeIdx = (curShape == "rectangle") ? 1 : 0;
+            if (ImGui::Combo("Collider Shape", &shapeIdx, shapeNames, 2)) {
+                obj["collider_shape"] = std::string(shapeIdx == 0 ? "circle" : "rectangle");
+            }
+            if (shapeIdx == 0) {
+                SceneEditNumber("circle_radius", obj, "circle_radius", 32.0);
+                SceneEditNumber("circle_offset_x", obj, "circle_offset_x", 0.0);
+                SceneEditNumber("circle_offset_y", obj, "circle_offset_y", 0.0);
+            } else {
+                SceneEditNumber("rect_half_width", obj, "rect_half_width", 32.0);
+                SceneEditNumber("rect_half_height", obj, "rect_half_height", 32.0);
+            }
+            SceneEditNumber("gravity_scale", obj, "gravity_scale", 1.0);
+            SceneEditBool("fixed_rotation", obj, "fixed_rotation");
+            SceneEditBool("bullet", obj, "bullet");
+            ImGui::Unindent(16.0f);
+        }
     }
 }
 
 static const char* s_scene_types[] = {
     "sprite", "animated_sprite", "text", "camera",
-    "point_light", "ambient_light", "particle_system", "tileset"
+    "point_light", "ambient_light", "particle_system", "tileset",
+    "physics_body"
 };
 
 // ======================== SCENE INSPECTOR WINDOW ========================
@@ -1571,8 +1791,8 @@ void Editor::RenderSceneHierarchyWindow() {
         ImGui::Text("Add");
         ImGui::InputText("Name##NewObj", tab.scene_new_name, sizeof(tab.scene_new_name));
         int type_idx = 0;
-        for (int i = 0; i < 8; i++) { if (strcmp(tab.scene_new_type, s_scene_types[i]) == 0) { type_idx = i; break; } }
-        if (ImGui::Combo("Type", &type_idx, s_scene_types, 8)) {
+        for (int i = 0; i < 9; i++) { if (strcmp(tab.scene_new_type, s_scene_types[i]) == 0) { type_idx = i; break; } }
+        if (ImGui::Combo("Type", &type_idx, s_scene_types, 9)) {
             strncpy(tab.scene_new_type, s_scene_types[type_idx], sizeof(tab.scene_new_type) - 1);
         }
         if (ImGui::Button("Add Object")) {
@@ -1809,6 +2029,7 @@ void Editor::RenderSceneEditor(EditorTab& tab) {
         if (type == "ambient_light") return ImVec2(1.0f, 1.0f);
         if (type == "particle_system") return ImVec2(0.3f, 0.3f);
         if (type == "tileset") return ImVec2(0.8f, 0.8f);
+        if (type == "physics_body") return ImVec2(0.4f, 0.4f);
         return ImVec2(0.4f, 0.4f);
     };
     auto getTypeColor = [](const std::string& type) -> ImU32 {
@@ -1820,6 +2041,7 @@ void Editor::RenderSceneEditor(EditorTab& tab) {
         if (type == "ambient_light") return IM_COL32(255, 240, 140, 100);
         if (type == "particle_system") return IM_COL32(200, 80, 255, 200);
         if (type == "tileset") return IM_COL32(180, 140, 100, 200);
+        if (type == "physics_body") return IM_COL32(0, 200, 255, 120);
         return IM_COL32(150, 150, 150, 200);
     };
 
@@ -1998,8 +2220,74 @@ void Editor::RenderSceneEditor(EditorTab& tab) {
                 dl->AddCircleFilled(w2s((float)(px + sx * 0.5), (float)(py + sy * 0.3)), 2 * gz, IM_COL32(255, 255, 255, 180));
             } else if (tp == "text") {
                 std::string ttxt = getStr(obj, "text", "");
-                dl->AddText(ImVec2(cen.x + 1, cen.y + 1), IM_COL32(0, 0, 0, 180), ttxt.empty() ? "T" : ttxt.c_str());
-                dl->AddText(cen, IM_COL32(255, 255, 255, 220), ttxt.empty() ? "T" : ttxt.c_str());
+                dl->AddRectFilled(sc_min, sc_max, col);
+                if (!ttxt.empty() && m_textInitialized) {
+                    BlazeBolt::Text2D* textObj = new BlazeBolt::Text2D(m_quadVBO, m_font);
+                    textObj->setPosition((float)px, (float)py);
+                    textObj->setScale(
+                        (float)getNum(obj, "scale_x", 1.0),
+                        (float)getNum(obj, "scale_y", 1.0)
+                    );
+                    textObj->setOrigin(
+                        (float)getNum(obj, "origin_x", 0.0),
+                        (float)getNum(obj, "origin_y", 0.0)
+                    );
+                    textObj->setColor(
+                        (float)getNum(obj, "color_r", 1.0),
+                        (float)getNum(obj, "color_g", 1.0),
+                        (float)getNum(obj, "color_b", 1.0),
+                        (float)getNum(obj, "color_a", 1.0)
+                    );
+                    int align = (int)getNum(obj, "alignment", 0);
+                    if (align == 1) textObj->setAlignment(BlazeBolt::Text2D::Alignment::Center);
+                    else if (align == 2) textObj->setAlignment(BlazeBolt::Text2D::Alignment::Right);
+                    else textObj->setAlignment(BlazeBolt::Text2D::Alignment::Left);
+                    textObj->setText(ttxt);
+                    textObj->setVisible(true);
+
+                    float ar = cv_sz.x / cv_sz.y;
+                    float wx_min = (cv_p0.x - ox) / z;
+                    float wx_max = (cv_p1.x - ox) / z;
+                    float wy_min = -(cv_p1.y - oy) / z;
+                    float wy_max = -(cv_p0.y - oy) / z;
+
+                    Matrix3x3 projView;
+                    projView.m[0][0] = 2.0f * ar / (wx_max - wx_min);
+                    projView.m[1][1] = 2.0f / (wy_max - wy_min);
+                    projView.m[2][0] = -ar * (wx_max + wx_min) / (wx_max - wx_min);
+                    projView.m[2][1] = -(wy_max + wy_min) / (wy_max - wy_min);
+
+                    struct TextCB {
+                        BlazeBolt::Text2D* text;
+                        BlazeBolt::FontShader2D* shader;
+                        Matrix3x3 pv;
+                        float aspect;
+                        ImVec2 cm;
+                        ImVec2 cM;
+                    };
+                    TextCB* cb = new TextCB{textObj, &m_fontShader, projView, ar, cv_p0, cv_p1};
+                    dl->AddCallback([](const ImDrawList*, const ImDrawCmd* cmd) {
+                        TextCB* d = (TextCB*)cmd->UserCallbackData;
+                        GLint prevVp[4], prevVAO, prevProg;
+                        glGetIntegerv(GL_VIEWPORT, prevVp);
+                        glGetIntegerv(GL_VERTEX_ARRAY_BINDING, &prevVAO);
+                        glGetIntegerv(GL_CURRENT_PROGRAM, &prevProg);
+                        glViewport((GLint)d->cm.x, (GLint)(ImGui::GetIO().DisplaySize.y - d->cM.y),
+                                   (GLsizei)(d->cM.x - d->cm.x), (GLsizei)(d->cM.y - d->cm.y));
+                        d->shader->bind();
+                        d->shader->setAspectRatio(d->aspect);
+                        d->text->draw(*d->shader, d->pv);
+                        glViewport(prevVp[0], prevVp[1], prevVp[2], prevVp[3]);
+                        glBindVertexArray(prevVAO);
+                        glUseProgram(prevProg);
+                        delete d->text;
+                        delete d;
+                    }, cb);
+                    dl->AddCallback([](const ImDrawList*, const ImDrawCmd*) {}, nullptr);
+                } else {
+                    dl->AddText(ImVec2(sc_min.x + 4.0f * gz, sc_min.y + 4.0f * gz), IM_COL32(255, 255, 255, 220),
+                        ttxt.empty() ? "T" : ttxt.c_str());
+                }
             } else if (tp == "tileset") {
                 dl->AddRectFilled(sc_min, sc_max, col);
                 float tw = (float)getNum(obj, "tile_width", 0.2), th = (float)getNum(obj, "tile_height", 0.2);
@@ -2082,6 +2370,30 @@ void Editor::RenderSceneEditor(EditorTab& tab) {
                 dl->AddRectFilled(sc_min, sc_max, col);
                 dl->AddLine(ImVec2(sc_min.x, sc_min.y), ImVec2(sc_max.x, sc_max.y), IM_COL32(255, 255, 255, 40), 1.0f * gz);
                 dl->AddLine(ImVec2(sc_max.x, sc_min.y), ImVec2(sc_min.x, sc_max.y), IM_COL32(255, 255, 255, 40), 1.0f * gz);
+            }
+            // Physics body wireframe
+            if (obj.is_object() && obj.contains("body_type") && obj["body_type"].is_number()) {
+                ImVec2 pc = w2s((float)px, (float)py);
+                std::string collider = getStr(obj, "collider_shape", "circle");
+                ImU32 phcol = IM_COL32(0, 200, 255, 200);
+                float phw = std::max(1.5f, 2.0f * gz);
+                if (collider == "circle") {
+                    double cr = getNum(obj, "circle_radius", 32.0);
+                    double cox = getNum(obj, "circle_offset_x", 0.0);
+                    double coy = getNum(obj, "circle_offset_y", 0.0);
+                    ImVec2 cc = w2s((float)(px + cox), (float)(py + coy));
+                    float rr = (float)cr * z;
+                    dl->AddCircle(cc, rr, phcol, 0, phw);
+                    dl->AddLine(cc, ImVec2(cc.x + rr, cc.y), phcol, 1.0f * gz);
+                } else {
+                    double hw = getNum(obj, "rect_half_width", 32.0);
+                    double hh = getNum(obj, "rect_half_height", 32.0);
+                    double rox = getNum(obj, "rect_offset_x", 0.0);
+                    double roy = getNum(obj, "rect_offset_y", 0.0);
+                    double rl = px + rox - hw, rb = py + roy - hh;
+                    auto [rmin, rmax] = bbox(rl, rb, hw * 2, hh * 2);
+                    dl->AddRect(rmin, rmax, phcol, 0, 0, phw);
+                }
             }
             // Name label
             if (z > 0.3f) {

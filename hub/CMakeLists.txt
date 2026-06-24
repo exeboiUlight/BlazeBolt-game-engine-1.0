@@ -31,11 +31,16 @@ set(IMGUI_SOURCES
     ${IMGUI_DIR}/crude_json.cpp
 )
 
+set(CORE_DIR ${CMAKE_SOURCE_DIR}/../core)
+
 set(ENGINE_SOURCES
     ${CMAKE_SOURCE_DIR}/src/main.cpp
     ${CMAKE_SOURCE_DIR}/src/hub.cpp
     ${CMAKE_SOURCE_DIR}/src/editor.cpp
     ${GLAD_DIR}/glad.c
+    ${CORE_DIR}/graphics/gl.cpp
+    ${CORE_DIR}/graphics/quad.cpp
+    ${CORE_DIR}/subject/text2D.cpp
 )
 
 add_subdirectory(${LIBS_DIR}/glfw glfw_build)
@@ -46,6 +51,7 @@ add_executable(${PROJECT_NAME} ${ENGINE_SOURCES} ${IMGUI_SOURCES})
 target_include_directories(${PROJECT_NAME} PRIVATE
     ${LIBS_DIR}/glfw/include
     ${LIBS_DIR}/freetype/include
+    ${LIBS_DIR}/headeronly/include
     ${CMAKE_SOURCE_DIR}/include
     ${IMGUI_DIR}
     ${IMGUI_DIR}/backends
@@ -53,6 +59,7 @@ target_include_directories(${PROJECT_NAME} PRIVATE
     ${IMGUI_DIR}/texteditor
     ${GLAD_DIR}
     ${STB_DIR}
+    ${CORE_DIR}
 )
 
 if(WIN32)
