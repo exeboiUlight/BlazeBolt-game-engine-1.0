@@ -1,8 +1,9 @@
 #include "editor.hpp"
-#include "stb_image.h"
-#include "stb_image_write.h"
+#include <stb_image/stb_image.h>
+#include <stb_image/stb_image_write.h>
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
+#include <graphics/window.h>
 #include <algorithm>
 #include <fstream>
 #include <sstream>
@@ -10,6 +11,7 @@
 #include <cstdlib>
 #include <cmath>
 #include <cstdio>
+#include <chrono>
 
 #ifdef PLATFORM_WINDOWS
 #define POPEN _popen
@@ -76,6 +78,22 @@ void Editor::renderText2DInViewport(BlazeBolt::Text2D& text, const Matrix3x3& pr
 }
 
 Editor::~Editor() {
+    // Gracefully stop any running game
+    if (m_game_playing) {
+        if (m_game_engine && m_game_engine->isInitialized()) {
+            m_game_engine->callEnd();
+        }
+        delete m_game_engine;
+        m_game_engine = nullptr;
+        if (m_game_window) {
+            GLFWwindow* gw = m_game_window->release();
+            if (gw) glfwDestroyWindow(gw);
+            delete m_game_window;
+            m_game_window = nullptr;
+        }
+        m_game_playing = false;
+    }
+
     for (auto& tab : m_tabs) {
         if (tab.image_data) stbi_image_free(tab.image_data);
         if (tab.image_texture) {
@@ -568,15 +586,47 @@ void Editor::SaveTheme() {
 
 // ======================== MAIN RENDER ========================
 
+static float s_game_time = 0.0f;
+static float s_game_dt = 0.016f;
+static auto s_game_last_time = std::chrono::steady_clock::now();
+
 void Editor::Render() {
     ApplyTheme(m_current_theme);
+
+    // Update game delta time
+    {
+        auto now = std::chrono::steady_clock::now();
+        s_game_dt = std::chrono::duration<float>(now - s_game_last_time).count();
+        if (s_game_dt > 0.1f) s_game_dt = 0.016f;
+        s_game_last_time = now;
+        if (m_game_playing) {
+            s_game_time += s_game_dt;
+        }
+    }
 
     // Menu bar
     ImGui::BeginMainMenuBar();
     RenderMenuBar();
     ImGui::EndMainMenuBar();
 
-    if (ImGui::IsKeyPressed(ImGuiKey_F5)) RunGame();
+    if (ImGui::IsKeyPressed(ImGuiKey_F5)) {
+        m_show_game_viewport = !m_show_game_viewport;
+        if (m_show_game_viewport) {
+            if (!m_game_playing) {
+                s_game_time = 0.0f;
+                StartGame();
+            }
+        } else {
+            if (m_game_playing) {
+                StopGame();
+            }
+        }
+    }
+
+    // Tick game engine if playing
+    if (m_game_playing) {
+        TickGame(s_game_dt);
+    }
 
     // DockSpace (always fills below menu bar)
     RenderDockSpace();
@@ -587,6 +637,7 @@ void Editor::Render() {
     RenderSceneInspectorWindow();
     RenderSceneEditorWindow();
     RenderCodeEditorWindow();
+    RenderGameViewportWindow();
 }
 
 void Editor::RenderDockSpace() {
@@ -641,6 +692,7 @@ void Editor::RenderMenuBar() {
         ImGui::MenuItem("Scene Inspector", nullptr, &m_show_scene_inspector);
         ImGui::MenuItem("Scene Editor", nullptr, &m_show_scene_editor);
         ImGui::MenuItem("Code Editor", nullptr, &m_show_code_editor);
+        ImGui::MenuItem("Game Viewport", "F5", &m_show_game_viewport);
         ImGui::Separator();
         if (ImGui::BeginMenu("Theme")) {
             const char* themes[] = { "Dark", "Light", "Classic", "Cyberpunk", "Dracula" };
@@ -651,7 +703,13 @@ void Editor::RenderMenuBar() {
         ImGui::EndMenu();
     }
     if (ImGui::BeginMenu("Run")) {
-        if (ImGui::MenuItem("Run Game", "F5")) RunGame();
+        if (ImGui::MenuItem("Play in Editor", "F5")) {
+            if (!m_game_playing) {
+                m_show_game_viewport = true;
+                s_game_time = 0.0f;
+                StartGame();
+            }
+        }
         ImGui::EndMenu();
     }
 }
@@ -1369,6 +1427,306 @@ void Editor::RenderCodeEditorWindow() {
     ImGui::End();
 }
 
+// ======================== GAME VIEWPORT WINDOW ========================
+
+void Editor::RenderGameViewportWindow() {
+    if (!m_show_game_viewport) {
+        if (m_game_playing) StopGame();
+        return;
+    }
+
+    ImGui::Begin("Game Viewport", &m_show_game_viewport);
+
+    // Toolbar
+    {
+        if (!m_game_playing) {
+            if (ImGui::Button("Play", ImVec2(80, 0))) {
+                s_game_time = 0.0f;
+                StartGame();
+            }
+        } else {
+            if (ImGui::Button("Stop", ImVec2(80, 0))) {
+                StopGame();
+                s_game_time = 0.0f;
+            }
+        }
+        ImGui::SameLine();
+        ImVec4 status_color = m_game_playing ? ImVec4(0.2f, 0.9f, 0.3f, 1) : ImVec4(0.6f, 0.6f, 0.6f, 1);
+        ImGui::TextColored(status_color, m_game_playing ? "RUNNING" : "STOPPED");
+        ImGui::SameLine();
+        ImGui::TextColored(ImVec4(0.5f, 0.5f, 0.55f, 1), "  FPS: %.0f  Time: %.1fs", 1.0f / (s_game_dt + 0.0001f), s_game_time);
+    }
+
+    ImGui::Separator();
+
+    // Viewport
+    ImVec2 avail = ImGui::GetContentRegionAvail();
+    ImGui::BeginChild("##GameViewport", avail, ImGuiChildFlags_Borders, ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoScrollbar);
+    {
+        ImVec2 vp_min = ImGui::GetCursorScreenPos();
+        ImVec2 vp_sz = ImGui::GetContentRegionAvail();
+        if (vp_sz.x < 50) vp_sz.x = 50;
+        if (vp_sz.y < 50) vp_sz.y = 50;
+        ImVec2 vp_max = ImVec2(vp_min.x + vp_sz.x, vp_min.y + vp_sz.y);
+        ImDrawList* dl = ImGui::GetWindowDrawList();
+        dl->AddRectFilled(vp_min, vp_max, IM_COL32(20, 20, 28, 255));
+
+        // Find active scene tab
+        int scene_tab_idx = -1;
+        for (int i = 0; i < (int)m_tabs.size(); i++) {
+            if (m_tabs[i].type == EditorTabType::Scene) { scene_tab_idx = i; break; }
+        }
+
+        if (m_game_playing && m_game_texture != 0 && m_game_tex_w > 0 && m_game_tex_h > 0) {
+            // Show live game output
+            float tex_aspect = (float)m_game_tex_w / m_game_tex_h;
+            float vp_aspect = vp_sz.x / vp_sz.y;
+            float draw_w, draw_h;
+            if (tex_aspect > vp_aspect) {
+                draw_w = vp_sz.x;
+                draw_h = vp_sz.x / tex_aspect;
+            } else {
+                draw_h = vp_sz.y;
+                draw_w = vp_sz.y * tex_aspect;
+            }
+            ImVec2 image_min = ImVec2(vp_min.x + (vp_sz.x - draw_w) * 0.5f, vp_min.y + (vp_sz.y - draw_h) * 0.5f);
+            ImVec2 image_max = ImVec2(image_min.x + draw_w, image_min.y + draw_h);
+            dl->AddImage((ImTextureID)(intptr_t)m_game_texture, image_min, image_max,
+                ImVec2(0, 1), ImVec2(1, 0));
+        } else if (scene_tab_idx >= 0) {
+            auto& tab = m_tabs[scene_tab_idx];
+            auto& doc = tab.scene_json;
+            if (doc.is_discarded()) {
+                ImVec2 ts = ImGui::CalcTextSize("Invalid scene");
+                dl->AddText(ImVec2(vp_min.x + (vp_sz.x - ts.x) * 0.5f, vp_min.y + (vp_sz.y - ts.y) * 0.5f), IM_COL32(255, 100, 100, 255), "Invalid scene");
+                ImGui::EndChild();
+                ImGui::End();
+                return;
+            }
+
+            auto& objects = [&]() -> crude_json::array& {
+                static crude_json::array empty_arr;
+                if (doc.contains("objects") && doc["objects"].is_array())
+                    return doc["objects"].get<crude_json::array>();
+                return empty_arr;
+            }();
+
+            auto getNum = [](crude_json::value& v, const std::string& key, double def) -> double {
+                return (v.is_object() && v.contains(key) && v[key].is_number()) ? v[key].get<crude_json::number>() : def;
+            };
+            auto getStr = [](crude_json::value& v, const std::string& key, const std::string& def) -> std::string {
+                return (v.is_object() && v.contains(key) && v[key].is_string()) ? v[key].get<crude_json::string>() : def;
+            };
+            auto getDefaultSize = [](const std::string& type) -> ImVec2 {
+                if (type == "sprite") return ImVec2(0.4f, 0.4f);
+                if (type == "animated_sprite") return ImVec2(0.4f, 0.4f);
+                if (type == "text") return ImVec2(0.8f, 0.15f);
+                if (type == "camera") return ImVec2(0.2f, 0.2f);
+                if (type == "point_light") return ImVec2(0.3f, 0.3f);
+                if (type == "ambient_light") return ImVec2(1.0f, 1.0f);
+                if (type == "particle_system") return ImVec2(0.3f, 0.3f);
+                if (type == "tileset") return ImVec2(0.8f, 0.8f);
+                if (type == "physics_body") return ImVec2(0.4f, 0.4f);
+                return ImVec2(0.4f, 0.4f);
+            };
+            auto getTypeColor = [](const std::string& type) -> ImU32 {
+                if (type == "sprite") return IM_COL32(70, 140, 255, 200);
+                if (type == "animated_sprite") return IM_COL32(0, 200, 255, 200);
+                if (type == "text") return IM_COL32(80, 220, 80, 200);
+                if (type == "camera") return IM_COL32(255, 220, 50, 200);
+                if (type == "point_light") return IM_COL32(255, 160, 40, 200);
+                if (type == "ambient_light") return IM_COL32(255, 240, 140, 100);
+                if (type == "particle_system") return IM_COL32(200, 80, 255, 200);
+                if (type == "tileset") return IM_COL32(180, 140, 100, 200);
+                if (type == "physics_body") return IM_COL32(0, 200, 255, 120);
+                return IM_COL32(150, 150, 150, 200);
+            };
+
+            // Find camera for world-to-screen transform
+            double cam_x = 0, cam_y = 0, cam_zoom = 1;
+            for (auto& obj : objects) {
+                if (obj.is_object() && getStr(obj, "type", "") == "camera") {
+                    cam_x = getNum(obj, "pos_x", 0);
+                    cam_y = getNum(obj, "pos_y", 0);
+                    cam_zoom = getNum(obj, "zoom", 1);
+                    break;
+                }
+            }
+
+            constexpr float PPM = 160.0f;
+            float z = (float)cam_zoom * PPM;
+            float ox = vp_min.x + vp_sz.x * 0.5f + (float)(-cam_x * cam_zoom * PPM);
+            float oy = vp_min.y + vp_sz.y * 0.5f + (float)(cam_y * cam_zoom * PPM);
+
+            auto w2s = [&](float wx, float wy) { return ImVec2(wx * z + ox, -wy * z + oy); };
+            auto bbox = [&](double l, double b, double w, double h) -> std::pair<ImVec2, ImVec2> {
+                ImVec2 bl = w2s((float)l, (float)b);
+                ImVec2 br = w2s((float)(l + w), (float)b);
+                ImVec2 tl = w2s((float)l, (float)(b + h));
+                ImVec2 tr = w2s((float)(l + w), (float)(b + h));
+                return {
+                    ImVec2(std::min({bl.x, br.x, tl.x, tr.x}), std::min({bl.y, br.y, tl.y, tr.y})),
+                    ImVec2(std::max({bl.x, br.x, tl.x, tr.x}), std::max({bl.y, br.y, tl.y, tr.y}))
+                };
+            };
+
+            // Grid
+            {
+                float gs = 1.0f;
+                for (float wx = std::floor(-cam_x / gs) * gs - 10; wx <= -cam_x / gs * gs + 10; wx += gs) {
+                    ImVec2 a = w2s(wx, (float)(-10));
+                    ImVec2 b = w2s(wx, (float)(10));
+                    dl->AddLine(a, b, IM_COL32(40, 40, 50, 180));
+                }
+                for (float wy = std::floor(-cam_y / gs) * gs - 10; wy <= -cam_y / gs * gs + 10; wy += gs) {
+                    ImVec2 a = w2s((float)(-10), wy);
+                    ImVec2 b = w2s((float)(10), wy);
+                    dl->AddLine(a, b, IM_COL32(40, 40, 50, 180));
+                }
+                // Origin
+                ImVec2 o = w2s(0, 0);
+                dl->AddLine(ImVec2(o.x, vp_min.y), ImVec2(o.x, vp_max.y), IM_COL32(180, 60, 60, 150), 1.5f);
+                dl->AddLine(ImVec2(vp_min.x, o.y), ImVec2(vp_max.x, o.y), IM_COL32(60, 180, 60, 150), 1.5f);
+            }
+
+            // Render objects
+            for (size_t i = 0; i < objects.size(); i++) {
+                auto& obj = objects[i];
+                if (!obj.is_object()) continue;
+                std::string tp = getStr(obj, "type", "");
+                std::string nm = getStr(obj, "name", "");
+                if (tp == "camera" || tp == "ambient_light") continue;
+                bool visible = getNum(obj, "visible", 1) != 0;
+                if (!visible) continue;
+
+                double px = getNum(obj, "pos_x", 0);
+                double py = getNum(obj, "pos_y", 0);
+                ImVec2 ds = getDefaultSize(tp);
+                double sx = getNum(obj, "size_x", ds.x);
+                double sy = getNum(obj, "size_y", ds.y);
+
+                if (tp == "point_light") { sx = getNum(obj, "radius", 0.5); sy = sx; }
+                if (tp == "tileset") { sx = getNum(obj, "tile_width", 0.2) * getNum(obj, "atlas_cols", 4); sy = getNum(obj, "tile_height", 0.2) * getNum(obj, "atlas_rows", 4); }
+
+                double wl = px, wb = py, wr = px + sx, wt = py + sy;
+                if (tp == "sprite" || tp == "animated_sprite") {
+                    double oxx = getNum(obj, "origin_x", 0.5), oyy = getNum(obj, "origin_y", 0.5);
+                    wl = px - sx * oxx; wb = py - sy * oyy;
+                    wr = wl + sx; wt = wb + sy;
+                }
+
+                auto [sc_min, sc_max] = bbox(wl, wb, wr - wl, wt - wb);
+                ImU32 col = getTypeColor(tp);
+                ImVec2 cen = w2s((float)px, (float)py);
+
+                if (tp == "point_light") {
+                    float r = (float)sx * z;
+                    dl->AddCircleFilled(cen, r, IM_COL32(255, 200, 80, 12));
+                    dl->AddCircle(cen, r, IM_COL32(255, 200, 80, 60), 0, 2.0f);
+                    dl->AddCircleFilled(cen, 5, col);
+                } else if (tp == "particle_system") {
+                    dl->AddRectFilled(sc_min, sc_max, col);
+                    dl->AddCircleFilled(w2s((float)(px + sx * 0.3), (float)(py + sy * 0.3)), 3, IM_COL32(255, 255, 255, 180));
+                    dl->AddCircleFilled(w2s((float)(px + sx * 0.7), (float)(py + sy * 0.7)), 3, IM_COL32(255, 255, 255, 180));
+                    dl->AddCircleFilled(w2s((float)(px + sx * 0.5), (float)(py + sy * 0.3)), 2, IM_COL32(255, 255, 255, 180));
+                } else if (tp == "text") {
+                    dl->AddRectFilled(sc_min, sc_max, col);
+                    std::string ttxt = getStr(obj, "text", "");
+                    const char* display = ttxt.empty() ? "[Text]" : ttxt.c_str();
+                    ImVec2 ts = ImGui::CalcTextSize(display);
+                    float s = std::min((sc_max.x - sc_min.x) / std::max(ts.x, 1.0f), (sc_max.y - sc_min.y) / std::max(ts.y, 1.0f));
+                    s = std::min(s, 1.0f);
+                    ImVec2 tp_pos = ImVec2(cen.x - ts.x * s * 0.5f, cen.y - ts.y * s * 0.5f);
+                    dl->AddText(ImGui::GetFont(), ImGui::GetFontSize() * s, tp_pos, IM_COL32(80, 220, 80, 180), display);
+                } else if (tp == "tileset") {
+                    dl->AddRectFilled(sc_min, sc_max, col);
+                    float tw = (float)getNum(obj, "tile_width", 0.2), th = (float)getNum(obj, "tile_height", 0.2);
+                    int ac = (int)getNum(obj, "atlas_cols", 4), ar = (int)getNum(obj, "atlas_rows", 4);
+                    for (int ri = 0; ri < ar; ri++) for (int ci = 0; ci < ac; ci++) {
+                        ImVec2 t_tl = w2s((float)(wl + ci * tw), (float)(wb + ri * th));
+                        ImVec2 t_br = w2s((float)(wl + (ci + 1) * tw), (float)(wb + (ri + 1) * th));
+                        dl->AddRect(t_tl, t_br, IM_COL32(0, 0, 0, 80), 0, 0, 1.0f);
+                    }
+                } else if (tp == "sprite" || tp == "animated_sprite") {
+                    std::string tex_path = getStr(obj, "texture", "");
+                    ImTextureID tex_id = (ImTextureID)0;
+                    bool tex_ok = false;
+                    if (!tex_path.empty()) {
+                        auto it = tab.scene_texture_cache.find(tex_path);
+                        if (it != tab.scene_texture_cache.end()) {
+                            tex_id = it->second.id;
+                            tex_ok = true;
+                        } else {
+                            fs::path scene_dir = fs::path(tab.file_path).parent_path();
+                            fs::path tex_full = scene_dir / tex_path;
+                            if (!fs::exists(tex_full))
+                                tex_full = m_project_path / "engine" / tex_path;
+                            if (!fs::exists(tex_full))
+                                tex_full = m_project_path / tex_path;
+                            if (fs::exists(tex_full)) {
+                                int w, h, ch;
+                                unsigned char* data = stbi_load(tex_full.string().c_str(), &w, &h, &ch, 4);
+                                if (data) {
+                                    GLuint gltex;
+                                    glGenTextures(1, &gltex);
+                                    glBindTexture(GL_TEXTURE_2D, gltex);
+                                    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+                                    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+                                    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+                                    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+                                    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
+                                    stbi_image_free(data);
+                                    tex_id = (ImTextureID)(intptr_t)gltex;
+                                    tab.scene_texture_cache[tex_path] = {tex_id, w, h};
+                                    tex_ok = true;
+                                }
+                            }
+                        }
+                    }
+                    if (tex_ok) {
+                        double tu = 0, tv = 0, tw = 1, th = 1;
+                        if (obj.is_object() && obj.contains("texture_rect") && obj["texture_rect"].is_array()) {
+                            auto& arr = obj["texture_rect"].get<crude_json::array>();
+                            if (arr.size() >= 4) {
+                                tu = arr[0].get<crude_json::number>();
+                                tv = arr[1].get<crude_json::number>();
+                                tw = arr[2].get<crude_json::number>();
+                                th = arr[3].get<crude_json::number>();
+                            }
+                        }
+                        float cr = (float)getNum(obj, "color_r", 1);
+                        float cg = (float)getNum(obj, "color_g", 1);
+                        float cb = (float)getNum(obj, "color_b", 1);
+                        float ca = (float)getNum(obj, "color_a", 1);
+                        dl->AddImage(tex_id, sc_min, sc_max,
+                            ImVec2((float)tu, (float)tv),
+                            ImVec2((float)(tu + tw), (float)(tv + th)),
+                            IM_COL32((int)(cr*255), (int)(cg*255), (int)(cb*255), (int)(ca*255)));
+                    } else {
+                        dl->AddRectFilled(sc_min, sc_max, col);
+                    }
+                } else {
+                    dl->AddRectFilled(sc_min, sc_max, col);
+                }
+
+                // Name label
+                if (z > 0.3f) {
+                    dl->AddText(ImVec2(sc_min.x, sc_max.y + 2), IM_COL32(220, 220, 230, 220), nm.c_str());
+                }
+            }
+        } else {
+            // No scene open
+            const char* msg = "Open a .scene file to play";
+            ImVec2 ts = ImGui::CalcTextSize(msg);
+            ImVec2 text_pos = ImVec2(vp_min.x + (vp_sz.x - ts.x) * 0.5f, vp_min.y + (vp_sz.y - ts.y) * 0.5f);
+            dl->AddText(text_pos, IM_COL32(100, 100, 110, 255), msg);
+        }
+    }
+    ImGui::EndChild();
+
+    ImGui::End();
+}
+
 // ======================== SCENE EDITOR WINDOW ========================
 
 void Editor::RenderSceneEditorWindow() {
@@ -1692,84 +2050,9 @@ void Editor::RenderSceneEditor(EditorTab& tab) {
                 dl->AddCircleFilled(w2s((float)(px + sx * 0.5), (float)(py + sy * 0.3)), 2 * gz, IM_COL32(255, 255, 255, 180));
             } else if (tp == "text") {
                 std::string ttxt = getStr(obj, "text", "");
-                ImU32 tcol = IM_COL32(80, 220, 80, 60);
+                ImU32 tcol = getTypeColor(tp);
                 dl->AddRectFilled(sc_min, sc_max, tcol);
                 if (!ttxt.empty()) {
-                    if (m_textInitialized) {
-                        BlazeBolt::Text2D* textObj = new BlazeBolt::Text2D(m_quadVBO, m_font);
-                        textObj->setPosition((float)px, (float)py);
-                        textObj->setScale(
-                            (float)getNum(obj, "scale_x", 1.0),
-                            (float)getNum(obj, "scale_y", 1.0)
-                        );
-                        textObj->setOrigin(
-                            (float)getNum(obj, "origin_x", 0.0),
-                            (float)getNum(obj, "origin_y", 0.0)
-                        );
-                        textObj->setColor(
-                            (float)getNum(obj, "color_r", 1.0),
-                            (float)getNum(obj, "color_g", 1.0),
-                            (float)getNum(obj, "color_b", 1.0),
-                            (float)getNum(obj, "color_a", 1.0)
-                        );
-                        int align = (int)getNum(obj, "alignment", 0);
-                        if (align == 1) textObj->setAlignment(BlazeBolt::Text2D::Alignment::Center);
-                        else if (align == 2) textObj->setAlignment(BlazeBolt::Text2D::Alignment::Right);
-                        else textObj->setAlignment(BlazeBolt::Text2D::Alignment::Left);
-                        textObj->setText(ttxt);
-                        textObj->setVisible(true);
-
-                        float ar = cv_sz.x / cv_sz.y;
-                        float wx_min = (cv_p0.x - ox) / z;
-                        float wx_max = (cv_p1.x - ox) / z;
-                        float wy_min = -(cv_p1.y - oy) / z;
-                        float wy_max = -(cv_p0.y - oy) / z;
-
-                        Matrix3x3 projView;
-                        projView.m[0][0] = 2.0f * ar / (wx_max - wx_min);
-                        projView.m[1][1] = 2.0f / (wy_max - wy_min);
-                        projView.m[2][0] = -ar * (wx_max + wx_min) / (wx_max - wx_min);
-                        projView.m[2][1] = -(wy_max + wy_min) / (wy_max - wy_min);
-
-                        struct TextCB {
-                            BlazeBolt::Text2D* text;
-                            BlazeBolt::FontShader2D* shader;
-                            Matrix3x3 pv;
-                            float aspect;
-                            ImVec2 cm;
-                            ImVec2 cM;
-                        };
-                        TextCB* cb = new TextCB{textObj, &m_fontShader, projView, ar, cv_p0, cv_p1};
-                        dl->AddCallback([](const ImDrawList*, const ImDrawCmd* cmd) {
-                            TextCB* d = (TextCB*)cmd->UserCallbackData;
-                            GLint prevVp[4], prevVAO, prevProg;
-                            glGetIntegerv(GL_VIEWPORT, prevVp);
-                            glGetIntegerv(GL_VERTEX_ARRAY_BINDING, &prevVAO);
-                            glGetIntegerv(GL_CURRENT_PROGRAM, &prevProg);
-                            glViewport((GLint)d->cm.x, (GLint)(ImGui::GetIO().DisplaySize.y - d->cM.y),
-                                       (GLsizei)(d->cM.x - d->cm.x), (GLsizei)(d->cM.y - d->cm.y));
-                            d->shader->bind();
-                            d->shader->setAspectRatio(d->aspect);
-                            d->text->draw(*d->shader, d->pv);
-                            glViewport(prevVp[0], prevVp[1], prevVp[2], prevVp[3]);
-                            glBindVertexArray(prevVAO);
-                            glUseProgram(prevProg);
-                            delete d->text;
-                            delete d;
-                        }, cb);
-                        dl->AddCallback([](const ImDrawList*, const ImDrawCmd*) {}, nullptr);
-                    } else {
-                        ImVec2 ts = ImGui::CalcTextSize(ttxt.c_str());
-                        float s = std::min((sc_max.x - sc_min.x) / std::max(ts.x, 1.0f),
-                                           (sc_max.y - sc_min.y) / std::max(ts.y, 1.0f));
-                        s = std::min(s, 1.0f) * gz;
-                        ImVec2 tp = ImVec2(
-                            cen.x - ts.x * s * 0.5f,
-                            cen.y - ts.y * s * 0.5f
-                        );
-                        dl->AddText(ImGui::GetFont(), ImGui::GetFontSize() * s, tp,
-                                    IM_COL32(80, 220, 80, 220), ttxt.c_str());
-                    }
                 } else {
                     const char* placeholder = "[Text]";
                     ImVec2 ts = ImGui::CalcTextSize(placeholder);
@@ -2134,11 +2417,31 @@ void Editor::RenderSceneEditor(EditorTab& tab) {
                 && sel >= 0 && sel < (int)objects.size()) {
                 auto& mobj = objects[sel];
                 if (mobj.is_object()) {
-                    double oxx = getNum(mobj, "pos_x", 0);
-                    double oyy = getNum(mobj, "pos_y", 0);
-                    setNum(mobj, "pos_x", oxx + (io.MouseDelta.x / z));
-                    setNum(mobj, "pos_y", oyy - (io.MouseDelta.y / z));
-                    tab.modified = true;
+                    if (tab.scene_gizmo_mode == 2) {
+                        // Scale mode: uniform scale around center
+                        double sorx = getNum(mobj, "origin_x", 0.5), sory = getNum(mobj, "origin_y", 0.5);
+                        double spx = getNum(mobj, "pos_x", 0);
+                        double spy = getNum(mobj, "pos_y", 0);
+                        double ssx = getNum(mobj, "size_x", 1);
+                        double ssy = getNum(mobj, "size_y", 1);
+                        double avg = (io.MouseDelta.x / z - io.MouseDelta.y / z) * 0.5;
+                        double scale = 1.0 + avg / std::max(ssx, ssy);
+                        double nsx = ssx * scale, nsy = ssy * scale;
+                        if (nsx < 0.1) nsx = 0.1; if (nsy < 0.1) nsy = 0.1;
+                        double wlo = spx - ssx * sorx;
+                        double wbo = spy - ssy * sory;
+                        setNum(mobj, "pos_x", wlo + nsx * sorx);
+                        setNum(mobj, "pos_y", wbo + nsy * sory);
+                        setNum(mobj, "size_x", nsx); setNum(mobj, "size_y", nsy);
+                        tab.modified = true;
+                    } else {
+                        // Move/rotate mode: translate
+                        double oxx = getNum(mobj, "pos_x", 0);
+                        double oyy = getNum(mobj, "pos_y", 0);
+                        setNum(mobj, "pos_x", oxx + (io.MouseDelta.x / z));
+                        setNum(mobj, "pos_y", oyy - (io.MouseDelta.y / z));
+                        tab.modified = true;
+                    }
                 }
             }
             if (tab.scene_drag_handle >= 0 && !ImGui::IsMouseDown(ImGuiMouseButton_Left)) tab.scene_drag_handle = -1;
@@ -2162,3 +2465,169 @@ void Editor::RenderSceneEditor(EditorTab& tab) {
 
 bool Editor::ShouldReturnToHub() const { return m_return_to_hub; }
 void Editor::ResetReturnFlag() { m_return_to_hub = false; }
+
+// ======================== GAME RUNTIME ========================
+
+void Editor::StartGame() {
+    if (m_game_playing) return;
+    if (m_project_path.empty()) {
+        fprintf(stderr, "[Editor] No project loaded, cannot start game\n");
+        return;
+    }
+
+    // Save editor GL context
+    m_editor_window = glfwGetCurrentContext();
+
+    // Create hidden game window with CORE profile
+    const int gameW = 1280, gameH = 720;
+    m_game_window = new Window(gameW, gameH, "BlazeBolt Game (hidden)");
+    if (!m_game_window->getGLFWwindow()) {
+        fprintf(stderr, "[Editor] Failed to create game window\n");
+        delete m_game_window;
+        m_game_window = nullptr;
+        glfwMakeContextCurrent(m_editor_window);
+        return;
+    }
+
+    // Hide the game window (offscreen rendering)
+    glfwHideWindow(m_game_window->getGLFWwindow());
+
+    // Init game input (registers callbacks on the game window)
+    // Game context is current after Window constructor
+    Input::getInstance().init(m_game_window->getGLFWwindow());
+
+    // Create Lua engine
+    m_game_engine = new LuaEngine::LuaEngine(*m_game_window);
+    if (!m_game_engine->isInitialized()) {
+        fprintf(stderr, "[Editor] Failed to initialize Lua engine\n");
+        delete m_game_engine;
+        m_game_engine = nullptr;
+        GLFWwindow* gw = m_game_window->release();
+        glfwDestroyWindow(gw);
+        delete m_game_window;
+        m_game_window = nullptr;
+        glfwMakeContextCurrent(m_editor_window);
+        return;
+    }
+
+    // Load scripts relative to project directory
+    fs::path old_cwd = fs::current_path();
+    fs::current_path(m_project_path);
+    fs::path projectFile = m_project_path / "engine" / ".BlazeBoltProject";
+    bool scriptsLoaded = false;
+    if (fs::exists(projectFile)) {
+        scriptsLoaded = m_game_engine->loadScriptsFromList(projectFile.string());
+    } else {
+        fprintf(stderr, "[Editor] Project file not found: %s\n", projectFile.string().c_str());
+    }
+    fs::current_path(old_cwd);
+
+    if (scriptsLoaded) {
+        m_game_engine->callFunction("Start");
+    }
+
+    // Restore editor context
+    glfwMakeContextCurrent(m_editor_window);
+
+    // Create texture for game viewport display
+    m_game_tex_w = gameW;
+    m_game_tex_h = gameH;
+    m_game_pixels.resize(gameW * gameH * 4, 0);
+    if (m_game_texture == 0) {
+        glGenTextures(1, &m_game_texture);
+        glBindTexture(GL_TEXTURE_2D, m_game_texture);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, gameW, gameH, 0, GL_RGBA, GL_UNSIGNED_BYTE, m_game_pixels.data());
+        glBindTexture(GL_TEXTURE_2D, 0);
+    }
+
+    m_game_playing = true;
+    printf("[Editor] Game started\n");
+}
+
+void Editor::StopGame() {
+    if (!m_game_playing) return;
+
+    // Save editor context
+    GLFWwindow* editorCtx = glfwGetCurrentContext();
+
+    // Switch to game context for cleanup
+    if (m_game_window && m_game_window->getGLFWwindow()) {
+        glfwMakeContextCurrent(m_game_window->getGLFWwindow());
+    }
+
+    // Shutdown game engine
+    if (m_game_engine) {
+        m_game_engine->callEnd();
+        delete m_game_engine;
+        m_game_engine = nullptr;
+    }
+
+    // Restore editor context before destroying game window
+    glfwMakeContextCurrent(editorCtx);
+
+    // Release and destroy game window (avoids glfwTerminate in Window dtor)
+    if (m_game_window) {
+        GLFWwindow* gw = m_game_window->release();
+        if (gw) glfwDestroyWindow(gw);
+        delete m_game_window;
+        m_game_window = nullptr;
+    }
+
+    // Delete game output texture
+    if (m_game_texture != 0) {
+        glDeleteTextures(1, &m_game_texture);
+        m_game_texture = 0;
+    }
+    m_game_pixels.clear();
+    m_game_tex_w = m_game_tex_h = 0;
+
+    m_game_playing = false;
+    printf("[Editor] Game stopped\n");
+}
+
+void Editor::TickGame(float dt) {
+    if (!m_game_engine || !m_game_window || !m_game_playing) return;
+
+    // Save editor context
+    GLFWwindow* editorCtx = glfwGetCurrentContext();
+
+    // Switch to game context
+    glfwMakeContextCurrent(m_game_window->getGLFWwindow());
+
+    // Engine update
+    Input::getInstance().preUpdate();
+    m_game_engine->callUpdate(dt);
+    m_game_engine->physicsStep();
+    m_game_engine->updateAll(dt);
+
+    // Engine draw
+    m_game_window->clear();
+    m_game_engine->callDraw();
+    m_game_engine->drawAll();
+
+    // Read game framebuffer BEFORE swap (back buffer content)
+    int fbW, fbH;
+    glfwGetFramebufferSize(m_game_window->getGLFWwindow(), &fbW, &fbH);
+    if (fbW > 0 && fbH > 0) {
+        m_game_pixels.resize(fbW * fbH * 4);
+        glReadPixels(0, 0, fbW, fbH, GL_RGBA, GL_UNSIGNED_BYTE, m_game_pixels.data());
+        m_game_tex_w = fbW;
+        m_game_tex_h = fbH;
+    }
+
+    m_game_window->swapBuffers();
+    Input::getInstance().postUpdate();
+
+    // Restore editor context and upload pixels to editor texture
+    glfwMakeContextCurrent(editorCtx);
+
+    if (m_game_texture != 0 && !m_game_pixels.empty()) {
+        glBindTexture(GL_TEXTURE_2D, m_game_texture);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, m_game_tex_w, m_game_tex_h, 0, GL_RGBA, GL_UNSIGNED_BYTE, m_game_pixels.data());
+        glBindTexture(GL_TEXTURE_2D, 0);
+    }
+}

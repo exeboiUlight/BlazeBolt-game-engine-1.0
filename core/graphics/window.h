@@ -158,6 +158,13 @@ public:
     GLFWwindow* GetWindow() {
         return window;
     }
+
+    GLFWwindow* release() {
+        GLFWwindow* w = window;
+        window = nullptr;
+        _ownsWindow = false;
+        return w;
+    }
     
     void setShouldClose(bool flag) {
         glfwSetWindowShouldClose(window, flag);

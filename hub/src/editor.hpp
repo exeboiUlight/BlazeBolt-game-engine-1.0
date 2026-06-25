@@ -12,6 +12,8 @@
 #include "TextEditor.h"
 #include "crude_json.h"
 #include <subject/text2D.hpp>
+#include <engine/lua.hpp>
+#include <utils/input.hpp>
 #include <cstdint>
 typedef unsigned int GLuint;
 
@@ -103,6 +105,20 @@ private:
     bool m_show_scene_inspector = true;
     bool m_show_scene_editor = true;
     bool m_show_code_editor = true;
+    bool m_show_game_viewport = false;
+    bool m_game_playing = false;
+
+    // Game runtime state
+    GLFWwindow* m_editor_window = nullptr;
+    Window* m_game_window = nullptr;
+    LuaEngine::LuaEngine* m_game_engine = nullptr;
+    GLuint m_game_texture = 0;
+    int m_game_tex_w = 0, m_game_tex_h = 0;
+    std::vector<unsigned char> m_game_pixels;
+
+    void StartGame();
+    void StopGame();
+    void TickGame(float dt);
 
     // Dockable window rendering
     void RenderDockSpace();
@@ -111,6 +127,7 @@ private:
     void RenderSceneInspectorWindow();
     void RenderSceneEditorWindow();
     void RenderCodeEditorWindow();
+    void RenderGameViewportWindow();
 
     void RenderMenuBar();
     void RenderCodeEditor(EditorTab& tab);

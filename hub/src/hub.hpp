@@ -42,6 +42,9 @@ private:
 
     int m_current_theme = 2;
 
+    ImTextureID m_logo_texture = (ImTextureID)0;
+    int m_logo_w = 0, m_logo_h = 0;
+
     void LoadProjects();
     void SaveProjects();
     void CreateProject(const std::string& name, const std::string& path, ProjectType type);

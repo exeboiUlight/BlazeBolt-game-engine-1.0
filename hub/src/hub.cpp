@@ -1,5 +1,5 @@
 #include "hub.hpp"
-#include "stb_image.h"
+#include <stb_image/stb_image.h>
 #include <glad/glad.h>
 #include <cstdio>
 #include <cstdlib>
@@ -65,10 +65,37 @@ Hub::Hub(fs::path engine_root)
 {
     LoadProjects();
     LoadTheme();
+
+    // Load logo
+    fs::path logo_path = engine_root / "logo.png";
+    if (!fs::exists(logo_path))
+        logo_path = engine_root / "assets/icon.png";
+    if (fs::exists(logo_path)) {
+        int w, h, ch;
+        unsigned char* data = stbi_load(logo_path.string().c_str(), &w, &h, &ch, 4);
+        if (data) {
+            GLuint tex;
+            glGenTextures(1, &tex);
+            glBindTexture(GL_TEXTURE_2D, tex);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
+            m_logo_texture = (ImTextureID)(intptr_t)tex;
+            m_logo_w = w;
+            m_logo_h = h;
+            stbi_image_free(data);
+        }
+    }
 }
 
 Hub::~Hub() {
     for (auto& p : m_projects) UnloadIcon(p);
+    if (m_logo_texture) {
+        GLuint tex = (GLuint)(intptr_t)m_logo_texture;
+        glDeleteTextures(1, &tex);
+    }
 }
 
 void Hub::LoadProjects() {
@@ -331,8 +358,17 @@ void Hub::Render() {
     float bottom_bar_h = 60.0f;
 
     ImGui::SetCursorPosY(20.0f);
+    float avail_w = ImGui::GetContentRegionAvail().x;
+    // Logo
+    if (m_logo_texture) {
+        float logo_display_h = 60.0f;
+        float logo_display_w = logo_display_h * (float)m_logo_w / (float)m_logo_h;
+        ImGui::SetCursorPosX((avail_w - logo_display_w) * 0.5f);
+        ImGui::Image(m_logo_texture, ImVec2(logo_display_w, logo_display_h));
+        ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 4.0f);
+    }
     ImVec2 title_size = ImGui::CalcTextSize("BlazeBolt Engine");
-    ImGui::SetCursorPosX((ImGui::GetContentRegionAvail().x - title_size.x) * 0.5f);
+    ImGui::SetCursorPosX((avail_w - title_size.x) * 0.5f);
     ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.85f, 0.85f, 0.90f, 1.0f));
     ImGui::Text("BlazeBolt Engine");
     ImGui::PopStyleColor();

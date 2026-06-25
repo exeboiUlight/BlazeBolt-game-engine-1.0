@@ -16,7 +16,6 @@ endif()
 
 set(IMGUI_DIR ${CMAKE_SOURCE_DIR}/include/imgui)
 set(GLAD_DIR ${CMAKE_SOURCE_DIR}/include/glad)
-set(STB_DIR ${CMAKE_SOURCE_DIR}/include/stb_image)
 set(LIBS_DIR ${CMAKE_SOURCE_DIR}/../libs)
 
 set(IMGUI_SOURCES
@@ -32,6 +31,7 @@ set(IMGUI_SOURCES
 )
 
 set(CORE_DIR ${CMAKE_SOURCE_DIR}/../core)
+set(_SRC_DIR ${CMAKE_SOURCE_DIR}/../src)
 
 set(ENGINE_SOURCES
     ${CMAKE_SOURCE_DIR}/src/main.cpp
@@ -41,10 +41,34 @@ set(ENGINE_SOURCES
     ${CORE_DIR}/graphics/gl.cpp
     ${CORE_DIR}/graphics/quad.cpp
     ${CORE_DIR}/subject/text2D.cpp
+    # Engine runtime sources (for in-editor game execution)
+    ${CORE_DIR}/engine/luaEngine.cpp
+    ${CORE_DIR}/engine/managers.cpp
+    ${CORE_DIR}/graphics/animatedTexture2D.cpp
+    ${CORE_DIR}/graphics/spriteBatch2D.cpp
+    ${CORE_DIR}/physics/body.cpp
+    ${CORE_DIR}/physics/collision.cpp
+    ${CORE_DIR}/physics/world.cpp
+    ${CORE_DIR}/subject/sprite/animatedSprite2D.cpp
+    ${CORE_DIR}/subject/sprite/animationWheel.cpp
+    ${CORE_DIR}/subject/sprite/generalSprite.cpp
+    ${CORE_DIR}/subject/sprite/staticSprite2D.cpp
+    ${CORE_DIR}/subject/camera2D.cpp
+    ${CORE_DIR}/subject/particle2D.cpp
+    ${CORE_DIR}/subject/tileset2D.cpp
+    ${CORE_DIR}/subject/light2D.cpp
+    ${CORE_DIR}/utils/net/client.cpp
+    ${CORE_DIR}/utils/net/server.cpp
+    ${CORE_DIR}/utils/dr_mp3.cpp
+    ${CORE_DIR}/utils/input.cpp
+    ${CORE_DIR}/scene.cpp
+    ${_SRC_DIR}/stb_image_impl.cpp
 )
 
 add_subdirectory(${LIBS_DIR}/glfw glfw_build)
 add_subdirectory(${LIBS_DIR}/freetype freetype_build)
+add_subdirectory(${LIBS_DIR}/lua lua_build)
+add_subdirectory(${LIBS_DIR}/openal openal_build)
 
 add_executable(${PROJECT_NAME} ${ENGINE_SOURCES} ${IMGUI_SOURCES})
 
@@ -52,13 +76,14 @@ target_include_directories(${PROJECT_NAME} PRIVATE
     ${LIBS_DIR}/glfw/include
     ${LIBS_DIR}/freetype/include
     ${LIBS_DIR}/headeronly/include
+    ${LIBS_DIR}/lua/lua-5.4.7/include
+    ${LIBS_DIR}/openal/include
     ${CMAKE_SOURCE_DIR}/include
     ${IMGUI_DIR}
     ${IMGUI_DIR}/backends
     ${IMGUI_DIR}/misc/freetype
     ${IMGUI_DIR}/texteditor
     ${GLAD_DIR}
-    ${STB_DIR}
     ${CORE_DIR}
 )
 
@@ -66,6 +91,8 @@ if(WIN32)
     target_link_libraries(${PROJECT_NAME} PRIVATE
         glfw
         freetype
+        lua_static
+        OpenAL
         opengl32
         gdi32
         user32
@@ -73,6 +100,7 @@ if(WIN32)
         shell32
         winmm
         dwmapi
+        ws2_32
     )
 
     target_compile_definitions(${PROJECT_NAME} PRIVATE
@@ -91,6 +119,8 @@ else()
     target_link_libraries(${PROJECT_NAME} PRIVATE
         glfw
         freetype
+        lua_static
+        OpenAL
         OpenGL::GL
         ${X11_LIBRARIES}
         dl
