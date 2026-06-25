@@ -1692,73 +1692,96 @@ void Editor::RenderSceneEditor(EditorTab& tab) {
                 dl->AddCircleFilled(w2s((float)(px + sx * 0.5), (float)(py + sy * 0.3)), 2 * gz, IM_COL32(255, 255, 255, 180));
             } else if (tp == "text") {
                 std::string ttxt = getStr(obj, "text", "");
-                dl->AddRectFilled(sc_min, sc_max, col);
-                if (!ttxt.empty() && m_textInitialized) {
-                    BlazeBolt::Text2D* textObj = new BlazeBolt::Text2D(m_quadVBO, m_font);
-                    textObj->setPosition((float)px, (float)py);
-                    textObj->setScale(
-                        (float)getNum(obj, "scale_x", 1.0),
-                        (float)getNum(obj, "scale_y", 1.0)
-                    );
-                    textObj->setOrigin(
-                        (float)getNum(obj, "origin_x", 0.0),
-                        (float)getNum(obj, "origin_y", 0.0)
-                    );
-                    textObj->setColor(
-                        (float)getNum(obj, "color_r", 1.0),
-                        (float)getNum(obj, "color_g", 1.0),
-                        (float)getNum(obj, "color_b", 1.0),
-                        (float)getNum(obj, "color_a", 1.0)
-                    );
-                    int align = (int)getNum(obj, "alignment", 0);
-                    if (align == 1) textObj->setAlignment(BlazeBolt::Text2D::Alignment::Center);
-                    else if (align == 2) textObj->setAlignment(BlazeBolt::Text2D::Alignment::Right);
-                    else textObj->setAlignment(BlazeBolt::Text2D::Alignment::Left);
-                    textObj->setText(ttxt);
-                    textObj->setVisible(true);
+                ImU32 tcol = IM_COL32(80, 220, 80, 60);
+                dl->AddRectFilled(sc_min, sc_max, tcol);
+                if (!ttxt.empty()) {
+                    if (m_textInitialized) {
+                        BlazeBolt::Text2D* textObj = new BlazeBolt::Text2D(m_quadVBO, m_font);
+                        textObj->setPosition((float)px, (float)py);
+                        textObj->setScale(
+                            (float)getNum(obj, "scale_x", 1.0),
+                            (float)getNum(obj, "scale_y", 1.0)
+                        );
+                        textObj->setOrigin(
+                            (float)getNum(obj, "origin_x", 0.0),
+                            (float)getNum(obj, "origin_y", 0.0)
+                        );
+                        textObj->setColor(
+                            (float)getNum(obj, "color_r", 1.0),
+                            (float)getNum(obj, "color_g", 1.0),
+                            (float)getNum(obj, "color_b", 1.0),
+                            (float)getNum(obj, "color_a", 1.0)
+                        );
+                        int align = (int)getNum(obj, "alignment", 0);
+                        if (align == 1) textObj->setAlignment(BlazeBolt::Text2D::Alignment::Center);
+                        else if (align == 2) textObj->setAlignment(BlazeBolt::Text2D::Alignment::Right);
+                        else textObj->setAlignment(BlazeBolt::Text2D::Alignment::Left);
+                        textObj->setText(ttxt);
+                        textObj->setVisible(true);
 
-                    float ar = cv_sz.x / cv_sz.y;
-                    float wx_min = (cv_p0.x - ox) / z;
-                    float wx_max = (cv_p1.x - ox) / z;
-                    float wy_min = -(cv_p1.y - oy) / z;
-                    float wy_max = -(cv_p0.y - oy) / z;
+                        float ar = cv_sz.x / cv_sz.y;
+                        float wx_min = (cv_p0.x - ox) / z;
+                        float wx_max = (cv_p1.x - ox) / z;
+                        float wy_min = -(cv_p1.y - oy) / z;
+                        float wy_max = -(cv_p0.y - oy) / z;
 
-                    Matrix3x3 projView;
-                    projView.m[0][0] = 2.0f * ar / (wx_max - wx_min);
-                    projView.m[1][1] = 2.0f / (wy_max - wy_min);
-                    projView.m[2][0] = -ar * (wx_max + wx_min) / (wx_max - wx_min);
-                    projView.m[2][1] = -(wy_max + wy_min) / (wy_max - wy_min);
+                        Matrix3x3 projView;
+                        projView.m[0][0] = 2.0f * ar / (wx_max - wx_min);
+                        projView.m[1][1] = 2.0f / (wy_max - wy_min);
+                        projView.m[2][0] = -ar * (wx_max + wx_min) / (wx_max - wx_min);
+                        projView.m[2][1] = -(wy_max + wy_min) / (wy_max - wy_min);
 
-                    struct TextCB {
-                        BlazeBolt::Text2D* text;
-                        BlazeBolt::FontShader2D* shader;
-                        Matrix3x3 pv;
-                        float aspect;
-                        ImVec2 cm;
-                        ImVec2 cM;
-                    };
-                    TextCB* cb = new TextCB{textObj, &m_fontShader, projView, ar, cv_p0, cv_p1};
-                    dl->AddCallback([](const ImDrawList*, const ImDrawCmd* cmd) {
-                        TextCB* d = (TextCB*)cmd->UserCallbackData;
-                        GLint prevVp[4], prevVAO, prevProg;
-                        glGetIntegerv(GL_VIEWPORT, prevVp);
-                        glGetIntegerv(GL_VERTEX_ARRAY_BINDING, &prevVAO);
-                        glGetIntegerv(GL_CURRENT_PROGRAM, &prevProg);
-                        glViewport((GLint)d->cm.x, (GLint)(ImGui::GetIO().DisplaySize.y - d->cM.y),
-                                   (GLsizei)(d->cM.x - d->cm.x), (GLsizei)(d->cM.y - d->cm.y));
-                        d->shader->bind();
-                        d->shader->setAspectRatio(d->aspect);
-                        d->text->draw(*d->shader, d->pv);
-                        glViewport(prevVp[0], prevVp[1], prevVp[2], prevVp[3]);
-                        glBindVertexArray(prevVAO);
-                        glUseProgram(prevProg);
-                        delete d->text;
-                        delete d;
-                    }, cb);
-                    dl->AddCallback([](const ImDrawList*, const ImDrawCmd*) {}, nullptr);
+                        struct TextCB {
+                            BlazeBolt::Text2D* text;
+                            BlazeBolt::FontShader2D* shader;
+                            Matrix3x3 pv;
+                            float aspect;
+                            ImVec2 cm;
+                            ImVec2 cM;
+                        };
+                        TextCB* cb = new TextCB{textObj, &m_fontShader, projView, ar, cv_p0, cv_p1};
+                        dl->AddCallback([](const ImDrawList*, const ImDrawCmd* cmd) {
+                            TextCB* d = (TextCB*)cmd->UserCallbackData;
+                            GLint prevVp[4], prevVAO, prevProg;
+                            glGetIntegerv(GL_VIEWPORT, prevVp);
+                            glGetIntegerv(GL_VERTEX_ARRAY_BINDING, &prevVAO);
+                            glGetIntegerv(GL_CURRENT_PROGRAM, &prevProg);
+                            glViewport((GLint)d->cm.x, (GLint)(ImGui::GetIO().DisplaySize.y - d->cM.y),
+                                       (GLsizei)(d->cM.x - d->cm.x), (GLsizei)(d->cM.y - d->cm.y));
+                            d->shader->bind();
+                            d->shader->setAspectRatio(d->aspect);
+                            d->text->draw(*d->shader, d->pv);
+                            glViewport(prevVp[0], prevVp[1], prevVp[2], prevVp[3]);
+                            glBindVertexArray(prevVAO);
+                            glUseProgram(prevProg);
+                            delete d->text;
+                            delete d;
+                        }, cb);
+                        dl->AddCallback([](const ImDrawList*, const ImDrawCmd*) {}, nullptr);
+                    } else {
+                        ImVec2 ts = ImGui::CalcTextSize(ttxt.c_str());
+                        float s = std::min((sc_max.x - sc_min.x) / std::max(ts.x, 1.0f),
+                                           (sc_max.y - sc_min.y) / std::max(ts.y, 1.0f));
+                        s = std::min(s, 1.0f) * gz;
+                        ImVec2 tp = ImVec2(
+                            cen.x - ts.x * s * 0.5f,
+                            cen.y - ts.y * s * 0.5f
+                        );
+                        dl->AddText(ImGui::GetFont(), ImGui::GetFontSize() * s, tp,
+                                    IM_COL32(80, 220, 80, 220), ttxt.c_str());
+                    }
                 } else {
-                    dl->AddText(ImVec2(sc_min.x + 4.0f * gz, sc_min.y + 4.0f * gz), IM_COL32(255, 255, 255, 220),
-                        ttxt.empty() ? "T" : ttxt.c_str());
+                    const char* placeholder = "[Text]";
+                    ImVec2 ts = ImGui::CalcTextSize(placeholder);
+                    float s = std::min((sc_max.x - sc_min.x) / std::max(ts.x, 1.0f),
+                                       (sc_max.y - sc_min.y) / std::max(ts.y, 1.0f));
+                    s = std::min(s, 1.0f) * gz;
+                    ImVec2 tp = ImVec2(
+                        cen.x - ts.x * s * 0.5f,
+                        cen.y - ts.y * s * 0.5f
+                    );
+                    dl->AddText(ImGui::GetFont(), ImGui::GetFontSize() * s, tp,
+                                IM_COL32(80, 220, 80, 180), placeholder);
                 }
             } else if (tp == "tileset") {
                 dl->AddRectFilled(sc_min, sc_max, col);

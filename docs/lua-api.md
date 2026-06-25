@@ -4491,9 +4491,87 @@ end
 
 ## Сцены (Scene Management)
 
+Управление сценами — это переключение между разными состояниями игры (меню, уровни, пауза) и загрузка/сохранение уровня из файла.
+
+> **Для начинающих:** Есть два разных понятия:
+> - **`LoadScene`** — переключение между логическими сценами (например, из "menu" в "game").
+> - **`LoadSceneFile`** — загрузка `.scene` файла с объектами (спрайты, текст, камеры) в текущую сцену.
+>
+> Обычно вы используете оба: `LoadScene("game")` переключает сцену, а внутри `Start()` вызываете `LoadSceneFile("level1.scene")` чтобы создать все игровые объекты.
+
+| Функция | Назначение | Когда использовать |
+|---|---|---|
+| `LoadSceneFile(path)` | Загружает объекты из `.scene` файла | В начале уровня, при загрузке сохранения |
+| `SaveSceneFile(path)` | Сохраняет все объекты в `.scene` файл | При сохранении игры, автосейв |
+| `LoadScene(name)` | Переключает логическую сцену | Переход между меню, уровнями, паузой |
+| `GetCurrentScene()` | Узнать текущую сцену | В условных переходах, HUD |
+
+---
+
+### LoadSceneFile
+
+Загружает `.scene` файл и создаёт все объекты сцены: спрайты, текст, камеры, источники света, системы частиц, тайлсеты и физические тела.
+
+Файл `.scene` создаётся в редакторе сцен BlazeBolt или вручную в JSON-формате (см. раздел "Формат .scene файлов").
+
+```
+BlazeBolt.LoadSceneFile(path) → table<string, Entity>
+```
+
+| Аргумент | Тип | Описание |
+|---|---|---|
+| `path` | string | Путь к файлу `.scene` (например `"levels/level1.scene"`) |
+
+**Возвращает:** таблицу `{ [имя_объекта] = EntityID }` для доступа к созданным объектам по имени, указанному в файле.
+
+**Для начинающих:** сохраните возвращённую таблицу в глобальную переменную. Имена объектов берутся из поля `name` в `.scene` файле:
+
+```lua
+function Start()
+    local objects = BlazeBolt.LoadSceneFile("levels/level1.scene")
+
+    -- Работа с объектами по их именам
+    local player = objects["player"]        -- спрайт игрока
+    local camera = objects["main_camera"]   -- камера
+    local healthText = objects["hud_health"] -- текст HP
+end
+```
+
+**Для профессионалов:** один вызов `LoadSceneFile` может загрузить тысячи объектов. Файл парсится как JSON, поэтому вы можете генерировать `.scene` файлы процедурно. Возвращаемая таблица позволяет быстро найти любой объект по имени без поиска по всем Entity.
+
+---
+
+### SaveSceneFile
+
+Сохраняет **все** текущие объекты сцены в `.scene` файл. Сохраняются: спрайты, текст, анимированные спрайты, камеры, источники света, системы частиц, тайлсеты и физические тела со всеми их свойствами.
+
+```
+BlazeBolt.SaveSceneFile(path) → success
+```
+
+| Аргумент | Тип | Описание |
+|---|---|---|
+| `path` | string | Путь для сохранения файла `.scene` |
+
+**Возвращает:** `success` (boolean) — `true`, если сохранение прошло успешно.
+
+**Для начинающих:** вызывайте `SaveSceneFile` при выходе с уровня или по кнопке "Сохранить":
+
+```lua
+function End()
+    BlazeBolt.SaveSceneFile("savegame.scene")
+end
+```
+
+**Для профессионалов:** `SaveSceneFile` сериализует все объекты в JSON. Вы можете подгружать сохранённый файл в редактор сцен для дальнейшего редактирования. `SaveSceneFile` **заменяет** файл, а не дополняет его.
+
+---
+
 ### LoadScene
 
-Загружает сцену по имени.
+Загружает сцену по имени (переключение между логическими сценами внутри проекта).
+
+Сцена в BlazeBolt — это набор Lua-скриптов, которые работают вместе. При переключении сцены движок вызывает `On<SceneName>Load()` для старой сцены, а затем `On<NewScene>Load()` для новой.
 
 ```
 BlazeBolt.LoadScene(sceneName) → success
@@ -4501,46 +4579,102 @@ BlazeBolt.LoadScene(sceneName) → success
 
 | Аргумент | Тип | Описание |
 |---|---|---|
-| `sceneName` | string | Имя сцены |
+| `sceneName` | string | Имя сцены (не файл, а имя, заданное в настройках проекта) |
 
 **Возвращает:** `success` (boolean).
+
+**Для начинающих:** если вам нужно просто загрузить уровень из `.scene` файла — используйте `LoadSceneFile`. `LoadScene` используется для переключения между разделами игры (меню, игра, пауза):
+
+```lua
+-- Внутри файла сцены "menu"
+function Update(dt)
+    if BlazeBolt.IsKeyJustPressed(Keys.ENTER) then
+        BlazeBolt.LoadScene("game")  -- переключиться на сцену "game"
+    end
+end
+```
+
+**Для профессионалов:** при `LoadScene` не происходит автоматической очистки объектов. Используйте `DestroyAll()` в `On<Scene>Unload()` при необходимости. Скрипты старой сцены продолжают работать, если не вызван `DestroyAll()`.
 
 ---
 
 ### GetCurrentScene
 
-Возвращает имя текущей сцены.
+Возвращает имя текущей активной сцены.
 
 ```
 BlazeBolt.GetCurrentScene() → sceneName
 ```
 
-**Возвращает:** `sceneName` (string).
+**Возвращает:** `sceneName` (string) — имя сцены, установленное через `LoadScene`.
+
+Полезно для условной логики в `Update(dt)`:
+
+```lua
+function Update(dt)
+    local scene = BlazeBolt.GetCurrentScene()
+    if scene == "menu" then
+        -- логика меню
+    elseif scene == "game" then
+        -- игровая логика
+    end
+end
+```
 
 ---
 
-### Пример: Сцены
+### Пример: Полный цикл работы со сценами
 
 ```lua
+-- Глобальные ссылки на объекты уровня
+local objects = {}
+
 function Start()
-    BlazeBolt.LoadScene("main_menu")
+    -- Загружаем уровень из файла
+    objects = BlazeBolt.LoadSceneFile("levels/level1.scene")
 end
 
 function Update(dt)
     local currentScene = BlazeBolt.GetCurrentScene()
-    BlazeBolt.Print("Current scene: " .. currentScene)
 
-    if currentScene == "main_menu" then
+    if currentScene == "menu" then
         if BlazeBolt.IsKeyJustPressed(Keys.ENTER) then
-            BlazeBolt.LoadScene("game_level")
+            BlazeBolt.LoadScene("game")
         end
-    elseif currentScene == "game_level" then
-        if BlazeBolt.IsKeyJustPressed(Keys.ESCAPE) then
-            BlazeBolt.LoadScene("main_menu")
+    elseif currentScene == "game" then
+        -- Игровая логика
+        local hero = objects["player"]
+        local healthText = objects["hud_health"]
+
+        if hero and BlazeBolt.IsKeyJustPressed(Keys.ESCAPE) then
+            -- Автосохранение
+            if BlazeBolt.SaveSceneFile("autosave.scene") then
+                BlazeBolt.Print("Game saved!")
+            end
+            BlazeBolt.LoadScene("menu")
         end
     end
 end
+
+function OnGameLoad()
+    -- Этот коллбэк вызывается автоматически при загрузке сцены "game"
+    objects = BlazeBolt.LoadSceneFile("levels/level1.scene")
+end
+
+function OnGameUnload()
+    -- Очистка при выходе из сцены "game"
+    BlazeBolt.DestroyAll()
+    objects = {}
+end
 ```
+
+> **Для профессионалов:** мерж `.scene` файлов — вызывайте `LoadSceneFile` несколько раз подряд. Все объекты добавятся в один мир:
+> ```lua
+> BlazeBolt.LoadSceneFile("common/lighting.scene")  -- общее освещение
+> BlazeBolt.LoadSceneFile("levels/level1.scene")     -- объекты уровня
+> BlazeBolt.LoadSceneFile("levels/level1_dynamic.scene") -- динамические объекты
+> ```
+> Затем один `SaveSceneFile("save.scene")` сохранит всё вместе.**
 
 ---
 

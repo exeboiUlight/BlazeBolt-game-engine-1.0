@@ -120,6 +120,10 @@ p code,li code,td code{background:rgba(255,107,53,.1);color:var(--accent);paddin
 <a class="nav-item" href="#scripts">Script Management</a>
 <div class="nav-divider"></div>
 <a class="nav-item" href="#scenes">Scene Management</a>
+<a class="nav-item sub" href="#scenes-loadfile">LoadSceneFile</a>
+<a class="nav-item sub" href="#scenes-savefile">SaveSceneFile</a>
+<a class="nav-item sub" href="#scenes-load">LoadScene</a>
+<a class="nav-item sub" href="#scenes-current">GetCurrentScene</a>
 <div class="nav-divider"></div>
 <a class="nav-item" href="#scenefile">Scene File Format (.scene)</a>
 <div class="nav-divider"></div>
@@ -720,15 +724,44 @@ BlazeBolt.GetLoadedScripts() &#8594; scripts</div></div>
 <!-- SCENES -->
 <section class="doc-section" id="scenes">
 <h2>Scene Management</h2>
-<div class="func-card"><h4>LoadScene / GetCurrentScene</h4><div class="func-sig">BlazeBolt.LoadScene(sceneName) &#8594; success
-BlazeBolt.GetCurrentScene() &#8594; sceneName</div></div>
-<h3>Example: Scenes</h3>
-<div class="code-wrap"><pre class="code-block"><span class="kw">function</span> <span class="fn">Start</span>() <span class="bi">BlazeBolt</span>.<span class="fn">LoadScene</span>(<span class="str">"main_menu"</span>) <span class="kw">end</span>
+<p>Scene management handles switching between game states (menu, levels, pause) and loading/saving levels from <code>.scene</code> files.</p>
+<table><thead><tr><th>Function</th><th>Purpose</th><th>When to use</th></tr></thead><tbody>
+<tr><td><code>LoadSceneFile(path)</code></td><td>Loads objects from a <code>.scene</code> file</td><td>At level start, loading saved game</td></tr>
+<tr><td><code>SaveSceneFile(path)</code></td><td>Saves all objects to a <code>.scene</code> file</td><td>Saving game, autosave</td></tr>
+<tr><td><code>LoadScene(name)</code></td><td>Switches logical scene</td><td>Menu/level/pause transitions</td></tr>
+<tr><td><code>GetCurrentScene()</code></td><td>Gets current scene name</td><td>Conditional logic, HUD updates</td></tr>
+</tbody></table>
+<div class="func-card" id="scenes-loadfile"><h4>LoadSceneFile</h4>
+<p class="func-desc">Loads a <code>.scene</code> file and creates all scene objects (sprites, text, cameras, lights, particle systems, tilesets, physics bodies).</p>
+<div class="func-sig">BlazeBolt.LoadSceneFile(path) &#8594; table&lt;string, Entity&gt;</div>
+<table><thead><tr><th>Argument</th><th>Type</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>path</code></td><td>string</td><td>Path to <code>.scene</code> file</td></tr>
+</tbody></table>
+<p><strong>Returns:</strong> table <code>{ [name] = EntityID }</code> for accessing objects by name.</p></div>
+<div class="func-card" id="scenes-savefile"><h4>SaveSceneFile</h4>
+<p class="func-desc">Saves all current scene objects to a <code>.scene</code> file.</p>
+<div class="func-sig">BlazeBolt.SaveSceneFile(path) &#8594; success</div>
+<table><thead><tr><th>Argument</th><th>Type</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>path</code></td><td>string</td><td>Path to save the <code>.scene</code> file</td></tr>
+</tbody></table>
+<p><strong>Returns:</strong> <code>success</code> (boolean)</p></div>
+<div class="func-card" id="scenes-load"><h4>LoadScene / GetCurrentScene</h4><div class="func-sig">BlazeBolt.LoadScene(sceneName) &#8594; success
+BlazeBolt.GetCurrentScene() &#8594; sceneName</div>
+<p class="func-desc"><code>LoadScene</code> switches between logical scenes (e.g. "menu" to "game"). Use <code>LoadSceneFile</code> to load a level from file.</p></div>
+<h3 id="scenes-current">Example: Full Scene Workflow</h3>
+<div class="code-wrap"><pre class="code-block"><span class="kw">local</span> <span class="var">objects</span> = {}
+<span class="kw">function</span> <span class="fn">Start</span>()
+    <span class="var">objects</span> = <span class="bi">BlazeBolt</span>.<span class="fn">LoadSceneFile</span>(<span class="str">"levels/level1.scene"</span>)
+<span class="kw">end</span>
 <span class="kw">function</span> <span class="fn">Update</span>(<span class="var">dt</span>)
     <span class="kw">local</span> <span class="var">s</span> = <span class="bi">BlazeBolt</span>.<span class="fn">GetCurrentScene</span>()
-    <span class="kw">if</span> <span class="var">s</span> == <span class="str">"main_menu"</span> <span class="kw">and</span> <span class="bi">BlazeBolt</span>.<span class="fn">IsKeyJustPressed</span>(<span class="bi">Keys</span>.ENTER) <span class="kw">then</span> <span class="bi">BlazeBolt</span>.<span class="fn">LoadScene</span>(<span class="str">"game"</span>) <span class="kw">end</span>
-    <span class="kw">if</span> <span class="var">s</span> == <span class="str">"game"</span> <span class="kw">and</span> <span class="bi">BlazeBolt</span>.<span class="fn">IsKeyJustPressed</span>(<span class="bi">Keys</span>.ESCAPE) <span class="kw">then</span> <span class="bi">BlazeBolt</span>.<span class="fn">LoadScene</span>(<span class="str">"main_menu"</span>) <span class="kw">end</span>
-<span class="kw">end</span></pre><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+    <span class="kw">if</span> <span class="var">s</span> == <span class="str">"menu"</span> <span class="kw">and</span> <span class="bi">BlazeBolt</span>.<span class="fn">IsKeyJustPressed</span>(<span class="bi">Keys</span>.ENTER) <span class="kw">then</span>
+        <span class="bi">BlazeBolt</span>.<span class="fn">LoadScene</span>(<span class="str">"game"</span>)
+    <span class="kw">elseif</span> <span class="var">s</span> == <span class="str">"game"</span> <span class="kw">and</span> <span class="bi">BlazeBolt</span>.<span class="fn">IsKeyJustPressed</span>(<span class="bi">Keys</span>.ESCAPE) <span class="kw">then</span>
+        <span class="kw">if</span> <span class="bi">BlazeBolt</span>.<span class="fn">SaveSceneFile</span>(<span class="str">"autosave.scene"</span>) <span class="kw">then</span> <span class="bi">BlazeBolt</span>.<span class="fn">Print</span>(<span class="str">"Saved!"</span>) <span class="kw">end</span>
+        <span class="bi">BlazeBolt</span>.<span class="fn">LoadScene</span>(<span class="str">"menu"</span>)
+    <span class="kw">end</span>
+<span class="kw">end</span></pre></div>
 </section>
 <!-- SCENE FILE FORMAT -->
 <section class="doc-section" id="scenefile">
