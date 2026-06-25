@@ -15,7 +15,7 @@ private:
     const char* _title;
 
 public:
-    Window(int width, int height, const char* title) 
+    Window(int width, int height, const char* title, GLFWwindow* share = nullptr) 
         : _width(width), _height(height), _title(title), window(nullptr),
           _isFullscreen(false), _isVSync(false), _ownsWindow(true),
           _windowedX(0), _windowedY(0), _windowedWidth(width), _windowedHeight(height) {
@@ -29,7 +29,7 @@ public:
         glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
         glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
         
-        window = glfwCreateWindow(width, height, title, NULL, NULL);
+        window = glfwCreateWindow(width, height, title, NULL, share);
         if (!window) {
             glfwTerminate();
             _ownsWindow = false;

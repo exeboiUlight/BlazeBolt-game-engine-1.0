@@ -106,19 +106,21 @@ private:
     bool m_show_scene_editor = true;
     bool m_show_code_editor = true;
     bool m_show_game_viewport = false;
+    bool m_show_debug_console = false;
     bool m_game_playing = false;
+    bool m_game_paused = false;
 
     // Game runtime state
     GLFWwindow* m_editor_window = nullptr;
     Window* m_game_window = nullptr;
     LuaEngine::LuaEngine* m_game_engine = nullptr;
     GLuint m_game_texture = 0;
+    GLuint m_game_fbo = 0;
     int m_game_tex_w = 0, m_game_tex_h = 0;
-    std::vector<unsigned char> m_game_pixels;
 
     void StartGame();
     void StopGame();
-    void TickGame(float dt);
+    void TickGame(float dt, bool force_update = false);
 
     // Dockable window rendering
     void RenderDockSpace();
@@ -128,6 +130,7 @@ private:
     void RenderSceneEditorWindow();
     void RenderCodeEditorWindow();
     void RenderGameViewportWindow();
+    void RenderDebugConsoleWindow();
 
     void RenderMenuBar();
     void RenderCodeEditor(EditorTab& tab);
