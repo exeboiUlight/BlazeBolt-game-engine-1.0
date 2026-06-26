@@ -15,7 +15,58 @@
 #include <engine/lua.hpp>
 #include <utils/input.hpp>
 #include <cstdint>
+#include <array>
+#include <deque>
 typedef unsigned int GLuint;
+
+enum class PixelTool { Pencil, Eraser, Fill, Picker };
+
+struct PixelLayer {
+    std::vector<uint32_t> pixels;
+    int width = 0;
+    int height = 0;
+    std::string name;
+    bool visible = true;
+};
+
+struct PixelPaintCanvas {
+    std::vector<PixelLayer> layers;
+    int active_layer = 0;
+    int width = 64;
+    int height = 64;
+    GLuint texture = 0;
+    bool texture_dirty = true;
+
+    uint32_t primary_color = 0xFF000000;
+    uint32_t secondary_color = 0xFFFFFFFF;
+    PixelTool tool = PixelTool::Pencil;
+
+    std::array<uint32_t, 24> palette = {
+        IM_COL32(0,0,0,255), IM_COL32(128,128,128,255), IM_COL32(192,192,192,255), IM_COL32(255,255,255,255),
+        IM_COL32(128,0,0,255), IM_COL32(255,0,0,255), IM_COL32(128,0,128,255), IM_COL32(255,0,255,255),
+        IM_COL32(0,128,0,255), IM_COL32(0,255,0,255), IM_COL32(0,128,128,255), IM_COL32(0,255,255,255),
+        IM_COL32(0,0,128,255), IM_COL32(0,0,255,255), IM_COL32(128,128,0,255), IM_COL32(255,255,0,255),
+        IM_COL32(64,32,0,255), IM_COL32(255,128,0,255), IM_COL32(32,128,255,255), IM_COL32(64,224,208,255),
+        IM_COL32(32,32,32,255), IM_COL32(96,64,32,255), IM_COL32(160,160,96,255), IM_COL32(224,192,128,255),
+    };
+
+    float zoom = 16.0f;
+    float pan_x = 0.0f, pan_y = 0.0f;
+    bool show_grid = true;
+
+    void init(int w, int h) {
+        width = w; height = h;
+        layers.clear();
+        layers.push_back({});
+        auto& bg = layers.back();
+        bg.pixels.resize(w * h, 0xFF000000);
+        bg.width = w; bg.height = h;
+        bg.name = "Background";
+        bg.visible = true;
+        active_layer = 0;
+        texture_dirty = true;
+    }
+};
 
 class NodeEditor;
 
@@ -107,6 +158,7 @@ private:
     bool m_show_code_editor = true;
     bool m_show_game_viewport = false;
     bool m_show_debug_console = false;
+    bool m_show_pixel_paint = false;
     bool m_game_playing = false;
     bool m_game_paused = false;
 
@@ -118,6 +170,9 @@ private:
     GLuint m_game_fbo = 0;
     int m_game_tex_w = 0, m_game_tex_h = 0;
     fs::path m_old_cwd;
+
+    PixelPaintCanvas m_pixel_paint;
+    bool m_pixel_paint_has_canvas = false;
 
     void StartGame();
     void StopGame();
@@ -132,6 +187,13 @@ private:
     void RenderCodeEditorWindow();
     void RenderGameViewportWindow();
     void RenderDebugConsoleWindow();
+    void RenderPixelPaintWindow();
+
+    void PixelPaintNew(int w, int h);
+    void PixelPaintFlushTexture();
+    void PixelPaintDrawPixel(int x, int y, uint32_t color);
+    void PixelPaintFill(int x, int y, uint32_t color);
+    uint32_t PixelPaintGetPixel(int x, int y);
 
     void RenderMenuBar();
     void RenderCodeEditor(EditorTab& tab);

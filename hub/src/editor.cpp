@@ -205,6 +205,11 @@ Editor::~Editor() {
         m_game_window = nullptr;
     }
 
+    if (m_pixel_paint.texture) {
+        glDeleteTextures(1, &m_pixel_paint.texture);
+        m_pixel_paint.texture = 0;
+    }
+
     for (auto& tab : m_tabs) {
         if (tab.image_data) stbi_image_free(tab.image_data);
         if (tab.image_texture) {
@@ -737,6 +742,7 @@ void Editor::Render() {
     RenderCodeEditorWindow();
     RenderGameViewportWindow();
     RenderDebugConsoleWindow();
+    RenderPixelPaintWindow();
 }
 
 void Editor::RenderDockSpace() {
@@ -791,6 +797,7 @@ void Editor::RenderMenuBar() {
         ImGui::MenuItem("Code Editor", nullptr, &m_show_code_editor);
         ImGui::MenuItem("Game", "F5", &m_show_game_viewport);
         ImGui::MenuItem("Debug Console", nullptr, &m_show_debug_console);
+        ImGui::MenuItem("Pixel Paint", nullptr, &m_show_pixel_paint);
         ImGui::Separator();
         if (ImGui::BeginMenu("Theme")) {
             const char* themes[] = { "Dark", "Light", "Classic", "Cyberpunk", "Dracula" };
@@ -1684,6 +1691,343 @@ void Editor::RenderDebugConsoleWindow() {
 }
 
 // ------------------------------------------------------------------------
+// Pixel Paint helpers
+// ------------------------------------------------------------------------
+
+void Editor::PixelPaintNew(int w, int h) {
+    m_pixel_paint_has_canvas = true;
+    m_pixel_paint.init(w, h);
+    if (!m_pixel_paint.texture) {
+        glGenTextures(1, &m_pixel_paint.texture);
+    }
+    glBindTexture(GL_TEXTURE_2D, m_pixel_paint.texture);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glBindTexture(GL_TEXTURE_2D, 0);
+    m_pixel_paint.texture_dirty = true;
+}
+
+void Editor::PixelPaintFlushTexture() {
+    if (!m_pixel_paint_has_canvas || !m_pixel_paint.texture) return;
+    const auto& canvas = m_pixel_paint;
+    std::vector<uint32_t> composite(canvas.width * canvas.height, 0);
+    for (auto& layer : canvas.layers) {
+        if (!layer.visible) continue;
+        for (int i = 0; i < canvas.width * canvas.height && i < (int)layer.pixels.size(); i++) {
+            uint32_t src = layer.pixels[i];
+            uint8_t a = (src >> 24) & 0xFF;
+            if (a == 255) {
+                composite[i] = src;
+            } else if (a > 0) {
+                uint32_t dst = composite[i];
+                uint8_t dr = dst & 0xFF, dg = (dst >> 8) & 0xFF, db = (dst >> 16) & 0xFF;
+                uint8_t sr = src & 0xFF, sg = (src >> 8) & 0xFF, sb = (src >> 16) & 0xFF;
+                uint8_t r = (uint8_t)((sr * a + dr * (255 - a)) / 255);
+                uint8_t g = (uint8_t)((sg * a + dg * (255 - a)) / 255);
+                uint8_t b = (uint8_t)((sb * a + db * (255 - a)) / 255);
+                composite[i] = IM_COL32(r, g, b, 255);
+            }
+        }
+    }
+    glBindTexture(GL_TEXTURE_2D, canvas.texture);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, canvas.width, canvas.height, 0, GL_RGBA, GL_UNSIGNED_BYTE, composite.data());
+    glBindTexture(GL_TEXTURE_2D, 0);
+    m_pixel_paint.texture_dirty = false;
+}
+
+void Editor::PixelPaintDrawPixel(int x, int y, uint32_t color) {
+    if (!m_pixel_paint_has_canvas) return;
+    if (x < 0 || x >= m_pixel_paint.width || y < 0 || y >= m_pixel_paint.height) return;
+    int idx = m_pixel_paint.active_layer;
+    if (idx < 0 || idx >= (int)m_pixel_paint.layers.size()) return;
+    auto& layer = m_pixel_paint.layers[idx];
+    layer.pixels[y * m_pixel_paint.width + x] = color;
+    m_pixel_paint.texture_dirty = true;
+}
+
+uint32_t Editor::PixelPaintGetPixel(int x, int y) {
+    if (!m_pixel_paint_has_canvas) return 0;
+    if (x < 0 || x >= m_pixel_paint.width || y < 0 || y >= m_pixel_paint.height) return 0;
+    for (int i = (int)m_pixel_paint.layers.size() - 1; i >= 0; i--) {
+        auto& layer = m_pixel_paint.layers[i];
+        if (!layer.visible) continue;
+        uint32_t c = layer.pixels[y * m_pixel_paint.width + x];
+        if ((c >> 24) & 0xFF) return c;
+    }
+    return 0;
+}
+
+void Editor::PixelPaintFill(int x, int y, uint32_t color) {
+    if (!m_pixel_paint_has_canvas) return;
+    int idx = m_pixel_paint.active_layer;
+    if (idx < 0 || idx >= (int)m_pixel_paint.layers.size()) return;
+    auto& layer = m_pixel_paint.layers[idx];
+    uint32_t target = PixelPaintGetPixel(x, y);
+    if (target == color) return;
+    std::vector<int> stack;
+    stack.push_back(y * m_pixel_paint.width + x);
+    while (!stack.empty()) {
+        int p = stack.back(); stack.pop_back();
+        int px = p % m_pixel_paint.width;
+        int py = p / m_pixel_paint.width;
+        if (px < 0 || px >= m_pixel_paint.width || py < 0 || py >= m_pixel_paint.height) continue;
+        if (layer.pixels[py * m_pixel_paint.width + px] != target) continue;
+        layer.pixels[py * m_pixel_paint.width + px] = color;
+        stack.push_back(py * m_pixel_paint.width + (px + 1));
+        stack.push_back(py * m_pixel_paint.width + (px - 1));
+        stack.push_back((py + 1) * m_pixel_paint.width + px);
+        stack.push_back((py - 1) * m_pixel_paint.width + px);
+    }
+    m_pixel_paint.texture_dirty = true;
+}
+
+// ------------------------------------------------------------------------
+// Pixel Paint window
+// ------------------------------------------------------------------------
+
+void Editor::RenderPixelPaintWindow() {
+    if (!m_show_pixel_paint) return;
+
+    ImGui::Begin("Pixel Paint", &m_show_pixel_paint);
+
+    // Toolbar
+    {
+        ImGui::Text("Tool: ");
+        ImGui::SameLine();
+        const char* tool_names[] = { "Pencil", "Eraser", "Fill", "Picker" };
+        int cur = (int)m_pixel_paint.tool;
+        for (int i = 0; i < 4; i++) {
+            if (i > 0) ImGui::SameLine();
+            if (ImGui::Button(tool_names[i])) { m_pixel_paint.tool = (PixelTool)i; }
+            if (cur == i) { ImGui::SameLine(); ImGui::Text("<"); }
+        }
+    }
+
+    ImGui::Separator();
+
+    // New canvas button
+    if (!m_pixel_paint_has_canvas) {
+        ImGui::Text("No canvas open.");
+        static int new_w = 64, new_h = 64;
+        ImGui::SetNextItemWidth(80);
+        ImGui::InputInt("Width", &new_w); new_w = std::max(1, new_w);
+        ImGui::SameLine();
+        ImGui::SetNextItemWidth(80);
+        ImGui::InputInt("Height", &new_h); new_h = std::max(1, new_h);
+        if (ImGui::Button("New Canvas")) {
+            PixelPaintNew(new_w, new_h);
+        }
+        ImGui::End();
+        return;
+    }
+
+    auto& canvas = m_pixel_paint;
+    if (canvas.texture_dirty) {
+        PixelPaintFlushTexture();
+    }
+
+    // Canvas area
+    ImVec2 avail = ImGui::GetContentRegionAvail();
+    float top_h = 60.0f; // reserve space for palette
+    ImVec2 canvas_area = ImVec2(avail.x, avail.y - top_h - 30.0f);
+    if (canvas_area.x > 0 && canvas_area.y > 0) {
+        ImGui::BeginChild("##PixelCanvas", canvas_area, ImGuiChildFlags_Borders, ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoScrollbar);
+        {
+            ImDrawList* dl = ImGui::GetWindowDrawList();
+            ImVec2 win_pos = ImGui::GetCursorScreenPos();
+            ImVec2 win_sz = ImGui::GetContentRegionAvail();
+
+            float disp_w = canvas.width * canvas.zoom;
+            float disp_h = canvas.height * canvas.zoom;
+
+            // Pan with middle mouse
+            if (ImGui::IsWindowHovered() && ImGui::IsMouseDragging(ImGuiMouseButton_Middle)) {
+                canvas.pan_x += ImGui::GetIO().MouseDelta.x;
+                canvas.pan_y += ImGui::GetIO().MouseDelta.y;
+            }
+
+            // Zoom with scroll
+            if (ImGui::IsWindowHovered()) {
+                float scroll = ImGui::GetIO().MouseWheel;
+                if (scroll != 0) {
+                    float old_zoom = canvas.zoom;
+                    canvas.zoom = std::max(1.0f, std::min(64.0f, canvas.zoom + scroll * 2.0f));
+                    float ratio = canvas.zoom / old_zoom;
+                    canvas.pan_x = canvas.pan_x * ratio - (canvas.width * (canvas.zoom - old_zoom)) * 0.5f;
+                    canvas.pan_y = canvas.pan_y * ratio - (canvas.height * (canvas.zoom - old_zoom)) * 0.5f;
+                }
+            }
+
+            ImVec2 image_min = ImVec2(win_pos.x + canvas.pan_x, win_pos.y + canvas.pan_y);
+            ImVec2 image_max = ImVec2(image_min.x + disp_w, image_min.y + disp_h);
+
+            // Background checkerboard
+            int ck_size = std::max(1, (int)(canvas.zoom * 0.5f));
+            for (int y = 0; y < canvas.height; y++) {
+                for (int x = 0; x < canvas.width; x++) {
+                    ImVec2 p0 = ImVec2(image_min.x + x * canvas.zoom, image_min.y + y * canvas.zoom);
+                    ImVec2 p1 = ImVec2(p0.x + canvas.zoom, p0.y + canvas.zoom);
+                    bool light = ((x + y) & 1) == 0;
+                    dl->AddRectFilled(p0, p1, light ? IM_COL32(200, 200, 200, 255) : IM_COL32(160, 160, 160, 255));
+                }
+            }
+
+            // Draw texture
+            dl->AddImage((ImTextureID)(intptr_t)canvas.texture, image_min, image_max, ImVec2(0, 1), ImVec2(1, 0));
+
+            // Grid
+            if (canvas.show_grid && canvas.zoom >= 6.0f) {
+                for (int x = 1; x < canvas.width; x++) {
+                    float lx = image_min.x + x * canvas.zoom;
+                    dl->AddLine(ImVec2(lx, image_min.y), ImVec2(lx, image_max.y), IM_COL32(60, 60, 60, 80), 1.0f);
+                }
+                for (int y = 1; y < canvas.height; y++) {
+                    float ly = image_min.y + y * canvas.zoom;
+                    dl->AddLine(ImVec2(image_min.x, ly), ImVec2(image_max.x, ly), IM_COL32(60, 60, 60, 80), 1.0f);
+                }
+            }
+
+            // Drawing
+            if (ImGui::IsWindowHovered() && ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
+                ImVec2 mouse_pos = ImGui::GetIO().MousePos;
+                float mx = mouse_pos.x - image_min.x;
+                float my = mouse_pos.y - image_min.y;
+                int px = (int)(mx / canvas.zoom);
+                int py = (int)(my / canvas.zoom);
+
+                if (px >= 0 && px < canvas.width && py >= 0 && py < canvas.height) {
+                    uint32_t color = canvas.primary_color;
+                    if (canvas.tool == PixelTool::Eraser) {
+                        color = 0;
+                    }
+                    if (canvas.tool == PixelTool::Fill) {
+                        PixelPaintFill(px, py, color);
+                    } else if (canvas.tool == PixelTool::Picker) {
+                        canvas.primary_color = PixelPaintGetPixel(px, py);
+                    } else {
+                        PixelPaintDrawPixel(px, py, color);
+                    }
+                }
+            }
+
+            // Right click to pick secondary color
+            if (ImGui::IsWindowHovered() && ImGui::IsMouseDown(ImGuiMouseButton_Right)) {
+                ImVec2 mouse_pos = ImGui::GetIO().MousePos;
+                float mx = mouse_pos.x - image_min.x;
+                float my = mouse_pos.y - image_min.y;
+                int px = (int)(mx / canvas.zoom);
+                int py = (int)(my / canvas.zoom);
+                if (px >= 0 && px < canvas.width && py >= 0 && py < canvas.height) {
+                    canvas.secondary_color = PixelPaintGetPixel(px, py);
+                }
+            }
+
+            ImGui::SetCursorScreenPos(ImVec2(image_min.x, image_min.y));
+            ImGui::InvisibleButton("##canvas_hit", ImVec2(disp_w, disp_h));
+        }
+        ImGui::EndChild();
+    }
+
+    ImGui::Separator();
+
+    // Palette
+    {
+        ImGui::Text("Palette");
+        float pal_size = 20.0f;
+        float spacing = 2.0f;
+        float start_x = ImGui::GetCursorPosX();
+        ImDrawList* dl = ImGui::GetWindowDrawList();
+        ImVec2 base = ImGui::GetCursorScreenPos();
+
+        // Primary color display
+        ImVec2 c0 = base;
+        ImVec2 c1 = ImVec2(c0.x + pal_size, c0.y + pal_size);
+        dl->AddRectFilled(c0, c1, canvas.primary_color);
+        dl->AddRect(c0, c1, IM_COL32(255, 255, 255, 200));
+        ImGui::SetCursorScreenPos(ImVec2(c1.x + spacing, c0.y));
+
+        // Secondary color
+        ImVec2 c2 = ImGui::GetCursorScreenPos();
+        ImVec2 c3 = ImVec2(c2.x + pal_size, c2.y + pal_size);
+        dl->AddRectFilled(c2, c3, canvas.secondary_color);
+        dl->AddRect(c2, c3, IM_COL32(200, 200, 200, 200));
+
+        ImGui::SetCursorScreenPos(ImVec2(c3.x + spacing * 3, c0.y));
+
+        // Palette swatches
+        ImVec2 pal_pos = ImGui::GetCursorScreenPos();
+        float sx = pal_pos.x;
+        for (int i = 0; i < (int)canvas.palette.size(); i++) {
+            ImVec2 sw0 = ImVec2(sx, pal_pos.y);
+            ImVec2 sw1 = ImVec2(sw0.x + pal_size, sw0.y + pal_size);
+            dl->AddRectFilled(sw0, sw1, canvas.palette[i]);
+            dl->AddRect(sw0, sw1, IM_COL32(180, 180, 180, 100));
+
+            if (ImGui::IsMouseHoveringRect(sw0, sw1) && ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
+                canvas.primary_color = canvas.palette[i];
+            }
+            if (ImGui::IsMouseHoveringRect(sw0, sw1) && ImGui::IsMouseClicked(ImGuiMouseButton_Right)) {
+                canvas.secondary_color = canvas.palette[i];
+            }
+
+            sx += pal_size + spacing;
+            if ((i + 1) % 8 == 0) {
+                sx = pal_pos.x;
+                pal_pos.y += pal_size + spacing;
+            }
+        }
+    }
+
+    ImGui::Separator();
+
+    // Layers panel
+    {
+        ImGui::Text("Layers");
+        ImGui::SameLine();
+        if (ImGui::SmallButton("+")) {
+            PixelLayer new_layer;
+            new_layer.pixels.resize(canvas.width * canvas.height, 0);
+            new_layer.width = canvas.width;
+            new_layer.height = canvas.height;
+            new_layer.name = "Layer " + std::to_string(canvas.layers.size());
+            new_layer.visible = true;
+            canvas.layers.push_back(new_layer);
+            canvas.active_layer = (int)canvas.layers.size() - 1;
+        }
+        ImGui::SameLine();
+        if (ImGui::SmallButton("-") && canvas.layers.size() > 1) {
+            if (canvas.active_layer < (int)canvas.layers.size()) {
+                canvas.layers.erase(canvas.layers.begin() + canvas.active_layer);
+                if (canvas.active_layer >= (int)canvas.layers.size())
+                    canvas.active_layer = (int)canvas.layers.size() - 1;
+            }
+            canvas.texture_dirty = true;
+        }
+
+        for (int i = (int)canvas.layers.size() - 1; i >= 0; i--) {
+            auto& layer = canvas.layers[i];
+            bool selected = (i == canvas.active_layer);
+            if (selected) ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.3f, 0.4f, 0.6f, 1.0f));
+            ImGui::PushID(i);
+            if (ImGui::SmallButton(layer.visible ? "##v" : "##h")) {
+                layer.visible = !layer.visible;
+                canvas.texture_dirty = true;
+            }
+            ImGui::SameLine();
+            if (ImGui::Selectable(layer.name.c_str(), &selected)) {
+                canvas.active_layer = i;
+            }
+            ImGui::PopID();
+            if (selected) ImGui::PopStyleColor();
+        }
+    }
+
+    ImGui::End();
+}
+
+// ------------------------------------------------------------------------
 // Scene Editor (viewport)
 // ------------------------------------------------------------------------
 
@@ -2413,7 +2757,7 @@ void Editor::ResetReturnFlag() { m_return_to_hub = false; }
 void Editor::StartGame() {
     if (m_game_playing) return;
     if (m_project_path.empty()) {
-        fprintf(stderr, "[Editor] No project loaded, cannot start game\n");
+        AddConsoleLog("[Editor] No project loaded, cannot start game", IM_COL32(255, 100, 100, 255));
         return;
     }
 
@@ -2431,7 +2775,7 @@ void Editor::StartGame() {
 
     glGenFramebuffers(1, &m_game_fbo);
     glGenTextures(1, &m_game_texture);
-    printf("[Editor] StartGame: tex=%u fbo=%u\n", m_game_texture, m_game_fbo);
+    AddConsoleLog("[Editor] StartGame: tex=%u fbo=%u", IM_COL32(200, 200, 210, 255), m_game_texture, m_game_fbo);
     glBindTexture(GL_TEXTURE_2D, m_game_texture);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, gameW, gameH, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
@@ -2442,7 +2786,7 @@ void Editor::StartGame() {
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, m_game_texture, 0);
     GLenum fboStatus = glCheckFramebufferStatus(GL_FRAMEBUFFER);
     if (fboStatus != GL_FRAMEBUFFER_COMPLETE) {
-        fprintf(stderr, "[Editor] FBO not complete! status=0x%x\n", fboStatus);
+        AddConsoleLog("[Editor] FBO not complete! status=0x%x", IM_COL32(255, 100, 100, 255), fboStatus);
     }
     glBindTexture(GL_TEXTURE_2D, 0);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -2450,7 +2794,7 @@ void Editor::StartGame() {
 
     m_game_engine = new LuaEngine::LuaEngine(*m_game_window);
     if (!m_game_engine->isInitialized()) {
-        fprintf(stderr, "[Editor] Failed to initialize Lua engine\n");
+        AddConsoleLog("[Editor] Failed to initialize Lua engine", IM_COL32(255, 100, 100, 255));
         delete m_game_engine;
         m_game_engine = nullptr;
         glDeleteFramebuffers(1, &m_game_fbo);
@@ -2470,17 +2814,17 @@ void Editor::StartGame() {
     if (fs::exists(projectFile)) {
         scriptsLoaded = m_game_engine->loadScriptsFromList(projectFile.string());
     } else {
-        fprintf(stderr, "[Editor] Project file not found: %s\n", projectFile.string().c_str());
+        AddConsoleLog("[Editor] Project file not found: " + projectFile.string(), IM_COL32(255, 100, 100, 255));
     }
 
     if (scriptsLoaded) {
         m_game_engine->callFunction("Start");
     } else {
-        fprintf(stderr, "[Editor] Failed to load scripts – game will not start\n");
+        AddConsoleLog("[Editor] Failed to load scripts - game will not start", IM_COL32(255, 100, 100, 255));
     }
 
     m_game_playing = true;
-    printf("[Editor] Game started in ImGui viewport\n");
+    AddConsoleLog("[Editor] Game started", IM_COL32(100, 200, 100, 255));
 }
 
 void Editor::StopGame() {
@@ -2513,7 +2857,7 @@ void Editor::StopGame() {
     m_old_cwd.clear();
 
     m_game_playing = false;
-    printf("[Editor] Game stopped\n");
+    AddConsoleLog("[Editor] Game stopped", IM_COL32(200, 200, 100, 255));
 }
 
 void Editor::TickGame(float dt, bool force_update) {

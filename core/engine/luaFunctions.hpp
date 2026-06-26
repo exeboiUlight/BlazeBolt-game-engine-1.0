@@ -2617,6 +2617,7 @@ namespace LuaEngine {
         // Utility functions
         static int Print(lua_State* state) {
             int n = lua_gettop(state);
+            std::cout << "[Lua] ";
             for (int i = 1; i <= n; i++) {
                 if (lua_isstring(state, i)) {
                     std::cout << lua_tostring(state, i);
