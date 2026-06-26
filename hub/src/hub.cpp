@@ -526,6 +526,21 @@ void Hub::Render() {
     if (ImGui::Button("Open Folder", ImVec2(button_width, 0))) {
         std::string folder = PickFolder("Select Project Folder");
         if (!folder.empty()) {
+            bool already_exists = false;
+            for (auto& p : m_projects) {
+                if (p.path == folder) {
+                    already_exists = true;
+                    break;
+                }
+            }
+            if (!already_exists) {
+                Project proj;
+                proj.name = fs::path(folder).filename().string();
+                proj.path = folder;
+                LoadIcon(proj);
+                m_projects.push_back(proj);
+                SaveProjects();
+            }
             m_selected_path = folder;
             m_open_editor = true;
         }
