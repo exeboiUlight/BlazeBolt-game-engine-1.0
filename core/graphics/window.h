@@ -61,7 +61,7 @@ public:
     }
     
     ~Window() {
-        if (window) {
+        if (window && _ownsWindow) {
             glfwDestroyWindow(window);
         }
         if (_ownsWindow) {
@@ -69,6 +69,13 @@ public:
         }
     }
     
+    // Wrap an existing GLFW window without creating a new one
+    Window(GLFWwindow* existing, int width, int height)
+        : _width(width), _height(height), _title(""), window(existing),
+          _isFullscreen(false), _isVSync(false), _ownsWindow(false),
+          _windowedX(0), _windowedY(0), _windowedWidth(width), _windowedHeight(height) {
+    }
+
     Window(Window&& other) noexcept 
         : _width(other._width), _height(other._height), 
           _title(other._title), window(other.window),
@@ -80,7 +87,7 @@ public:
     
     Window& operator=(Window&& other) noexcept {
         if (this != &other) {
-            if (window) {
+            if (window && _ownsWindow) {
                 glfwDestroyWindow(window);
             }
             _width = other._width;

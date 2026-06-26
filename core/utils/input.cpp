@@ -1,5 +1,13 @@
 #include "input.hpp"
 
+// Статические указатели на предыдущие колбэки (обычно от ImGui)
+GLFWkeyfun Input::prevKeyCallback = nullptr;
+GLFWmousebuttonfun Input::prevMouseButtonCallback = nullptr;
+GLFWcursorposfun Input::prevCursorPosCallback = nullptr;
+GLFWscrollfun Input::prevScrollCallback = nullptr;
+GLFWwindowfocusfun Input::prevWindowFocusCallback = nullptr;
+GLFWjoystickfun Input::prevJoystickCallback = nullptr;
+
 Input::Input() :
     keysFrames(), mouseButtonsFrames(),
     mouseX(0.0), mouseY(0.0), mouseDeltaX(0.0), mouseDeltaY(0.0), scrollX(0.0), scrollY(0.0),
@@ -7,6 +15,8 @@ Input::Input() :
     currentFrame(1), window(nullptr)
 {}
 void Input::keyCallback(GLFWwindow *window, int key, int scancode, int action, int mods) {
+    // Проброс в ImGui
+    if (prevKeyCallback) prevKeyCallback(window, key, scancode, action, mods);
     if (key < 0 || key >= MAX_KEYS) return;
     Input &input = Input::getInstance();
     if (action == GLFW_PRESS) {
@@ -17,6 +27,7 @@ void Input::keyCallback(GLFWwindow *window, int key, int scancode, int action, i
 }
 
 void Input::mouseButtonCallback(GLFWwindow *window, int button, int action, int mods) {
+    if (prevMouseButtonCallback) prevMouseButtonCallback(window, button, action, mods);
     if (button < 0 || button >= MAX_MOUSE_BUTTONS) return;
     Input &input = Input::getInstance();
     if (action == GLFW_PRESS) {
@@ -27,6 +38,7 @@ void Input::mouseButtonCallback(GLFWwindow *window, int button, int action, int 
 }
 
 void Input::cursorPosCallback(GLFWwindow *window, double xpos, double ypos) {
+    if (prevCursorPosCallback) prevCursorPosCallback(window, xpos, ypos);
     Input &input = Input::getInstance();
     input.mouseDeltaX = static_cast<float>(xpos) - input.mouseX;
     input.mouseDeltaY = static_cast<float>(ypos) - input.mouseY;
@@ -35,12 +47,14 @@ void Input::cursorPosCallback(GLFWwindow *window, double xpos, double ypos) {
 }
 
 void Input::scrollCallback(GLFWwindow *window, double xOffset, double yOffset) {
+    if (prevScrollCallback) prevScrollCallback(window, xOffset, yOffset);
     Input &input = Input::getInstance();
     input.scrollX = static_cast<float>(xOffset);
     input.scrollY = static_cast<float>(yOffset);
 }
 
 void Input::joystickCallback(int jid, int event) {
+    if (prevJoystickCallback) prevJoystickCallback(jid, event);
     Input &input = Input::getInstance();
     switch (event) {
         case GLFW_CONNECTED:
@@ -78,6 +92,7 @@ Input &Input::getInstance() {
 }
 
 void Input::windowFocusCallback(GLFWwindow *window, int focused) {
+    if (prevWindowFocusCallback) prevWindowFocusCallback(window, focused);
     Input &input = getInstance();
     if (focused && input.window) {
         for (int key = GLFW_KEY_SPACE; key <= GLFW_KEY_LAST; key++) {
@@ -102,13 +117,62 @@ void Input::windowFocusCallback(GLFWwindow *window, int focused) {
 }
 
 void Input::init(GLFWwindow *window) {
+    if (this->window == window) {
+        // При повторном запуске: восстанавливаем сохранённые колбэки, затем переустанавливаем свои
+        glfwSetKeyCallback(window, prevKeyCallback);
+        glfwSetMouseButtonCallback(window, prevMouseButtonCallback);
+        glfwSetCursorPosCallback(window, prevCursorPosCallback);
+        glfwSetScrollCallback(window, prevScrollCallback);
+        glfwSetWindowFocusCallback(window, prevWindowFocusCallback);
+        glfwSetJoystickCallback(prevJoystickCallback);
+        prevKeyCallback = glfwSetKeyCallback(window, keyCallback);
+        prevMouseButtonCallback = glfwSetMouseButtonCallback(window, mouseButtonCallback);
+        prevCursorPosCallback = glfwSetCursorPosCallback(window, cursorPosCallback);
+        prevScrollCallback = glfwSetScrollCallback(window, scrollCallback);
+        prevWindowFocusCallback = glfwSetWindowFocusCallback(window, windowFocusCallback);
+        prevJoystickCallback = glfwSetJoystickCallback(joystickCallback);
+        resetFrames();
+        return;
+    }
     this->window = window;
-    glfwSetKeyCallback(window, keyCallback);
-    glfwSetMouseButtonCallback(window, mouseButtonCallback);
-    glfwSetCursorPosCallback(window, cursorPosCallback);
-    glfwSetScrollCallback(window, scrollCallback);
-    glfwSetJoystickCallback(joystickCallback);
-    glfwSetWindowFocusCallback(window, windowFocusCallback);
+    // Сохраняем предыдущие колбэки (ImGui), чтобы пробрасывать в них события
+    prevKeyCallback = glfwSetKeyCallback(window, keyCallback);
+    prevMouseButtonCallback = glfwSetMouseButtonCallback(window, mouseButtonCallback);
+    prevCursorPosCallback = glfwSetCursorPosCallback(window, cursorPosCallback);
+    prevScrollCallback = glfwSetScrollCallback(window, scrollCallback);
+    prevWindowFocusCallback = glfwSetWindowFocusCallback(window, windowFocusCallback);
+    prevJoystickCallback = glfwSetJoystickCallback(joystickCallback);
+}
+
+void Input::resetFrames() {
+    for (auto &v : keysFrames) v = 0;
+    for (auto &v : mouseButtonsFrames) v = 0;
+    for (auto &gp : gamepadsButtonsFrames) {
+        if (gp.has_value()) {
+            for (auto &b : *gp) b = 0;
+        }
+    }
+    mouseDeltaX = mouseDeltaY = scrollX = scrollY = 0.0f;
+    currentFrame = 1;
+}
+
+void Input::reset() {
+    if (window) {
+        glfwSetKeyCallback(window, prevKeyCallback);
+        glfwSetMouseButtonCallback(window, prevMouseButtonCallback);
+        glfwSetCursorPosCallback(window, prevCursorPosCallback);
+        glfwSetScrollCallback(window, prevScrollCallback);
+        glfwSetWindowFocusCallback(window, prevWindowFocusCallback);
+        glfwSetJoystickCallback(prevJoystickCallback);
+    }
+    prevKeyCallback = nullptr;
+    prevMouseButtonCallback = nullptr;
+    prevCursorPosCallback = nullptr;
+    prevScrollCallback = nullptr;
+    prevWindowFocusCallback = nullptr;
+    prevJoystickCallback = nullptr;
+    window = nullptr;
+    resetFrames();
 }
 
 void Input::preUpdate() {

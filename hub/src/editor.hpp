@@ -117,6 +117,7 @@ private:
     GLuint m_game_texture = 0;
     GLuint m_game_fbo = 0;
     int m_game_tex_w = 0, m_game_tex_h = 0;
+    fs::path m_old_cwd;
 
     void StartGame();
     void StopGame();

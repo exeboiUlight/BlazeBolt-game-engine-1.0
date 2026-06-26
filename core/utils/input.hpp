@@ -21,6 +21,14 @@ private:
     Input(const Input&) = delete;
     Input& operator=(const Input&) = delete;
 
+    // Сохранённые предыдущие колбэки (обычно от ImGui) — пробрасываем из Input
+    static GLFWkeyfun prevKeyCallback;
+    static GLFWmousebuttonfun prevMouseButtonCallback;
+    static GLFWcursorposfun prevCursorPosCallback;
+    static GLFWscrollfun prevScrollCallback;
+    static GLFWwindowfocusfun prevWindowFocusCallback;
+    static GLFWjoystickfun prevJoystickCallback;
+
     static void keyCallback(GLFWwindow *window, int key, int scancode, int action, int mods);
     static void mouseButtonCallback(GLFWwindow *window, int button, int action, int mods);
     static void cursorPosCallback(GLFWwindow *window, double xpos, double ypos);
@@ -33,6 +41,8 @@ public:
     static Input &getInstance();
 
     void init(GLFWwindow *window);
+    void resetFrames();
+    void reset();
     void preUpdate();
     void postUpdate();
 

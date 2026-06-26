@@ -3,6 +3,7 @@
 #include <glad/glad.h>
 
 namespace GL {
+    void resetCachedState();
     void bindVertexArray(GLuint vao);
     void unbindVertexArray();
     void bindVertexBuffer(GLuint vbo, GLenum usage);

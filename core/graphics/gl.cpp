@@ -9,6 +9,14 @@ static GLuint activeTextureUnit = 0;
 static GLuint boundShaderProgram = 0;
 
 namespace GL {
+    void resetCachedState() {
+        boundVertexArrayObject = 0;
+        boundVertexBufferObjects[0] = 0;
+        boundVertexBufferObjects[1] = 0;
+        for (auto &t : boundTexture2Ds) t = 0;
+        activeTextureUnit = 0;
+        boundShaderProgram = 0;
+    }
     void bindVertexArray(GLuint vao) {
         if (boundVertexArrayObject == vao) { return; }
         glBindVertexArray(vao);
