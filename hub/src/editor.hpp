@@ -170,4 +170,8 @@ private:
     bool IsImageFile(const std::string& ext);
     bool IsSceneFile(const std::string& ext);
     bool IsCodeFile(const std::string& ext);
+
+    // ---------- НОВЫЕ МЕТОДЫ ДЛЯ BUILD ----------
+    bool ExtractZip(const fs::path& zipPath, const fs::path& destDir);
+    void BuildProject();
 };

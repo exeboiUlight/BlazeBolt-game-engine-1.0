@@ -15,6 +15,7 @@
 #include <deque>
 #include <iostream>
 #include <unordered_map>
+#include <cstdarg>
 
 struct ConsoleMsg {
     std::string text;
@@ -107,6 +108,10 @@ static std::streambuf* s_original_cerr = nullptr;
 #define POPEN popen
 #define PCLOSE pclose
 #endif
+
+// ------------------------------------------------------------------------
+// Editor implementation
+// ------------------------------------------------------------------------
 
 Editor::Editor(fs::path engine_root)
     : m_engine_root(engine_root)
@@ -418,7 +423,22 @@ void Editor::OpenFileInTab(const std::string& path) {
     } else {
         tab.type = EditorTabType::Code;
         tab.code_editor = std::make_unique<TextEditor>();
-        tab.code_editor->SetLanguageDefinition(TextEditor::LanguageDefinition::Lua());
+        {
+            auto& langDef = [&]() -> const TextEditor::LanguageDefinition& {
+                if (ext == ".cpp" || ext == ".hpp" || ext == ".h" || ext == ".cxx" || ext == ".cc")
+                    return TextEditor::LanguageDefinition::CPlusPlus();
+                if (ext == ".c")
+                    return TextEditor::LanguageDefinition::C();
+                if (ext == ".lua" || ext == ".luau")
+                    return TextEditor::LanguageDefinition::Lua();
+                if (ext == ".hlsl")
+                    return TextEditor::LanguageDefinition::HLSL();
+                if (ext == ".glsl" || ext == ".vert" || ext == ".frag")
+                    return TextEditor::LanguageDefinition::GLSL();
+                return TextEditor::LanguageDefinition::Lua();
+            }();
+            tab.code_editor->SetLanguageDefinition(langDef);
+        }
         tab.code_editor->SetPalette(TextEditor::GetDarkPalette());
         tab.code_editor->SetTabSize(4);
 
@@ -667,8 +687,19 @@ static float s_game_time = 0.0f;
 static float s_game_dt = 0.016f;
 static auto s_game_last_time = std::chrono::steady_clock::now();
 
+// ------------------------------------------------------------------------
+// Render loop
+// ------------------------------------------------------------------------
+
 void Editor::Render() {
     ApplyTheme(m_current_theme);
+
+    // ---------- Горячие клавиши ----------
+    ImGuiIO& io = ImGui::GetIO();
+    if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_B)) {
+        BuildProject();   // NEW: Build
+    }
+    // -------------------------------------
 
     {
         auto now = std::chrono::steady_clock::now();
@@ -784,9 +815,17 @@ void Editor::RenderMenuBar() {
                 s_game_time = 0.0f;
             }
         }
+        ImGui::Separator();                     // NEW: разделитель
+        if (ImGui::MenuItem("Build", "Ctrl+B")) {   // NEW: пункт Build
+            BuildProject();
+        }
         ImGui::EndMenu();
     }
 }
+
+// ------------------------------------------------------------------------
+// File Browser
+// ------------------------------------------------------------------------
 
 void Editor::RenderFMTree(const fs::path& dir) {
     std::string dirname = dir.filename().string();
@@ -1021,6 +1060,10 @@ void Editor::RenderFileBrowserWindow() {
 
     ImGui::End();
 }
+
+// ------------------------------------------------------------------------
+// Scene Hierarchy & Inspector
+// ------------------------------------------------------------------------
 
 static void SceneEditString(const char* label, crude_json::value& obj, const std::string& key, crude_json::value* fallback = nullptr) {
     std::string val;
@@ -1384,6 +1427,10 @@ void Editor::RenderSceneInspectorWindow() {
     ImGui::End();
 }
 
+// ------------------------------------------------------------------------
+// Code Editor
+// ------------------------------------------------------------------------
+
 void Editor::RenderCodeEditorWindow() {
     if (!m_show_code_editor) return;
 
@@ -1471,6 +1518,10 @@ void Editor::RenderCodeEditorWindow() {
 
     ImGui::End();
 }
+
+// ------------------------------------------------------------------------
+// Game Viewport
+// ------------------------------------------------------------------------
 
 void Editor::RenderGameViewportWindow() {
     if (!m_show_game_viewport) return;
@@ -1568,6 +1619,10 @@ void Editor::RenderGameViewportWindow() {
     ImGui::End();
 }
 
+// ------------------------------------------------------------------------
+// Debug Console
+// ------------------------------------------------------------------------
+
 void Editor::RenderDebugConsoleWindow() {
     if (!m_show_debug_console) return;
 
@@ -1627,6 +1682,10 @@ void Editor::RenderDebugConsoleWindow() {
 
     ImGui::End();
 }
+
+// ------------------------------------------------------------------------
+// Scene Editor (viewport)
+// ------------------------------------------------------------------------
 
 void Editor::RenderSceneEditorWindow() {
     if (!m_show_scene_editor) return;
@@ -2344,6 +2403,10 @@ void Editor::RenderSceneEditor(EditorTab& tab) {
     ImGui::EndChild();
 }
 
+// ------------------------------------------------------------------------
+// Game control
+// ------------------------------------------------------------------------
+
 bool Editor::ShouldReturnToHub() const { return m_return_to_hub; }
 void Editor::ResetReturnFlag() { m_return_to_hub = false; }
 
@@ -2524,4 +2587,76 @@ void Editor::TickGame(float dt, bool force_update) {
     }
 
     Input::getInstance().postUpdate();
+}
+
+// ------------------------------------------------------------------------
+// NEW: Build / Extract
+// ------------------------------------------------------------------------
+
+bool Editor::ExtractZip(const fs::path& zipPath, const fs::path& destDir) {
+    if (!fs::exists(zipPath)) {
+        AddConsoleLog("Zip file not found: " + zipPath.string(), IM_COL32(255, 100, 100, 255));
+        return false;
+    }
+    if (!fs::exists(destDir)) {
+        fs::create_directories(destDir);
+    }
+
+    std::string cmd;
+#ifdef PLATFORM_WINDOWS
+    // Используем PowerShell (встроен в Windows)
+    std::string zipStr = zipPath.string();
+    std::string destStr = destDir.string();
+    // Экранируем обратные слэши для командной строки
+    std::replace(zipStr.begin(), zipStr.end(), '\\', '/');
+    std::replace(destStr.begin(), destStr.end(), '\\', '/');
+    cmd = "powershell -command \"Expand-Archive -Path '" + zipStr + "' -DestinationPath '" + destStr + "' -Force\"";
+#else
+    // Linux/macOS – используем unzip
+    cmd = "unzip -o " + zipPath.string() + " -d " + destDir.string() + " 2>&1";
+#endif
+
+    AddConsoleLog("Executing: " + cmd, IM_COL32(200, 200, 100, 255));
+
+    FILE* pipe = POPEN(cmd.c_str(), "r");
+    if (!pipe) {
+        AddConsoleLog("Failed to execute extraction command", IM_COL32(255, 100, 100, 255));
+        return false;
+    }
+
+    char buffer[256];
+    std::string output;
+    while (fgets(buffer, sizeof(buffer), pipe) != nullptr) {
+        output += buffer;
+    }
+    int ret = PCLOSE(pipe);
+
+    if (ret != 0) {
+        AddConsoleLog("Extraction failed with code " + std::to_string(ret), IM_COL32(255, 100, 100, 255));
+        AddConsoleLog(output, IM_COL32(200, 200, 200, 255));
+        return false;
+    }
+
+    AddConsoleLog("Extraction successful", IM_COL32(100, 200, 100, 255));
+    return true;
+}
+
+void Editor::BuildProject() {
+    if (m_project_path.empty()) {
+        AddConsoleLog("No project loaded. Open a project first.", IM_COL32(255, 200, 100, 255));
+        return;
+    }
+
+    fs::path zipPath = m_engine_root / "compile.zip";
+    if (!fs::exists(zipPath)) {
+        AddConsoleLog("compile.zip not found in engine root: " + zipPath.string(), IM_COL32(255, 100, 100, 255));
+        return;
+    }
+
+    AddConsoleLog("Building project: " + m_project_path.string(), IM_COL32(200, 200, 255, 255));
+    if (ExtractZip(zipPath, m_project_path)) {
+        AddConsoleLog("Build completed successfully.", IM_COL32(100, 255, 100, 255));
+    } else {
+        AddConsoleLog("Build failed.", IM_COL32(255, 100, 100, 255));
+    }
 }

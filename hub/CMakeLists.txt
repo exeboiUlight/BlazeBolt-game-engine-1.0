@@ -72,6 +72,7 @@ set(ENGINE_SOURCES
 add_subdirectory(${LIBS_DIR}/glfw glfw_build)
 add_subdirectory(${LIBS_DIR}/freetype freetype_build)
 add_subdirectory(${LIBS_DIR}/lua lua_build)
+set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
 add_subdirectory(${LIBS_DIR}/openal openal_build)
 
 add_executable(${PROJECT_NAME} ${ENGINE_SOURCES} ${IMGUI_SOURCES})
