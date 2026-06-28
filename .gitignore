@@ -3,4 +3,7 @@ bin/
 build/
 /engine/
 CMakePresets.json
-*.ico
+projects/
+projects.txt
+theme.txt
+BlazeBolt.ini

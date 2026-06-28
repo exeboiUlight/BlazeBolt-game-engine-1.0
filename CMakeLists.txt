@@ -15,80 +15,62 @@ if(MINGW OR (WIN32 AND CMAKE_CXX_COMPILER_ID STREQUAL "GNU"))
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -ffunction-sections -fdata-sections")
 endif()
 
-add_subdirectory(libs/glfw)
-add_subdirectory(libs/glad)
-add_subdirectory(libs/freetype)
-add_subdirectory(libs/lua)
+set(IMGUI_DIR ${CMAKE_SOURCE_DIR}/include/imgui)
+set(GLAD_DIR ${CMAKE_SOURCE_DIR}/include/glad)
+set(LIBS_DIR ${CMAKE_SOURCE_DIR}/libs)
 
-set(ALSOFT_UTILS OFF CACHE BOOL "" FORCE)
-set(ALSOFT_EXAMPLES OFF CACHE BOOL "" FORCE)
-set(ALSOFT_TESTS OFF CACHE BOOL "" FORCE)
-set(ALSOFT_INSTALL OFF CACHE BOOL "" FORCE)
-set(ALSOFT_INSTALL_CONFIG OFF CACHE BOOL "" FORCE)
-set(ALSOFT_INSTALL_HRTF_DATA OFF CACHE BOOL "" FORCE)
-set(ALSOFT_INSTALL_AMBDEC_PRESETS OFF CACHE BOOL "" FORCE)
-set(ALSOFT_INSTALL_EXAMPLES OFF CACHE BOOL "" FORCE)
-set(ALSOFT_INSTALL_UTILS OFF CACHE BOOL "" FORCE)
-set(ALSOFT_UPDATE_BUILD_VERSION OFF CACHE BOOL "" FORCE)
-set(ALSOFT_DLOPEN OFF CACHE BOOL "" FORCE)
-set(ALSOFT_BACKEND_DSOUND OFF CACHE BOOL "" FORCE)
-add_subdirectory(libs/openal)
+set(IMGUI_SOURCES
+    ${IMGUI_DIR}/imgui.cpp
+    ${IMGUI_DIR}/imgui_draw.cpp
+    ${IMGUI_DIR}/imgui_tables.cpp
+    ${IMGUI_DIR}/imgui_widgets.cpp
+    ${IMGUI_DIR}/backends/imgui_impl_glfw.cpp
+    ${IMGUI_DIR}/backends/imgui_impl_opengl3.cpp
+    ${IMGUI_DIR}/misc/freetype/imgui_freetype.cpp
+    ${IMGUI_DIR}/texteditor/TextEditor.cpp
+    ${IMGUI_DIR}/crude_json.cpp
+)
+
+set(ENGINE_SOURCES
+    ${CMAKE_SOURCE_DIR}/src/main.cpp
+    ${CMAKE_SOURCE_DIR}/src/hub.cpp
+    ${CMAKE_SOURCE_DIR}/src/editor.cpp
+    ${GLAD_DIR}/glad.c
+    ${CMAKE_SOURCE_DIR}/core/graphics/gl.cpp
+    ${CMAKE_SOURCE_DIR}/core/graphics/quad.cpp
+    ${CMAKE_SOURCE_DIR}/core/subject/text2D.cpp
+    ${CMAKE_SOURCE_DIR}/core/engine/luaEngine.cpp
+    ${CMAKE_SOURCE_DIR}/core/engine/managers.cpp
+    ${CMAKE_SOURCE_DIR}/core/graphics/animatedTexture2D.cpp
+    ${CMAKE_SOURCE_DIR}/core/graphics/spriteBatch2D.cpp
+    ${CMAKE_SOURCE_DIR}/core/physics/body.cpp
+    ${CMAKE_SOURCE_DIR}/core/physics/collision.cpp
+    ${CMAKE_SOURCE_DIR}/core/physics/world.cpp
+    ${CMAKE_SOURCE_DIR}/core/subject/sprite/animatedSprite2D.cpp
+    ${CMAKE_SOURCE_DIR}/core/subject/sprite/animationWheel.cpp
+    ${CMAKE_SOURCE_DIR}/core/subject/sprite/generalSprite.cpp
+    ${CMAKE_SOURCE_DIR}/core/subject/sprite/staticSprite2D.cpp
+    ${CMAKE_SOURCE_DIR}/core/subject/camera2D.cpp
+    ${CMAKE_SOURCE_DIR}/core/subject/particle2D.cpp
+    ${CMAKE_SOURCE_DIR}/core/subject/tileset2D.cpp
+    ${CMAKE_SOURCE_DIR}/core/subject/light2D.cpp
+    ${CMAKE_SOURCE_DIR}/core/utils/net/client.cpp
+    ${CMAKE_SOURCE_DIR}/core/utils/net/server.cpp
+    ${CMAKE_SOURCE_DIR}/core/utils/dr_mp3.cpp
+    ${CMAKE_SOURCE_DIR}/core/utils/input.cpp
+    ${CMAKE_SOURCE_DIR}/core/scene.cpp
+    ${CMAKE_SOURCE_DIR}/src/stb_image_impl.cpp
+)
+
+add_subdirectory(${LIBS_DIR}/glfw glfw_build)
+add_subdirectory(${LIBS_DIR}/freetype freetype_build)
+add_subdirectory(${LIBS_DIR}/lua lua_build)
+
+set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
+add_subdirectory(${LIBS_DIR}/openal openal_build)
 
 if(TARGET OpenAL)
     target_compile_options(OpenAL PRIVATE -w)
-endif()
-
-set(BLAZEBOLT_SOURCES
-    src/game.cpp
-    src/stb_image_impl.cpp
-    core/engine/luaEngine.cpp
-    core/engine/managers.cpp
-    core/graphics/animatedTexture2D.cpp
-    core/graphics/gl.cpp
-    core/graphics/quad.cpp
-    core/graphics/spriteBatch2D.cpp
-    core/physics/body.cpp
-    core/physics/collision.cpp
-    core/physics/world.cpp
-    core/subject/sprite/animatedSprite2D.cpp
-    core/subject/sprite/animationWheel.cpp
-    core/subject/sprite/generalSprite.cpp
-    core/subject/sprite/staticSprite2D.cpp
-    core/subject/camera2D.cpp
-    core/subject/particle2D.cpp
-    core/subject/tileset2D.cpp
-    core/subject/light2D.cpp
-    core/subject/text2D.cpp
-    core/utils/net/client.cpp
-    core/utils/net/server.cpp
-    core/utils/dr_mp3.cpp
-    core/utils/input.cpp
-    core/scene.cpp
-    core/sceneFormat.hpp
-)
-
-set(BLAZEBOLT_INCLUDES
-    core
-    libs/headeronly/include
-    libs/glfw/include
-    libs/glad/include
-    libs/freetype/include
-    libs/openal/include
-)
-
-set(BLAZEBOLT_LIBS
-    glfw
-    glad
-    freetype
-    lua_static
-    OpenAL
-)
-
-add_library(BlazeBoltLib STATIC ${BLAZEBOLT_SOURCES})
-target_include_directories(BlazeBoltLib PRIVATE ${BLAZEBOLT_INCLUDES})
-target_link_libraries(BlazeBoltLib PRIVATE ${BLAZEBOLT_LIBS})
-if(WIN32)
-    target_link_libraries(BlazeBoltLib PRIVATE ws2_32)
 endif()
 
 find_package(Python3 QUIET COMPONENTS Interpreter)
@@ -105,42 +87,96 @@ if(WIN32)
                 "from PIL import Image; img=Image.open('${CMAKE_SOURCE_DIR}/assets/icon.png'); img.save('${CMAKE_SOURCE_DIR}/assets/icon.ico', format='ICO', sizes=[(16,16),(32,32),(48,48),(64,64),(256,256)])"
             COMMENT "Generating icon.ico from icon.png"
         )
+        add_custom_target(BlazeBoltIcon DEPENDS "${CMAKE_SOURCE_DIR}/assets/icon.ico")
+    else()
+        add_custom_target(BlazeBoltIcon
+            COMMAND ${CMAKE_COMMAND} -E echo "Warning: Python3+PIL not found, creating placeholder icon.ico"
+            COMMAND ${CMAKE_COMMAND} -E env PSModulePath= powershell -NoProfile -Command "[System.IO.File]::WriteAllBytes('${CMAKE_SOURCE_DIR}/assets/icon.ico', [byte[]]@(0,0,1,0,1,0, 0,0,0,0,0,0,1,0,32,0,44,0,0,0,22,0,0,0, 40,0,0,0,1,0,0,0,2,0,0,0,1,0,32,0, 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, 0,0,0,0))"
+            BYPRODUCTS "${CMAKE_SOURCE_DIR}/assets/icon.ico"
+        )
     endif()
 else()
     set(BLAZEBOLT_RC "")
 endif()
 
-add_executable(BlazeBolt ${BLAZEBOLT_SOURCES} ${BLAZEBOLT_RC})
-target_include_directories(BlazeBolt PRIVATE ${BLAZEBOLT_INCLUDES})
-target_link_libraries(BlazeBolt PRIVATE ${BLAZEBOLT_LIBS})
-if(WIN32)
-    target_link_libraries(BlazeBolt PRIVATE ws2_32)
-endif()
-    if(MINGW OR (CMAKE_CXX_COMPILER_ID STREQUAL "GNU"))
-        target_link_options(BlazeBolt PRIVATE -Wl,--gc-sections)
-    endif()
-add_custom_command(TARGET BlazeBolt POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_directory
-        ${CMAKE_SOURCE_DIR}/assets/ $<TARGET_FILE_DIR:BlazeBolt>
+add_executable(${PROJECT_NAME} ${ENGINE_SOURCES} ${IMGUI_SOURCES} ${BLAZEBOLT_RC})
+
+target_include_directories(${PROJECT_NAME} PRIVATE
+    ${LIBS_DIR}/glfw/include
+    ${LIBS_DIR}/freetype/include
+    ${LIBS_DIR}/headeronly/include
+    ${LIBS_DIR}/lua/lua-5.4.7/include
+    ${LIBS_DIR}/openal/include
+    ${CMAKE_SOURCE_DIR}/include
+    ${IMGUI_DIR}
+    ${IMGUI_DIR}/backends
+    ${IMGUI_DIR}/misc/freetype
+    ${IMGUI_DIR}/texteditor
+    ${GLAD_DIR}
+    ${CMAKE_SOURCE_DIR}/core
 )
 
 if(WIN32)
-    add_executable(BlazeBoltWin ${BLAZEBOLT_SOURCES} ${BLAZEBOLT_RC})
-    set_target_properties(BlazeBoltWin PROPERTIES WIN32_EXECUTABLE TRUE)
-    target_include_directories(BlazeBoltWin PRIVATE ${BLAZEBOLT_INCLUDES})
-    target_link_libraries(BlazeBoltWin PRIVATE ${BLAZEBOLT_LIBS})
-    target_link_libraries(BlazeBoltWin PRIVATE ws2_32)
-        if(MINGW OR (CMAKE_CXX_COMPILER_ID STREQUAL "GNU"))
-            target_link_options(BlazeBoltWin PRIVATE -Wl,--gc-sections)
-        endif()
-    add_custom_command(TARGET BlazeBoltWin POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_directory
-            ${CMAKE_SOURCE_DIR}/assets/ $<TARGET_FILE_DIR:BlazeBoltWin>
+    target_link_libraries(${PROJECT_NAME} PRIVATE
+        glfw freetype lua_static OpenAL
+        opengl32 gdi32 user32 kernel32 shell32 winmm dwmapi ws2_32
+    )
+
+    target_compile_definitions(${PROJECT_NAME} PRIVATE
+        PLATFORM_WINDOWS
+        IMGUI_IMPL_OPENGL_LOADER_GLAD
+        GLFW_INCLUDE_NONE
+    )
+
+    set_target_properties(${PROJECT_NAME} PROPERTIES
+        WIN32_EXECUTABLE TRUE
+    )
+
+    add_dependencies(${PROJECT_NAME} BlazeBoltIcon)
+else()
+    find_package(OpenGL REQUIRED)
+    find_package(X11 REQUIRED)
+
+    target_link_libraries(${PROJECT_NAME} PRIVATE
+        glfw freetype lua_static OpenAL
+        OpenGL::GL ${X11_LIBRARIES} dl pthread m
+    )
+
+    target_compile_definitions(${PROJECT_NAME} PRIVATE
+        PLATFORM_LINUX
+        IMGUI_IMPL_OPENGL_LOADER_GLAD
+        GLFW_INCLUDE_NONE
+    )
+endif()
+
+target_compile_definitions(${PROJECT_NAME} PRIVATE
+    IMGUI_FREETYPE_HARFBUZ=0
+    IMGUI_DISABLE_DEMO_WINDOWS
+)
+
+set_target_properties(${PROJECT_NAME} PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/bin
+)
+
+add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        ${CMAKE_SOURCE_DIR}/arial.ttf $<TARGET_FILE_DIR:${PROJECT_NAME}>/arial.ttf
+)
+
+add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+        ${CMAKE_SOURCE_DIR}/assets $<TARGET_FILE_DIR:${PROJECT_NAME}>
+)
+
+if(EXISTS "${CMAKE_SOURCE_DIR}/hub/void.zip")
+    add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            ${CMAKE_SOURCE_DIR}/void.zip $<TARGET_FILE_DIR:${PROJECT_NAME}>/void.zip
     )
 endif()
 
 if(UNIX AND NOT APPLE)
-    install(TARGETS BlazeBolt RUNTIME DESTINATION bin)
+    install(TARGETS ${PROJECT_NAME} RUNTIME DESTINATION bin)
     install(FILES "${CMAKE_SOURCE_DIR}/BlazeBolt.desktop"
         DESTINATION share/applications)
     install(FILES "${CMAKE_SOURCE_DIR}/assets/icon.png"
