@@ -1,9 +1,13 @@
 #include "editor.hpp"
+#include "hub.hpp"
 #include <stb_image/stb_image.h>
 #include <stb_image/stb_image_write.h>
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 #include <graphics/window.h>
+#include <graphics/renderer/RenderAPI.h>
+#include <graphics/vk/VkRenderDevice.h>
+#include <graphics/gl/GLRenderDevice.h>
 #include <algorithm>
 #include <fstream>
 #include <sstream>
@@ -688,6 +692,14 @@ void Editor::SaveTheme() {
     f << m_current_theme;
 }
 
+RenderAPI Editor::ParseAPIfromProject(const std::string& projectPath) {
+    return Hub::ParseAPIfromProject(projectPath);
+}
+
+void Editor::SaveAPItoProject(const std::string& projectPath, RenderAPI api) {
+    Hub::SaveAPItoProject(projectPath, api);
+}
+
 static float s_game_time = 0.0f;
 static float s_game_dt = 0.016f;
 static auto s_game_last_time = std::chrono::steady_clock::now();
@@ -743,6 +755,39 @@ void Editor::Render() {
     RenderGameViewportWindow();
     RenderDebugConsoleWindow();
     RenderPixelPaintWindow();
+
+    if (m_show_project_settings) {
+        ImGui::OpenPopup("Project Settings");
+        ImVec2 center = ImGui::GetMainViewport()->GetCenter();
+        ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
+    }
+    if (ImGui::BeginPopupModal("Project Settings", &m_show_project_settings, ImGuiWindowFlags_AlwaysAutoResize)) {
+        ImGui::Text("Render API:");
+        RenderAPI newAPI = m_currentAPI;
+        const char* apis[] = { "OpenGL", "Vulkan" };
+        int currentAPI = (int)newAPI;
+        ImGui::SetNextItemWidth(120.0f);
+        if (ImGui::BeginCombo("##ProjectAPI", apis[currentAPI])) {
+            for (int i = 0; i < 2; i++) {
+                if (ImGui::Selectable(apis[i], currentAPI == i)) {
+                    newAPI = (RenderAPI)i;
+                }
+            }
+            ImGui::EndCombo();
+        }
+        if (newAPI != m_currentAPI) {
+            m_currentAPI = newAPI;
+            SaveAPItoProject(m_project_path.string(), m_currentAPI);
+            AddConsoleLog("[Editor] Render API changed to %s", IM_COL32(100, 200, 255, 255), renderAPIToString(m_currentAPI));
+        }
+        ImGui::Text("API takes effect when game starts (Play).");
+        ImGui::Separator();
+        if (ImGui::Button("Close", ImVec2(120, 0))) {
+            m_show_project_settings = false;
+            ImGui::CloseCurrentPopup();
+        }
+        ImGui::EndPopup();
+    }
 }
 
 void Editor::RenderDockSpace() {
@@ -785,6 +830,8 @@ void Editor::RenderMenuBar() {
         ImGui::Separator();
         if (ImGui::MenuItem("Close Tab", "Ctrl+W", false, m_active_tab >= 0)) CloseTab(m_active_tab);
         if (ImGui::MenuItem("Back to Hub")) m_return_to_hub = true;
+        ImGui::Separator();
+        if (ImGui::MenuItem("Project Settings")) m_show_project_settings = true;
         ImGui::EndMenu();
     }
     if (ImGui::BeginMenu("View")) {
@@ -2769,10 +2816,34 @@ void Editor::StartGame() {
         m_editor_window = glfwGetCurrentContext();
     }
 
+    m_currentAPI = ParseAPIfromProject(m_project_path.string());
+    m_currentAPIStr = renderAPIToString(m_currentAPI);
+    AddConsoleLog("[Editor] Using graphics API: %s", IM_COL32(100, 200, 255, 255), m_currentAPIStr.c_str());
+
     Input::getInstance().init(m_editor_window);
 
     m_game_window = new Window(m_editor_window, gameW, gameH);
 
+    // Create render device based on project API setting
+    if (m_currentAPI == RenderAPI::Vulkan) {
+        try {
+            m_gameDevice = new VkRenderDevice(gameW, gameH, m_editor_window);
+            AddConsoleLog("[Editor] Vulkan render device created", IM_COL32(100, 200, 255, 255));
+        } catch (const std::exception& e) {
+            AddConsoleLog("[Editor] Vulkan init failed: %s - falling back to OpenGL", IM_COL32(255, 100, 100, 255), e.what());
+            delete m_game_window;
+            m_game_window = nullptr;
+            m_currentAPI = RenderAPI::OpenGL;
+            m_currentAPIStr = "opengl";
+            m_gameDevice = new GLRenderDevice(gameW, gameH, []() { glfwSwapBuffers(glfwGetCurrentContext()); });
+            AddConsoleLog("[Editor] OpenGL render device created (fallback)", IM_COL32(200, 200, 100, 255));
+        }
+    } else {
+        m_gameDevice = new GLRenderDevice(gameW, gameH, []() { glfwSwapBuffers(glfwGetCurrentContext()); });
+        AddConsoleLog("[Editor] OpenGL render device created", IM_COL32(100, 200, 255, 255));
+    }
+
+    // Always create GL FBO for editor viewport rendering
     glGenFramebuffers(1, &m_game_fbo);
     glGenTextures(1, &m_game_texture);
     AddConsoleLog("[Editor] StartGame: tex=%u fbo=%u", IM_COL32(200, 200, 210, 255), m_game_texture, m_game_fbo);
@@ -2792,7 +2863,8 @@ void Editor::StartGame() {
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     m_game_window->setClearColor(0.5803921f, 0.5803921f, 0.5803921f, 1.0f);
 
-    m_game_engine = new LuaEngine::LuaEngine(*m_game_window);
+    m_game_engine = new LuaEngine::LuaEngine(*m_game_window, m_gameDevice);
+    m_game_engine->setCurrentAPI(m_currentAPIStr);
     if (!m_game_engine->isInitialized()) {
         AddConsoleLog("[Editor] Failed to initialize Lua engine", IM_COL32(255, 100, 100, 255));
         delete m_game_engine;
@@ -2801,6 +2873,8 @@ void Editor::StartGame() {
         glDeleteTextures(1, &m_game_texture);
         m_game_fbo = 0;
         m_game_texture = 0;
+        delete m_gameDevice;
+        m_gameDevice = nullptr;
         m_game_window->release();
         delete m_game_window;
         m_game_window = nullptr;
@@ -2834,6 +2908,11 @@ void Editor::StopGame() {
         m_game_engine->callEnd();
         delete m_game_engine;
         m_game_engine = nullptr;
+    }
+
+    if (m_gameDevice) {
+        delete m_gameDevice;
+        m_gameDevice = nullptr;
     }
 
     if (m_game_fbo) {

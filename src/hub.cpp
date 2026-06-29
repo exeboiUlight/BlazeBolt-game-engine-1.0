@@ -6,6 +6,7 @@
 #include <fstream>
 #include <sstream>
 #include <algorithm>
+#include <graphics/renderer/RenderAPI.h>
 
 #ifdef PLATFORM_WINDOWS
 #include <windows.h>
@@ -111,6 +112,7 @@ void Hub::LoadProjects() {
         Project proj;
         proj.name = line.substr(0, sep);
         proj.path = line.substr(sep + 1);
+        proj.api = Hub::ParseAPIfromProject(proj.path);
         if (fs::exists(proj.path)) {
             LoadIcon(proj);
             m_projects.push_back(proj);
@@ -157,9 +159,12 @@ void Hub::CreateProject(const std::string& name, const std::string& path, Projec
         }
     }
 
+    Hub::SaveAPItoProject(project_dir.string(), m_currentAPI);
+
     Project proj;
     proj.name = name;
     proj.path = project_dir.string();
+    proj.api = m_currentAPI;
     LoadIcon(proj);
     m_projects.push_back(proj);
     SaveProjects();
@@ -226,6 +231,48 @@ void Hub::LoadTheme() {
 void Hub::SaveTheme() {
     std::ofstream f(m_engine_root / "theme.txt", std::ios::trunc);
     f << m_current_theme;
+}
+
+RenderAPI Hub::ParseAPIfromProject(const std::string& projectPath) {
+    fs::path apiFile = fs::path(projectPath) / "engine" / ".BlazeBoltProject";
+    std::ifstream f(apiFile);
+    if (f.is_open()) {
+        std::string line;
+        while (std::getline(f, line)) {
+            if (line.find("render_api=") == 0) {
+                return renderAPIFromString(line.substr(11));
+            }
+        }
+    }
+    return RenderAPI::OpenGL;
+}
+
+void Hub::SaveAPItoProject(const std::string& projectPath, RenderAPI api) {
+    fs::path apiFile = fs::path(projectPath) / "engine" / ".BlazeBoltProject";
+    std::string apiStr = renderAPIToString(api);
+
+    std::vector<std::string> lines;
+    std::ifstream in(apiFile);
+    bool found = false;
+    if (in.is_open()) {
+        std::string line;
+        while (std::getline(in, line)) {
+            if (line.find("render_api=") == 0) {
+                lines.push_back("render_api=" + apiStr);
+                found = true;
+            } else {
+                lines.push_back(line);
+            }
+        }
+    }
+    if (!found) {
+        lines.push_back("render_api=" + apiStr);
+    }
+
+    std::ofstream out(apiFile, std::ios::trunc);
+    for (size_t i = 0; i < lines.size(); i++) {
+        out << lines[i] << (i + 1 < lines.size() ? "\n" : "");
+    }
 }
 
 void Hub::ApplyTheme(int idx) {
@@ -441,12 +488,14 @@ void Hub::Render() {
 
         if (ImGui::IsWindowHovered() && ImGui::IsMouseClicked(0)) {
             m_selected_path = proj.path;
+            Hub::SaveAPItoProject(proj.path, m_currentAPI);
             m_open_editor = true;
         }
 
         if (ImGui::BeginPopupContextItem(("ProjectContextMenu_" + std::to_string(i)).c_str())) {
             if (ImGui::MenuItem("Open")) {
                 m_selected_path = proj.path;
+                Hub::SaveAPItoProject(proj.path, m_currentAPI);
                 m_open_editor = true;
             }
             if (ImGui::MenuItem("Show in Explorer")) {
@@ -542,11 +591,26 @@ void Hub::Render() {
                 SaveProjects();
             }
             m_selected_path = folder;
+            Hub::SaveAPItoProject(folder, m_currentAPI);
             m_open_editor = true;
         }
     }
 
     ImGui::PopStyleVar(2);
+
+    ImGui::SameLine(0, 10.0f);
+    const char* apis[] = { "OpenGL", "Vulkan" };
+    int currentAPI = (int)m_currentAPI;
+    ImGui::SetNextItemWidth(100.0f);
+    if (ImGui::BeginCombo("##API", apis[currentAPI])) {
+        for (int i = 0; i < 2; i++) {
+            if (ImGui::Selectable(apis[i], currentAPI == i)) {
+                m_currentAPI = (RenderAPI)i;
+            }
+        }
+        ImGui::EndCombo();
+    }
+    if (ImGui::IsItemHovered()) ImGui::SetTooltip("Render API for new projects");
 
     ImGui::SameLine(0, 40.0f);
     const char* themes[] = { "Dark", "Light", "Classic", "Cyberpunk", "Dracula" };

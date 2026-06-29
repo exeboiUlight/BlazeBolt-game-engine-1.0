@@ -1,6 +1,8 @@
 #pragma once
 #include <vector>
 #include <cstdint>
+#include <graphics/renderer/Texture.h>
+#include <graphics/renderer/RenderContext.h>
 #include <graphics/spriteBatch2D.hpp>
 #include <subject/sprite/staticSprite2D.hpp>
 #include <world.h>
@@ -14,6 +16,7 @@ namespace BlazeBolt {
         std::vector<std::vector<int>> map;
         std::vector<Entity> tileEntities;
         SpriteBatch2D batch;
+        const GL::Texture2D* currentGlAtlas;
 
         void clearTiles(World<Sprite2D>& spriteWorld);
         void rebuildTiles(World<Sprite2D>& spriteWorld, const GL::Texture2D& atlas);
@@ -23,8 +26,10 @@ namespace BlazeBolt {
         ~Tileset2D() = default;
 
         void setMap(const std::vector<std::vector<int>>& newMap, World<Sprite2D>& spriteWorld, const GL::Texture2D& atlas);
+        void setMap(const std::vector<std::vector<int>>& newMap, World<Sprite2D>& spriteWorld, ITexture* atlas);
         int getTile(uint32_t col, uint32_t row) const;
         void setTile(uint32_t col, uint32_t row, int tileIndex, World<Sprite2D>& spriteWorld, const GL::Texture2D& atlas);
+        void setTile(uint32_t col, uint32_t row, int tileIndex, World<Sprite2D>& spriteWorld, ITexture* atlas);
 
         void setTileSize(uint32_t w, uint32_t h);
         void getTileSize(uint32_t& w, uint32_t& h) const;
@@ -41,5 +46,6 @@ namespace BlazeBolt {
 
         void rebuild(World<Sprite2D>& spriteWorld);
         void draw(const GL::Texture2D& defaultTexture);
+        void draw(IRenderContext* context, ITexture* defaultTexture);
     };
 }

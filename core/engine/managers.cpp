@@ -1,4 +1,5 @@
 #include "managers.hpp"
+#include <graphics/gl/GLTexture.h>
 #include <stb_image/stb_image.h>
 #include <fstream>
 #include <vector>
@@ -88,27 +89,53 @@ namespace {
 }
 
 namespace BlazeBolt {
-    TextureManager::TextureManager() : cache(), animatedCache(), default2D() {
+    TextureManager::TextureManager() : cache(), animatedCache(), defaultGL2D(), defaultRHI2D(nullptr), device(nullptr) {
+        printf("TextureManager initialized (no device)\n");
+    }
+    TextureManager::TextureManager(IRenderDevice* renderDevice)
+        : cache(), animatedCache(), defaultGL2D(), defaultRHI2D(nullptr), device(renderDevice) {
         printf("TextureManager initialized\n");
-        this->default2D.bind();
-        unsigned char whitePixel[] = { 255, 255, 255, 255 };
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 1, 1, 0, GL_RGBA, GL_UNSIGNED_BYTE, whitePixel);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+        if (device) {
+            TextureDesc desc = { 1, 1, TextureFormat::RGBA8 };
+            defaultRHI2D = device->createTexture(desc);
+            unsigned char whitePixel[] = { 255, 255, 255, 255 };
+            defaultRHI2D->upload(whitePixel);
+        }
     }
-    GL::Texture2D &TextureManager::create2D(const std::string &path) {
-        const auto [it, inserted] = this->cache.try_emplace(path);
-        if (!inserted) { return it->second; }
-        return it->second;
+    TextureManager::~TextureManager() {
+        for (auto& [path, tex] : cache) {
+            if (device && tex) device->destroyTexture(tex);
+        }
+        if (device && defaultRHI2D) device->destroyTexture(defaultRHI2D);
     }
-    const GL::Texture2D &TextureManager::getDefault2D() const {
-        return this->default2D;
+    void TextureManager::setDevice(IRenderDevice* renderDevice) {
+        this->device = renderDevice;
+        if (device && !defaultRHI2D) {
+            TextureDesc desc = { 1, 1, TextureFormat::RGBA8 };
+            defaultRHI2D = device->createTexture(desc);
+            unsigned char whitePixel[] = { 255, 255, 255, 255 };
+            defaultRHI2D->upload(whitePixel);
+        }
     }
-    GL::Texture2D *TextureManager::loadFromFile2D(const std::string &path) {
-        const std::unordered_map<std::string, GL::Texture2D>::iterator it = this->cache.find(path);
-        if (it != this->cache.end()) { return &it->second; }
+    ITexture* TextureManager::create2D(const std::string &path) {
+        if (!device) return nullptr;
+        auto it = this->cache.find(path);
+        if (it != this->cache.end()) { return it->second; }
+        TextureDesc desc = { 1, 1, TextureFormat::RGBA8 };
+        ITexture* tex = device->createTexture(desc);
+        this->cache[path] = tex;
+        return tex;
+    }
+    const GL::Texture2D& TextureManager::getDefault2D() const {
+        return this->defaultGL2D;
+    }
+    ITexture* TextureManager::getDefaultRHI() const {
+        return this->defaultRHI2D;
+    }
+    ITexture* TextureManager::loadFromFile2D(const std::string &path) {
+        if (!device) return nullptr;
+        auto it = this->cache.find(path);
+        if (it != this->cache.end()) { return it->second; }
 
         stbi_set_flip_vertically_on_load(false);
 
@@ -119,15 +146,15 @@ namespace BlazeBolt {
             return nullptr;
         }
 
-        GLenum format, internalFormat;
+        TextureFormat format;
         if (channels == STBI_grey) {
-            format = internalFormat = GL_RED;
+            format = TextureFormat::R8;
             printf("Loaded texture (grayscale): %s (%dx%d)\n", path.c_str(), width, height);
         } else if (channels == STBI_rgb) {
-            format = internalFormat = GL_RGB;
+            format = TextureFormat::RGB8;
             printf("Loaded texture (RGB): %s (%dx%d)\n", path.c_str(), width, height);
         } else if (channels == STBI_rgb_alpha) {
-            format = internalFormat = GL_RGBA;
+            format = TextureFormat::RGBA8;
             printf("Loaded texture (RGBA): %s (%dx%d)\n", path.c_str(), width, height);
         } else {
             printf("Failed to load texture. It has unknown channels (%d): %s (%dx%d)\n", channels, path.c_str(), width, height);
@@ -135,22 +162,44 @@ namespace BlazeBolt {
             return nullptr;
         }
 
-        GL::Texture2D &texture = this->cache.try_emplace(path).first->second;
-        texture.bind();
-        // TODO: Add controls for wrapping and filtering to the luaEngine, so the user could specify them when loading textures.
-        glTexImage2D(GL_TEXTURE_2D, 0, internalFormat, width, height, 0, format, GL_UNSIGNED_BYTE, data);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        TextureDesc desc = { static_cast<uint32_t>(width), static_cast<uint32_t>(height), format };
+        ITexture* tex = device->createTexture(desc);
+        tex->upload(data);
+        stbi_image_free(data);
+
+        this->cache[path] = tex;
+        return tex;
+    }
+    const GL::Texture2D* TextureManager::loadGLTexture(const std::string &path) {
+        auto it = this->glCache.find(path);
+        if (it != this->glCache.end()) { return &it->second; }
+
+        stbi_set_flip_vertically_on_load(false);
+
+        int width, height, channels;
+        unsigned char *data = stbi_load(path.c_str(), &width, &height, &channels, 0);
+        if (data == nullptr) {
+            printf("Failed to load texture: %s\n", path.c_str());
+            return nullptr;
+        }
+
+        GLenum fmt = (channels == STBI_rgb_alpha) ? GL_RGBA : (channels == STBI_rgb) ? GL_RGB : GL_RED;
+
+        GL::Texture2D tex;
+        tex.bind();
+        glTexImage2D(GL_TEXTURE_2D, 0, static_cast<GLint>(fmt), width, height, 0, fmt, GL_UNSIGNED_BYTE, data);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
         stbi_image_free(data);
 
-        return &texture;
+        auto result = this->glCache.emplace(path, std::move(tex));
+        return &result.first->second;
     }
-    GL::Texture2D *TextureManager::findTexture2D(const std::string &path) {
-        std::unordered_map<std::string, GL::Texture2D>::iterator it = this->cache.find(path);
+
+    ITexture* TextureManager::findTexture2D(const std::string &path) {
+        auto it = this->cache.find(path);
         if (it != this->cache.end()) {
-            return &it->second;
+            return it->second;
         }
         return nullptr;
     }
@@ -211,14 +260,11 @@ namespace BlazeBolt {
             }
         }
 
-        AnimatedTexture2D &texture = this->animatedCache.try_emplace(path, GL::Texture2D(), numFrames).first->second;
-        texture.getGL().bind();
-        // TODO: Add controls for wrapping and filtering to the luaEngine, so the user could specify them when loading textures.
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, static_cast<GLsizei>(atlasWidth), static_cast<GLsizei>(atlasHeight), 0, GL_RGBA, GL_UNSIGNED_BYTE, atlasPixels.data());
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+        if (!device) return nullptr;
+        TextureDesc atlasDesc = { atlasWidth, atlasHeight, TextureFormat::RGBA8 };
+        ITexture* atlasTex = device->createTexture(atlasDesc);
+        atlasTex->upload(atlasPixels.data());
+        AnimatedTexture2D &texture = this->animatedCache.try_emplace(path, atlasTex, numFrames).first->second;
         return &texture;
     }
     AnimatedTexture2D *TextureManager::findAnimated2D(const std::string &path) {

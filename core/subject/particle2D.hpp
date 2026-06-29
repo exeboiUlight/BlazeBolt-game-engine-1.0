@@ -1,6 +1,11 @@
 #pragma once
 #include <vector>
 #include <graphics/gl.hpp>
+#include <graphics/renderer/Texture.h>
+#include <graphics/renderer/Buffer.h>
+#include <graphics/renderer/Pipeline.h>
+#include <graphics/renderer/RenderContext.h>
+#include <graphics/renderer/RenderDevice.h>
 #include <graphics/quad.hpp>
 #include <utils/math/vector.h>
 
@@ -20,12 +25,18 @@ public:
     };
 
     ParticleSystem2D();
-    ~ParticleSystem2D() = default;
+    ~ParticleSystem2D();
+
+    void init(IRenderDevice* device);
 
     void setPosition(const Vector2& pos);
     const Vector2& getPosition() const;
 
     void setTexture(const GL::Texture2D& tex);
+    void setTexture(ITexture* tex);
+
+    void setPipeline(IPipeline* p);
+    IPipeline* getPipeline() const;
 
     void setEmissionRate(float rate);
     float getEmissionRate() const;
@@ -49,6 +60,7 @@ public:
 
     void update(float dt);
     void draw(const GL::Texture2D& defaultTexture, const BlazeBolt::QuadVertexBufferObject2D& quadVBO, float aspectRatio, const Matrix3x3& projectionViewMatrix);
+    void draw(IRenderContext* context, ITexture* defaultTexture, float aspectRatio, const Matrix3x3& projectionViewMatrix);
 
     int getParticleCount() const;
 
@@ -61,8 +73,15 @@ private:
     bool shaderReady;
     bool vaoReady;
 
+    IRenderDevice* device;
+    IBuffer* rhiInstanceVBO;
+    IBuffer* rhiQuadVBO;
+    IPipeline* rhiPipeline;
+    bool rhiReady;
+
     Vector2 position;
     const GL::Texture2D* texture;
+    ITexture* rhiTexture;
 
     float emissionRate;
     float emissionAccumulator;
@@ -82,4 +101,5 @@ private:
     void spawnParticle();
     void ensureShader();
     void ensureVAO(const BlazeBolt::QuadVertexBufferObject2D& quadVBO);
+    void ensureRHIResources();
 };

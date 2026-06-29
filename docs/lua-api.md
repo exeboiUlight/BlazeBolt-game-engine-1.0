@@ -1,6 +1,6 @@
 # BlazeBolt Engine — Lua API Reference
 
-> **Version:** 1.2  
+> **Version:** 1.3  
 > **Lua version:** 5.4  
 > **Engine:** BlazeBolt Game Engine
 
@@ -33,12 +33,14 @@
 23. [Сетевые функции (Networking)](#сетевые-функции-networking)
 24. [Порядок рендера (Render Order)](#порядок-рендера-render-order)
 25. [Константы (Constants)](#константы-constants)
+26. [Управление графическим API (Graphics API)](#управление-графическим-api-graphics-api)
+27. [OOP-стиль (Object-Oriented Wrappers)](#oop-стиль-object-oriented-wrappers)
 
 ---
 
 ## Обзор
 
-**BlazeBolt Engine** — это лёгкий 2D-игровой движок с Lua 5.4 скриптингом. Он работает на OpenGL 3.3 для рендеринга, Box2D для физики, OpenAL для звука и поддерживает сетевые функции (TCP/UDP) и процедурную генерацию шумов.
+**BlazeBolt Engine** — это лёгкий 2D-игровой движок с Lua 5.4 скриптингом. Он поддерживает **OpenGL 3.3** и **Vulkan** для рендеринга (через RHI-прослойку), Box2D для физики, OpenAL для звука и поддерживает сетевые функции (TCP/UDP) и процедурную генерацию шумов.
 
 ### Как устроен API
 
@@ -72,6 +74,18 @@ local player = BlazeBolt.CreateSprite("hero.png", 100, 100)  -- создаём, 
 BlazeBolt.SpriteSetPosition(player, 200, 300)                -- используем ID
 BlazeBolt.SpriteSetRotation(player, 45)                      -- тот же ID
 ```
+
+### OOP-стиль (рекомендуемый)
+
+Начиная с версии 1.3, движок предоставляет **OOP-обёртки** для всех типов. Вместо передачи Entity ID через функцию, вы работаете с таблицами-объектами и вызываете методы через `:`:
+
+```lua
+local player = BlazeBolt.Sprite.new("hero.png", 100, 100)
+player:SetPosition(200, 300)
+player:SetRotation(45)
+```
+
+Подробнее — в разделе [OOP-стиль](#oop-стиль-object-oriented-wrappers).
 
 ### Жизненный цикл
 
@@ -6380,3 +6394,292 @@ end
 | `Keys.CAPS_LOCK` | Caps Lock |
 | `Keys.PLUS` | Плюс |
 | `Keys.MINUS` | Минус |
+
+---
+
+## Управление графическим API (Graphics API)
+
+Начиная с версии 1.3, BlazeBolt поддерживает переключение между OpenGL и Vulkan во время выполнения.
+
+### BlazeBolt.SetGraphicsAPI(api)
+
+Устанавливает предпочитаемый графический API.
+
+**Параметры:**
+| Имя | Тип | Описание |
+|---|---|---|
+| `api` | `string` | `"opengl"` или `"vulkan"` |
+
+**Пример:**
+```lua
+BlazeBolt.SetGraphicsAPI("vulkan")
+```
+
+### BlazeBolt.GetGraphicsAPI()
+
+Возвращает текущий выбранный API.
+
+**Возвращает:** `string` — `"opengl"` или `"vulkan"`
+
+**Пример:**
+```lua
+local current = BlazeBolt.GetGraphicsAPI()
+print("Current API: " .. current)
+```
+
+**Примечание:** выбор API сохраняется в файле `.BlazeBoltProject` и применяется при следующем запуске игры через редактор.
+
+---
+
+## OOP-стиль (Object-Oriented Wrappers)
+
+Начиная с версии 1.3, все типы объектов имеют **OOP-обёртки** с методами. Вместо:
+
+```lua
+local id = BlazeBolt.CreateSprite("tex.png", 0, 0)
+BlazeBolt.SpriteSetPosition(id, 100, 200)
+BlazeBolt.SpriteSetSize(id, 64, 64)
+```
+
+Вы можете писать:
+
+```lua
+local spr = BlazeBolt.Sprite.new("tex.png", 0, 0)
+spr:SetPosition(100, 200)
+spr:SetSize(64, 64)
+```
+
+Все обёртки являются лёгкими таблицами с метатаблицами. Они хранят внутри Entity ID (поле `.id`) и передают его в соответствующие C-функции при вызове методов.
+
+### BlazeBolt.Sprite
+
+| Метод | Описание |
+|---|---|
+| `Sprite.new(texturePath, x, y)` | Создать спрайт. Возвращает объект Sprite |
+| `:SetTexture(path)` | Установить текстуру |
+| `:SetPosition(x, y)` | Установить позицию |
+| `:GetPosition()` | Получить позицию (x, y) |
+| `:SetSize(w, h)` | Установить размер |
+| `:GetSize()` | Получить размер (w, h) |
+| `:SetOrigin(x, y)` | Установить точку опоры |
+| `:GetOrigin()` | Получить точку опоры (x, y) |
+| `:SetRotation(rot)` | Установить поворот (градусы) |
+| `:GetRotation()` | Получить поворот |
+| `:SetColor(r, g, b, a)` | Установить цвет (0..1) |
+| `:GetColor()` | Получить цвет (r, g, b, a) |
+| `:SetTextureRect(x, y, w, h)` | Установить область текстуры |
+| `:SetVisible(bool)` | Показать/скрыть |
+| `:IsVisible()` | Проверить видимость |
+| `:Destroy()` | Уничтожить объект |
+
+### BlazeBolt.AnimatedSprite
+
+| Метод | Описание |
+|---|---|
+| `AnimatedSprite.new(texturePath, x, y)` | Создать анимированный спрайт |
+| `:Play()` | Запустить анимацию |
+| `:IsPlaying()` | Проверить, проигрывается ли |
+| `:Pause()` | Поставить на паузу |
+| `:Stop()` | Остановить |
+| `:Restart()` | Перезапустить |
+| `:SetTexture(path)` | Установить текстуру |
+| `:SetLooping(bool)` | Зациклить анимацию |
+| `:IsLooping()` | Проверить зацикленность |
+| `:SetPlaybackSpeed(speed)` | Скорость воспроизведения |
+| `:GetPlaybackSpeed()` | Получить скорость |
+| `:SetFrame(frame)` | Установить кадр |
+| `:GetCurrentFrame()` | Текущий кадр |
+| `:GetNumFrames()` | Количество кадров |
+| `:SetPosition(x, y)` | Позиция |
+| `:GetPosition()` | Получить позицию |
+| `:SetSize(w, h)` | Размер |
+| `:GetSize()` | Получить размер |
+| `:SetOrigin(x, y)` | Точка опоры |
+| `:GetOrigin()` | Получить точку опоры |
+| `:SetRotation(rot)` | Поворот |
+| `:GetRotation()` | Получить поворот |
+| `:SetColor(r, g, b, a)` | Цвет |
+| `:GetColor()` | Получить цвет |
+| `:Destroy()` | Уничтожить |
+
+### BlazeBolt.Text
+
+| Метод | Описание |
+|---|---|
+| `Text.new(fontPath, text, x, y)` | Создать текст |
+| `:SetString(text)` | Установить содержимое |
+| `:GetString()` | Получить содержимое |
+| `:SetPosition(x, y)` | Позиция |
+| `:GetPosition()` | Получить позицию |
+| `:SetColor(r, g, b, a)` | Цвет |
+| `:GetColor()` | Получить цвет |
+| `:SetScale(sx, sy)` | Масштаб |
+| `:GetScale()` | Получить масштаб |
+| `:SetOrigin(x, y)` | Точка опоры |
+| `:GetOrigin()` | Получить точку опоры |
+| `:SetRotation(rot)` | Поворот |
+| `:GetRotation()` | Получить поворот |
+| `:SetAlignment(align)` | Выравнивание (`TextAlignment.LEFT`, `CENTER`, `RIGHT`) |
+| `:GetAlignment()` | Получить выравнивание |
+| `:SetVisible(bool)` | Видимость |
+| `:IsVisible()` | Проверить видимость |
+| `:Destroy()` | Уничтожить |
+
+### BlazeBolt.Camera
+
+| Метод | Описание |
+|---|---|
+| `Camera.new()` | Создать камеру |
+| `:SetPosition(x, y)` | Позиция |
+| `:GetPosition()` | Получить позицию |
+| `:SetZoom(zoom)` | Масштаб |
+| `:GetZoom()` | Получить масштаб |
+| `:SetRotation(rot)` | Поворот |
+| `:GetRotation()` | Получить поворот |
+
+### BlazeBolt.Tileset
+
+| Метод | Описание |
+|---|---|
+| `Tileset.new(texturePath, tileW, tileH, atlasCols, atlasRows)` | Создать тайлсет |
+| `:SetMap(map)` | Установить карту (таблица таблиц) |
+| `:GetTile(col, row)` | Получить индекс тайла |
+| `:SetTile(col, row, idx)` | Установить тайл |
+| `:SetTileSize(w, h)` | Размер тайла |
+| `:GetTileSize()` | Получить размер (w, h) |
+| `:SetPosition(x, y)` | Позиция |
+| `:GetPosition()` | Получить позицию |
+| `:GetMapWidth()` | Ширина карты |
+| `:GetMapHeight()` | Высота карты |
+| `:GetTileCount()` | Количество тайлов |
+| `:Draw()` | Принудительная отрисовка |
+| `:Destroy()` | Уничтожить |
+
+### BlazeBolt.ParticleSystem
+
+| Метод | Описание |
+|---|---|
+| `ParticleSystem.new()` | Создать систему частиц |
+| `:SetPosition(x, y)` | Позиция эмиттера |
+| `:SetTexture(path)` | Текстура частицы |
+| `:SetEmissionRate(rate)` | Скорость эмиссии |
+| `:GetEmissionRate()` | Получить скорость |
+| `:SetLifetime(min, max)` | Время жизни |
+| `:SetSpeed(min, max)` | Скорость |
+| `:SetSize(min, max)` | Размер |
+| `:SetEndSize(min, max)` | Конечный размер |
+| `:SetColor(r, g, b, a, [endR, endG, endB, endA])` | Цвет (стартовый и опционально конечный) |
+| `:SetDirection(minAngle, maxAngle)` | Направление (градусы) |
+| `:SetRotationSpeed(speed)` | Скорость вращения |
+| `:SetActive(bool)` | Вкл/Выкл |
+| `:IsActive()` | Проверить активность |
+| `:SetVisible(bool)` | Видимость |
+| `:IsVisible()` | Проверить видимость |
+| `:Emit(count)` | Эмитировать N частиц |
+| `:Clear()` | Очистить все частицы |
+| `:GetCount()` | Количество частиц |
+
+### BlazeBolt.Light
+
+| Метод | Описание |
+|---|---|
+| `Light.newPoint(x, y, r, g, b, intensity, radius)` | Создать точечный источник |
+| `Light.newAmbient(r, g, b, intensity)` | Создать фоновый свет |
+| `:SetPosition(x, y)` | Позиция |
+| `:GetPosition()` | Получить позицию |
+| `:SetColor(r, g, b)` | Цвет |
+| `:GetColor()` | Получить цвет |
+| `:SetIntensity(intensity)` | Интенсивность |
+| `:GetIntensity()` | Получить интенсивность |
+| `:SetRadius(radius)` | Радиус |
+| `:GetRadius()` | Получить радиус |
+| `:SetEnabled(bool)` | Вкл/Выкл |
+| `:GetEnabled()` | Получить состояние |
+| `:Destroy()` | Уничтожить |
+
+### BlazeBolt.Mesh
+
+| Метод | Описание |
+|---|---|
+| `Mesh.new()` | Создать меш |
+| `:SetData(vertices, indices)` | Установить вершины и индексы |
+| `:SetShader(vertexPath, fragmentPath)` | Шейдер |
+| `:SetUniformFloat(name, value)` | Uniform float |
+| `:SetUniformInt(name, value)` | Uniform int |
+| `:SetUniformVec2(name, x, y)` | Uniform vec2 |
+| `:SetUniformVec3(name, x, y, z)` | Uniform vec3 |
+| `:SetUniformVec4(name, x, y, z, w)` | Uniform vec4 |
+| `:Draw()` | Нарисовать |
+
+### BlazeBolt.SpriteBatch
+
+| Метод | Описание |
+|---|---|
+| `SpriteBatch.new(maxSize)` | Создать батч (maxSize — макс. спрайтов) |
+| `:SetTexture(path)` | Текстура батча |
+| `:Add(sprite)` | Добавить спрайт (объект или ID) |
+| `:Remove(sprite)` | Удалить спрайт |
+| `:Clear()` | Очистить |
+| `:SetMaxSize(n)` | Макс. размер |
+| `:GetMaxSize()` | Получить макс. размер |
+| `:GetCount()` | Количество спрайтов |
+| `:Draw()` | Нарисовать |
+| `:Destroy()` | Уничтожить |
+
+### BlazeBolt.AnimationWheel
+
+| Метод | Описание |
+|---|---|
+| `AnimationWheel.new(animatedSprite)` | Создать колесо состояний для анимированного спрайта |
+| `:AddState(name, gifPath, speed, loop)` | Добавить состояние |
+| `:RemoveState(name)` | Удалить состояние |
+| `:HasState(name)` | Проверить существование |
+| `:SetInitialState(name)` | Начальное состояние |
+| `:GetInitialState()` | Получить начальное состояние |
+| `:SetState(name)` | Переключить состояние |
+| `:GetState()` | Текущее состояние |
+| `:SetPlaybackSpeed(state, speed)` | Скорость для состояния |
+| `:GetPlaybackSpeed(state)` | Получить скорость |
+| `:SetLooping(state, loop)` | Зациклить состояние |
+| `:IsLooping(state)` | Проверить зацикленность |
+| `:Destroy()` | Уничтожить |
+
+### BlazeBolt.Physics (пространство имён)
+
+| Метод | Описание |
+|---|---|
+| `Physics.Init(gx, gy)` | Инициализировать физику (gravity) |
+| `Physics.SetGravity(x, y)` | Установить гравитацию |
+| `Physics.GetGravity()` | Получить гравитацию (x, y) |
+| `Physics.CreateBody(type, x, y, mass, friction, restitution)` | Создать тело |
+| `Physics.AddCircle(body, radius, ox, oy)` | Добавить круглый коллайдер |
+| `Physics.AddRectangle(body, hw, hh)` | Добавить прямоугольный коллайдер |
+| `Physics.SetLinearVelocity(body, vx, vy)` | Линейная скорость |
+| `Physics.GetLinearVelocity(body)` | Получить скорость (vx, vy) |
+| `Physics.Step()` | Шаг физики |
+| `Physics.SyncSprite(body, sprite)` | Синхронизировать спрайт с телом |
+| `Physics.SyncText(body, text)` | Синхронизировать текст с телом |
+
+### BlazeBolt.Audio (пространство имён)
+
+| Метод | Описание |
+|---|---|
+| `Audio.LoadSound(filename, name, loop)` | Загрузить звук |
+| `Audio.Play(name)` | Воспроизвести |
+| `Audio.PlayById(id)` | Воспроизвести по ID |
+| `Audio.Stop(name)` | Остановить |
+| `Audio.StopAll()` | Остановить все |
+| `Audio.SetVolume(name, vol)` | Громкость (0..1) |
+| `Audio.IsPlaying(name)` | Проверить воспроизведение |
+
+### BlazeBolt.Input (пространство имён)
+
+| Метод | Описание |
+|---|---|
+| `Input.IsKeyPressed(key)` | Клавиша зажата |
+| `Input.IsKeyJustPressed(key)` | Клавиша нажата в этом кадре |
+| `Input.GetMousePosition()` | Позиция мыши (x, y) |
+| `Input.GetMouseDelta()` | Дельта мыши (dx, dy) |
+| `Input.IsMouseButtonPressed(btn)` | Кнопка мыши зажата |
+| `Input.IsMouseButtonJustPressed(btn)` | Кнопка мыши нажата в этом кадре |
+| `Input.GetScroll()` | Прокрутка колеса |

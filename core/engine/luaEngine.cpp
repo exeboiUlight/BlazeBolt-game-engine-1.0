@@ -2,6 +2,7 @@
 #include <engine/luaMathBindings.hpp>
 #include <engine/luaNetBindings.hpp>
 #include <sceneFormat.hpp>
+#include <engine/lua_api_init.hpp>
 #include <cmath>
 
 #ifndef M_PIf
@@ -457,11 +458,15 @@ namespace LuaEngine {
         {"UDPClientDisconnect", _netFunctions::UDPClientDisconnect},
         {"UDPClientIsConnected", _netFunctions::UDPClientIsConnected},
 
+        // Graphics API
+        {"SetGraphicsAPI", _functions::SetGraphicsAPI},
+        {"GetGraphicsAPI", _functions::GetGraphicsAPI},
+
         {nullptr, nullptr}
     };
 
     // ==================== IMPLEMENTATION ====================
-    LuaEngine::LuaEngine(Window &window) :
+    LuaEngine::LuaEngine(Window &window, IRenderDevice* device) :
         state(nullptr),
         spriteWorld(), animatedSpriteWorld(), textWorld(), meshWorld(), cameraWorld(), particleWorld(),
         audioEngine(), physicsWorld(),
@@ -471,9 +476,11 @@ namespace LuaEngine {
         scripts(), scriptsListPath(), projectFileName(),
         sceneManager(),
         additionalWindows(), mainWindow(&window),
+        renderDevice(device),
+        renderContext(device ? device->getContext() : nullptr),
         projectionViewMatrix2D(), quadVertexBufferObject(),
         spriteShader2D(), spriteBatchShader2D(), fontShader2D(), spriteMesh(),
-        textureManager(), fontManager(),
+        textureManager(device), fontManager(),
         shaders(), entityShaderMap(), nextShaderId(1),
         renderOrder({"Tilesets", "Sprites", "AnimatedSprites", "Texts", "Meshes", "Particles"})
     {
@@ -488,6 +495,13 @@ namespace LuaEngine {
 
         luaL_openlibs(this->state);
         registerCFunctions();
+
+        // Load OOP wrappers
+        if (luaL_dostring(this->state, OOP_INIT_SCRIPT.c_str()) != LUA_OK) {
+            fprintf(stderr, "Warning: Failed to load OOP wrappers: %s\n", lua_tostring(this->state, -1));
+            lua_pop(this->state, 1);
+        }
+
         this->audioInitialized = this->audioEngine.init();
         if (!this->audioInitialized) {
             fprintf(stderr, "Warning: Failed to initialize audio\n");
@@ -1132,7 +1146,7 @@ namespace LuaEngine {
     // FIXME: Maybe, we shouldn't create every entity (e.g. Sprite2D, Text2D, etc.) on heap?
     Entity LuaEngine::createSprite(const std::string &texturePath, const Vector2 &position) {
         BlazeBolt::Sprite2D *sprite = new BlazeBolt::Sprite2D();
-        const GL::Texture2D *texture = this->textureManager.loadFromFile2D(texturePath);
+        const GL::Texture2D *texture = this->textureManager.loadGLTexture(texturePath);
         if (texture != nullptr) {
             sprite->setTexture(*texture);
         }
@@ -1147,7 +1161,7 @@ namespace LuaEngine {
         if (sprite == nullptr) {
             return;
         }
-        const GL::Texture2D *texture = this->textureManager.loadFromFile2D(texturePath);
+        const GL::Texture2D *texture = this->textureManager.loadGLTexture(texturePath);
         if (texture != nullptr) {
             sprite->setTexture(*texture);
         }
@@ -1246,7 +1260,7 @@ namespace LuaEngine {
     }
     void LuaEngine::spriteBatchSetTexture(Entity batchEntity, const std::string &texturePath) {
         if (batchEntity < 1 || batchEntity > spriteBatches.size()) return;
-        const GL::Texture2D *texture = this->textureManager.loadFromFile2D(texturePath);
+        const GL::Texture2D *texture = this->textureManager.loadGLTexture(texturePath);
         if (texture != nullptr) {
             spriteBatches[batchEntity - 1].setTexture(*texture);
         }
@@ -2490,7 +2504,7 @@ namespace LuaEngine {
     void LuaEngine::particleSystemSetTexture(Entity entity, const std::string &texturePath) {
         ParticleSystem2D* ps = particleWorld.getEntity(entity);
         if (!ps) return;
-        const GL::Texture2D* texture = this->textureManager.loadFromFile2D(texturePath);
+        const GL::Texture2D* texture = this->textureManager.loadGLTexture(texturePath);
         if (texture) ps->setTexture(*texture);
     }
 
@@ -2597,7 +2611,7 @@ namespace LuaEngine {
     // Tileset implementations
     Entity LuaEngine::createTileset(const std::string& texturePath, uint32_t tileW, uint32_t tileH, uint32_t atlasCols, uint32_t atlasRows) {
         BlazeBolt::Tileset2D *tileset = new BlazeBolt::Tileset2D(tileW, tileH, atlasCols, atlasRows);
-        const GL::Texture2D *texture = this->textureManager.loadFromFile2D(texturePath);
+        const GL::Texture2D *texture = this->textureManager.loadGLTexture(texturePath);
         Entity entity = tilesetWorld.spawn(tileset);
         objectMap[entity] = RegisteredObject(RegisteredObject::TILESET, tileset, entity);
         if (texture != nullptr) {
@@ -2971,6 +2985,7 @@ namespace LuaEngine {
         } else {
             this->projectionViewMatrix2D = Matrix3x3::identity();
         }
+        if (renderContext) renderContext->beginFrame();
         for (const auto& layer : renderOrder) {
             if (layer == "Tilesets") this->drawAllTilesets();
             else if (layer == "Sprites") this->drawAllSprites();
@@ -2979,6 +2994,7 @@ namespace LuaEngine {
             else if (layer == "Meshes") this->drawAllMeshes();
             else if (layer == "Particles") this->drawAllParticleSystems();
         }
+        if (renderContext) renderContext->endFrame();
     }
 
     void LuaEngine::updateAll(float deltaTime) {

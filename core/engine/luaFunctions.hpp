@@ -2791,5 +2791,20 @@ namespace LuaEngine {
             }
             return 1;
         }
+
+        static int SetGraphicsAPI(lua_State* state) {
+            const char* api = luaL_checkstring(state, 1);
+            LuaEngine* engine = getEngine(state);
+            if (!engine) return 0;
+            engine->setCurrentAPI(api);
+            return 0;
+        }
+
+        static int GetGraphicsAPI(lua_State* state) {
+            LuaEngine* engine = getEngine(state);
+            if (!engine) { lua_pushstring(state, "opengl"); return 1; }
+            lua_pushstring(state, engine->getCurrentAPI().c_str());
+            return 1;
+        }
     };
 }

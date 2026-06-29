@@ -2,6 +2,12 @@
 #include <cstdlib>
 #include <cmath>
 
+struct ParticleRhiVertex {
+    float x, y;
+    float u, v;
+    float r, g, b, a;
+};
+
 static float randFloat(float min, float max) {
     return min + static_cast<float>(rand()) / RAND_MAX * (max - min);
 }
@@ -9,8 +15,14 @@ static float randFloat(float min, float max) {
 ParticleSystem2D::ParticleSystem2D()
     : shaderReady(false)
     , vaoReady(false)
+    , device(nullptr)
+    , rhiInstanceVBO(nullptr)
+    , rhiQuadVBO(nullptr)
+    , rhiPipeline(nullptr)
+    , rhiReady(false)
     , position(0, 0)
     , texture(nullptr)
+    , rhiTexture(nullptr)
     , emissionRate(50.0f)
     , emissionAccumulator(0.0f)
     , active(true)
@@ -27,6 +39,24 @@ ParticleSystem2D::ParticleSystem2D()
 {
 }
 
+ParticleSystem2D::~ParticleSystem2D() {
+}
+
+void ParticleSystem2D::init(IRenderDevice* dev) {
+    this->device = dev;
+
+    BufferDesc vbDesc;
+    vbDesc.size = maxParticles * 4 * sizeof(ParticleRhiVertex);
+    vbDesc.type = BufferType::VERTEX;
+    vbDesc.usage = BufferUsage::DYNAMIC;
+    this->rhiInstanceVBO = dev->createBuffer(vbDesc);
+
+    BlazeBolt::QuadVertexBufferObject2D quadVBO;
+    this->rhiQuadVBO = quadVBO.createIBuffer(dev);
+
+    rhiReady = true;
+}
+
 void ParticleSystem2D::setPosition(const Vector2& pos) {
     position = pos;
 }
@@ -37,6 +67,18 @@ const Vector2& ParticleSystem2D::getPosition() const {
 
 void ParticleSystem2D::setTexture(const GL::Texture2D& tex) {
     texture = &tex;
+}
+
+void ParticleSystem2D::setTexture(ITexture* tex) {
+    rhiTexture = tex;
+}
+
+void ParticleSystem2D::setPipeline(IPipeline* p) {
+    rhiPipeline = p;
+}
+
+IPipeline* ParticleSystem2D::getPipeline() const {
+    return rhiPipeline;
 }
 
 void ParticleSystem2D::setEmissionRate(float rate) {
@@ -258,6 +300,90 @@ void ParticleSystem2D::ensureVAO(const BlazeBolt::QuadVertexBufferObject2D& quad
     vaoReady = true;
 }
 
+void ParticleSystem2D::ensureRHIResources() {
+    if (rhiPipeline != nullptr || device == nullptr) return;
+
+    constexpr GLchar vertexShaderSource[] = R"(
+        #version 410
+        layout (location = 0) in vec2 a_Position;
+        layout (location = 1) in vec2 a_TexCoord;
+        layout (location = 2) in vec4 a_Color;
+
+        layout (location = 0) out vec2 v_TexCoord;
+        layout (location = 1) out vec4 v_Color;
+
+        uniform float u_AspectRatio;
+        uniform mat3 u_MVPMatrix;
+
+        void main() {
+            vec3 transformed = u_MVPMatrix * vec3(a_Position, 1.0);
+            gl_Position = vec4(transformed.xy, 0.0, 1.0);
+            gl_Position.x /= u_AspectRatio;
+            v_TexCoord = a_TexCoord;
+            v_Color = a_Color;
+        }
+    )";
+
+    constexpr GLchar fragmentShaderSource[] = R"(
+        #version 410
+        layout (location = 0) in vec2 v_TexCoord;
+        layout (location = 1) in vec4 v_Color;
+
+        layout (location = 0) out vec4 f_Color;
+
+        uniform sampler2D u_Texture;
+
+        void main() {
+            f_Color = texture(u_Texture, v_TexCoord) * v_Color;
+        }
+    )";
+
+    IShader* shader = device->createShader(vertexShaderSource, fragmentShaderSource);
+    if (shader == nullptr) return;
+
+    PipelineDesc desc;
+    desc.vertexShader = shader;
+    desc.fragmentShader = shader;
+    desc.primitive = PrimitiveType::TRIANGLE_FAN;
+    desc.vertexStride = sizeof(ParticleRhiVertex);
+
+    VertexAttrib posAttrib;
+    posAttrib.location = 0;
+    posAttrib.offset = 0;
+    posAttrib.stride = sizeof(ParticleRhiVertex);
+    posAttrib.size = 2;
+    posAttrib.normalized = false;
+    desc.vertexAttributes.push_back(posAttrib);
+
+    VertexAttrib uvAttrib;
+    uvAttrib.location = 1;
+    uvAttrib.offset = offsetof(ParticleRhiVertex, u);
+    uvAttrib.stride = sizeof(ParticleRhiVertex);
+    uvAttrib.size = 2;
+    uvAttrib.normalized = false;
+    desc.vertexAttributes.push_back(uvAttrib);
+
+    VertexAttrib colorAttrib;
+    colorAttrib.location = 2;
+    colorAttrib.offset = offsetof(ParticleRhiVertex, r);
+    colorAttrib.stride = sizeof(ParticleRhiVertex);
+    colorAttrib.size = 4;
+    colorAttrib.normalized = false;
+    desc.vertexAttributes.push_back(colorAttrib);
+
+    desc.blend.enabled = true;
+    desc.blend.srcColor = BlendFactor::SRC_ALPHA;
+    desc.blend.dstColor = BlendFactor::ONE_MINUS_SRC_ALPHA;
+
+    this->rhiPipeline = device->createPipeline(desc);
+
+    device->destroyShader(shader);
+
+    if (this->rhiPipeline) {
+        this->rhiPipeline->setUniform("u_Texture", 0);
+    }
+}
+
 void ParticleSystem2D::draw(const GL::Texture2D& defaultTexture, const BlazeBolt::QuadVertexBufferObject2D& quadVBO, float aspectRatio, const Matrix3x3& projectionViewMatrix) {
     if (!visible || particles.empty()) return;
 
@@ -299,4 +425,59 @@ void ParticleSystem2D::draw(const GL::Texture2D& defaultTexture, const BlazeBolt
 
     vao.bind();
     glDrawArraysInstanced(GL_TRIANGLE_FAN, 0, 4, static_cast<GLsizei>(particles.size()));
+}
+
+void ParticleSystem2D::draw(IRenderContext* context, ITexture* defaultTexture, float aspectRatio, const Matrix3x3& projectionViewMatrix) {
+    if (!visible || particles.empty()) return;
+
+    ensureRHIResources();
+    if (rhiPipeline == nullptr) return;
+    if (rhiInstanceVBO == nullptr) return;
+
+    context->bindPipeline(rhiPipeline);
+    rhiPipeline->setUniform("u_AspectRatio", aspectRatio);
+    rhiPipeline->setUniformMatrix3("u_MVPMatrix", &projectionViewMatrix.m[0][0]);
+
+    ITexture* activeTex = rhiTexture != nullptr ? rhiTexture : defaultTexture;
+    if (activeTex != nullptr) {
+        context->bindTexture(0, activeTex);
+    }
+
+    static const float quadVerts[4][2] = {
+        {-0.5f, -0.5f}, {0.5f, -0.5f}, {0.5f, 0.5f}, {-0.5f, 0.5f}
+    };
+    static const float quadUVs[4][2] = {
+        {0.0f, 0.0f}, {1.0f, 0.0f}, {1.0f, 1.0f}, {0.0f, 1.0f}
+    };
+
+    std::vector<ParticleRhiVertex> verts;
+    verts.reserve(particles.size() * 4);
+
+    for (const auto& p : particles) {
+        float rad = p.rotation * 3.14159265f / 180.0f;
+        float c = cosf(rad);
+        float s = sinf(rad);
+
+        for (int j = 0; j < 4; j++) {
+            float sx = quadVerts[j][0] * p.size;
+            float sy = quadVerts[j][1] * p.size;
+            float rx = sx * c - sy * s + p.position.x;
+            float ry = sx * s + sy * c + p.position.y;
+
+            ParticleRhiVertex v;
+            v.x = rx;
+            v.y = ry;
+            v.u = quadUVs[j][0];
+            v.v = 1.0f - quadUVs[j][1];
+            v.r = p.color.x;
+            v.g = p.color.y;
+            v.b = p.color.z;
+            v.a = p.color.w;
+            verts.push_back(v);
+        }
+    }
+
+    rhiInstanceVBO->upload(verts.data(), verts.size() * sizeof(ParticleRhiVertex), 0);
+    context->bindVertexBuffer(rhiInstanceVBO, sizeof(ParticleRhiVertex));
+    context->draw(static_cast<uint32_t>(verts.size()));
 }

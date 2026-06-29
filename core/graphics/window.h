@@ -4,6 +4,10 @@
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 
+#include <graphics/renderer/RenderAPI.h>
+
+class IRenderDevice;
+
 class Window {
 private:
     int _width, _height;
@@ -221,4 +225,6 @@ public:
     void toggleVSync() {
         setVSync(!_isVSync);
     }
+
+    IRenderDevice* createRenderDevice(RenderAPI api, uint32_t width = 1280, uint32_t height = 720);
 };

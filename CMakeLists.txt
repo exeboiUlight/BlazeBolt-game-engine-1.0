@@ -37,6 +37,25 @@ set(ENGINE_SOURCES
     ${CMAKE_SOURCE_DIR}/src/editor.cpp
     ${GLAD_DIR}/glad.c
     ${CMAKE_SOURCE_DIR}/core/graphics/gl.cpp
+    ${CMAKE_SOURCE_DIR}/core/graphics/window.cpp
+    # RHI renderer interfaces
+    ${CMAKE_SOURCE_DIR}/core/graphics/gl/GLBuffer.cpp
+    ${CMAKE_SOURCE_DIR}/core/graphics/gl/GLTexture.cpp
+    ${CMAKE_SOURCE_DIR}/core/graphics/gl/GLSampler.cpp
+    ${CMAKE_SOURCE_DIR}/core/graphics/gl/GLShader.cpp
+    ${CMAKE_SOURCE_DIR}/core/graphics/gl/GLPipeline.cpp
+    ${CMAKE_SOURCE_DIR}/core/graphics/gl/GLSwapChain.cpp
+    ${CMAKE_SOURCE_DIR}/core/graphics/gl/GLRenderContext.cpp
+    ${CMAKE_SOURCE_DIR}/core/graphics/gl/GLRenderDevice.cpp
+    # Vulkan backend
+    ${CMAKE_SOURCE_DIR}/core/graphics/vk/VkBuffer.cpp
+    ${CMAKE_SOURCE_DIR}/core/graphics/vk/VkTexture.cpp
+    ${CMAKE_SOURCE_DIR}/core/graphics/vk/VkSampler.cpp
+    ${CMAKE_SOURCE_DIR}/core/graphics/vk/VkShader.cpp
+    ${CMAKE_SOURCE_DIR}/core/graphics/vk/VkPipeline.cpp
+    ${CMAKE_SOURCE_DIR}/core/graphics/vk/VkSwapChain.cpp
+    ${CMAKE_SOURCE_DIR}/core/graphics/vk/VkRenderContext.cpp
+    ${CMAKE_SOURCE_DIR}/core/graphics/vk/VkRenderDevice.cpp
     ${CMAKE_SOURCE_DIR}/core/graphics/quad.cpp
     ${CMAKE_SOURCE_DIR}/core/subject/text2D.cpp
     ${CMAKE_SOURCE_DIR}/core/engine/luaEngine.cpp
@@ -74,6 +93,7 @@ if(TARGET OpenAL)
 endif()
 
 find_package(Python3 QUIET COMPONENTS Interpreter)
+find_package(Vulkan REQUIRED)
 
 if(WIN32)
     configure_file("BlazeBolt.rc.in" "BlazeBolt.rc" @ONLY)
@@ -115,6 +135,8 @@ target_include_directories(${PROJECT_NAME} PRIVATE
     ${GLAD_DIR}
     ${CMAKE_SOURCE_DIR}/core
 )
+
+target_link_libraries(${PROJECT_NAME} PRIVATE Vulkan::Vulkan)
 
 if(WIN32)
     target_link_libraries(${PROJECT_NAME} PRIVATE

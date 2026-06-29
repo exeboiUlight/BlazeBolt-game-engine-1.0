@@ -9,7 +9,8 @@ namespace BlazeBolt {
         position(0, 0),
         map(),
         tileEntities(),
-        batch(maxTiles > 0 ? maxTiles : 1024)
+        batch(maxTiles > 0 ? maxTiles : 1024),
+        currentGlAtlas(nullptr)
     {
     }
 
@@ -63,9 +64,18 @@ namespace BlazeBolt {
     }
 
     void Tileset2D::setMap(const std::vector<std::vector<int>>& newMap, World<Sprite2D>& spriteWorld, const GL::Texture2D& atlas) {
+        currentGlAtlas = &atlas;
         batch.setTexture(atlas);
         map = newMap;
         rebuildTiles(spriteWorld, atlas);
+    }
+
+    void Tileset2D::setMap(const std::vector<std::vector<int>>& newMap, World<Sprite2D>& spriteWorld, ITexture* atlas) {
+        batch.setTexture(atlas);
+        map = newMap;
+        if (currentGlAtlas != nullptr) {
+            rebuildTiles(spriteWorld, *currentGlAtlas);
+        }
     }
 
     int Tileset2D::getTile(uint32_t col, uint32_t row) const {
@@ -77,8 +87,19 @@ namespace BlazeBolt {
     void Tileset2D::setTile(uint32_t col, uint32_t row, int tileIndex, World<Sprite2D>& spriteWorld, const GL::Texture2D& atlas) {
         if (row >= map.size()) return;
         if (col >= map[row].size()) return;
+        currentGlAtlas = &atlas;
         map[row][col] = tileIndex;
         rebuildTiles(spriteWorld, atlas);
+    }
+
+    void Tileset2D::setTile(uint32_t col, uint32_t row, int tileIndex, World<Sprite2D>& spriteWorld, ITexture* atlas) {
+        if (row >= map.size()) return;
+        if (col >= map[row].size()) return;
+        map[row][col] = tileIndex;
+        batch.setTexture(atlas);
+        if (currentGlAtlas != nullptr) {
+            rebuildTiles(spriteWorld, *currentGlAtlas);
+        }
     }
 
     void Tileset2D::setTileSize(uint32_t w, uint32_t h) {
@@ -118,5 +139,9 @@ namespace BlazeBolt {
 
     void Tileset2D::draw(const GL::Texture2D& defaultTexture) {
         batch.draw(defaultTexture);
+    }
+
+    void Tileset2D::draw(IRenderContext* context, ITexture* defaultTexture) {
+        batch.draw(context, defaultTexture);
     }
 }

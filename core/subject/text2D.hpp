@@ -4,15 +4,13 @@
 #include <ft2build.h>
 #include FT_FREETYPE_H
 #include <graphics/gl.hpp>
+#include <graphics/renderer/Texture.h>
+#include <graphics/renderer/Buffer.h>
+#include <graphics/renderer/Pipeline.h>
+#include <graphics/renderer/RenderContext.h>
+#include <graphics/renderer/RenderDevice.h>
 #include <graphics/quad.hpp>
 #include <utils/math/vector.h>
-
-// struct Character {
-    
-//     float SizeX, SizeY;
-//     float BearingX, BearingY;
-//     unsigned int Advance;
-// };
 
 namespace BlazeBolt {
     struct GlyphInfo {
@@ -33,37 +31,44 @@ namespace BlazeBolt {
     private:
         std::unordered_map<char, GlyphInfo> glyphInfos;
         GL::Texture2D textureAtlas;
+        ITexture* rhiTextureAtlas;
         bool valid;
     public:
         Font(const FreeType &freeType, const std::string &fontPath);
-        ~Font() = default;
+        Font(const FreeType &freeType, const std::string &fontPath, IRenderDevice* device);
+        ~Font();
 
         const GlyphInfo *getGlyphInfo(char character) const;
         const GL::Texture2D &getTextureAtlas() const;
+        ITexture* getTextureAtlasRHI() const;
         bool isValid() const;
     };
     struct FontShader2D {
     private:
         GL::ShaderProgram shaderProgram;
+        IPipeline* pipeline;
     public:
         FontShader2D();
-        ~FontShader2D() = default;
+        FontShader2D(IRenderDevice* device);
+        ~FontShader2D();
 
         void bind() const;
+        IPipeline* getPipeline() const;
         void setAspectRatio(float aspectRatio) const;
         void setMVPMatrix(const Matrix3x3 &matrix) const;
         void setColor(const Vector4 &color) const;
     };
 
-    // TODO: Either implement ECS or a Node (OOP) system, so parts of the objects like visibility, transform and rendering could be part of a base, e.g. "Node2D/Object2D" class, and just add a custom objects, or just have an object with Transform2D component, Text2D/Sprite2D component, etc.
     struct Text2D {
     public:
         enum class Alignment : uint8_t { Left, Center, Right };
     private:
         Font *font;
+        IRenderDevice* rhiDevice;
         std::string text;
         GL::VertexArrayObject vertexArrayObject;
         GL::VertexBufferObject instanceBufferObject;
+        IBuffer* rhiInstanceBuffer;
         GLsizei instanceCount;
 
         Matrix3x3 modelMatrix;
@@ -76,8 +81,9 @@ namespace BlazeBolt {
         void updateModelMatrix();
     public:
         Text2D(const QuadVertexBufferObject2D &vertexBufferObject, Font &font);
-        ~Text2D() = default;
+        ~Text2D();
         void draw(const FontShader2D &fontShader, const Matrix3x3 &projectionViewMatrix) const;
+        void draw(IRenderContext* context, const FontShader2D &fontShader, const Matrix3x3 &projectionViewMatrix) const;
 
         void setColor(float r, float g, float b, float a);
         void setColor(const Vector4 &color);
@@ -109,6 +115,9 @@ namespace BlazeBolt {
 
         void setFont(Font &font);
         Font *getFont() const;
+
+        void setDevice(IRenderDevice* device);
+        IRenderDevice* getDevice() const;
 
         void setVisible(bool visible);
         bool isVisible() const;

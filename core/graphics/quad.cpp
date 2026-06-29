@@ -15,4 +15,22 @@ namespace BlazeBolt {
     void QuadVertexBufferObject2D::bind() const {
         this->vbo.bind(GL_ARRAY_BUFFER);
     }
+
+    IBuffer* QuadVertexBufferObject2D::createIBuffer(IRenderDevice* device) const {
+        Vertex vertices[] = {
+            { 0.0f, 0.0f },
+            { 1.0f, 0.0f },
+            { 1.0f, 1.0f },
+            { 0.0f, 1.0f }
+        };
+        BufferDesc desc;
+        desc.size = sizeof(vertices);
+        desc.type = BufferType::VERTEX;
+        desc.usage = BufferUsage::STATIC;
+        IBuffer* buffer = device->createBuffer(desc);
+        if (buffer) {
+            buffer->upload(vertices, sizeof(vertices), 0);
+        }
+        return buffer;
+    }
 }

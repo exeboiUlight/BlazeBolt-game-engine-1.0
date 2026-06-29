@@ -9,6 +9,8 @@
 #include <memory>
 #include "imgui.h"
 #include "imgui_internal.h"
+#include <graphics/renderer/RenderAPI.h>
+#include <graphics/renderer/RenderDevice.h>
 #include "TextEditor.h"
 #include "crude_json.h"
 #include <subject/text2D.hpp>
@@ -123,6 +125,9 @@ public:
     bool ShouldReturnToHub() const;
     void ResetReturnFlag();
 
+    static RenderAPI ParseAPIfromProject(const std::string& projectPath);
+    static void SaveAPItoProject(const std::string& projectPath, RenderAPI api);
+
 private:
     fs::path m_engine_root;
     fs::path m_project_path;
@@ -142,6 +147,8 @@ private:
     std::string m_fm_rename_ext;
 
     int m_current_theme = 0;
+    RenderAPI m_currentAPI = RenderAPI::OpenGL;
+    std::string m_currentAPIStr = "opengl";
 
     // Text2D rendering for scene viewport
     BlazeBolt::FreeType m_freetype;
@@ -159,6 +166,7 @@ private:
     bool m_show_game_viewport = false;
     bool m_show_debug_console = false;
     bool m_show_pixel_paint = false;
+    bool m_show_project_settings = false;
     bool m_game_playing = false;
     bool m_game_paused = false;
 
@@ -166,6 +174,7 @@ private:
     GLFWwindow* m_editor_window = nullptr;
     Window* m_game_window = nullptr;
     LuaEngine::LuaEngine* m_game_engine = nullptr;
+    IRenderDevice* m_gameDevice = nullptr;
     GLuint m_game_texture = 0;
     GLuint m_game_fbo = 0;
     int m_game_tex_w = 0, m_game_tex_h = 0;

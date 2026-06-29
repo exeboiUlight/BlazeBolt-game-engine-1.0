@@ -1,4 +1,4 @@
-# BlazeBolt Game Engine 1.2
+# BlazeBolt Game Engine 1.3
 
 Лёгкий и оптимизированный игровой движок на C++ с поддержкой Lua-скриптинга.
 
@@ -54,6 +54,8 @@
 - Математические типы (Vector2/3/4, Matrix3x3)
 - Управление порядком отрисовки слоёв
 - Многоскриптовая архитектура с переключением сцен
+- **RHI (Render Hardware Interface)** — абстракция над OpenGL и Vulkan с переключением API
+- **OOP-стиль Lua API** — `BlazeBolt.Sprite.new()`, `a:SetSize(1,1)` и т.д.
 
 ---
 
@@ -77,6 +79,15 @@
 [x] сохранение физических тел в .scene файлы
 [x] документация формата .scene
 [x] задатки pixel paint
+
+### 1.3
+[x] RHI (Render Hardware Interface) — абстракция рендера над OpenGL и Vulkan
+[x] выбор графического API через .BlazeBoltProject (render_api)
+[x] создание VkRenderDevice / GLRenderDevice в редакторе при старте игры
+[x] BlazeBolt.SetGraphicsAPI() / GetGraphicsAPI() в Lua
+[x] OOP-обёртки для всех типов: Sprite, AnimatedSprite, Text, Camera, Tileset, ParticleSystem, Light, Mesh, SpriteBatch, AnimationWheel
+[x] вспомогательные Lua-неймспейсы: Physics, Audio, Input
+[x] обновление документации до актуальной версии
 
 ---
 
@@ -113,5 +124,6 @@
 **Благодарности:**
 - **OxygenSE** — за первоначальную и ключевую оптимизацию движка
 - **Yellow Cat** — за иконку и всплеш лого движка
+- **Alexander-Komyakov** - за тестирование движка на Debian 13
 
 ---

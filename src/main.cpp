@@ -12,6 +12,10 @@
 #include "hub.hpp"
 #include "editor.hpp"
 
+#include <graphics/gl/GLRenderDevice.h>
+#include <graphics/renderer/RenderDevice.h>
+#include <graphics/renderer/RenderContext.h>
+
 #include <cstdio>
 #include <cstdlib>
 #include <string>
@@ -70,6 +74,10 @@ int main(int argc, char** argv) {
         glfwTerminate();
         return 1;
     }
+
+    // Create GL render device (optional RHI)
+    GLRenderDevice* renderDevice = nullptr;
+    // renderDevice = new GLRenderDevice(1280, 800, []() { glfwSwapBuffers(window); });
 
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
@@ -158,6 +166,8 @@ int main(int argc, char** argv) {
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplGlfw_Shutdown();
     ImGui::DestroyContext();
+    delete renderDevice;
+
     glfwDestroyWindow(window);
     glfwTerminate();
     return 0;

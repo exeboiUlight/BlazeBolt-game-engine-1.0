@@ -4,6 +4,7 @@
 #include <vector>
 #include <filesystem>
 #include "imgui.h"
+#include <graphics/renderer/RenderAPI.h>
 
 namespace fs = std::filesystem;
 
@@ -19,12 +20,16 @@ public:
     fs::path GetSelectedProjectPath() const;
     void ResetOpenFlag();
 
+    static RenderAPI ParseAPIfromProject(const std::string& projectPath);
+    static void SaveAPItoProject(const std::string& projectPath, RenderAPI api);
+
 private:
     struct Project {
         std::string name;
         std::string path;
         ImTextureID icon_texture = (ImTextureID)0;
         int icon_w = 0, icon_h = 0;
+        RenderAPI api = RenderAPI::OpenGL;
     };
 
     fs::path m_engine_root;
@@ -39,6 +44,7 @@ private:
     char m_error_msg[512] = "";
     bool m_show_error = false;
     ProjectType m_new_project_type = ProjectType::Code;
+    RenderAPI m_currentAPI = RenderAPI::OpenGL;
 
     int m_current_theme = 2;
 

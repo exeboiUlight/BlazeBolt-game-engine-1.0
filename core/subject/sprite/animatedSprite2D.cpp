@@ -164,8 +164,8 @@ namespace BlazeBolt {
             1.0f / static_cast<float>(this->texture->getNumFrames()), 1.0f
         ));
 
-        GL::setActiveTextureUnit(0);
-        this->texture->getGL().bind();
+        ITexture* tex = this->texture->getTexture();
+        if (tex) tex->bind(0);
         mesh.draw();
     }
 }

@@ -1,5 +1,7 @@
 #pragma once
 #include "gl.hpp"
+#include <graphics/renderer/Buffer.h>
+#include <graphics/renderer/RenderDevice.h>
 
 namespace BlazeBolt {
     struct QuadVertexBufferObject2D {
@@ -17,5 +19,7 @@ namespace BlazeBolt {
 
         void bind() const;
         GLuint applyAttributes(GLint startIndex) const;
+
+        IBuffer* createIBuffer(IRenderDevice* device) const;
     };
 }

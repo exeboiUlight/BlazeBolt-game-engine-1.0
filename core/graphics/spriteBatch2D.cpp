@@ -6,14 +6,24 @@ namespace BlazeBolt {
         maxSize(other.maxSize),
         spriteEntities(std::move(other.spriteEntities)),
         texture(other.texture),
+        rhiTexture(other.rhiTexture),
         vao(std::move(other.vao)),
         vbo(std::move(other.vbo)),
         ibo(std::move(other.ibo)),
+        device(other.device),
+        rhiVbo(other.rhiVbo),
+        rhiIbo(other.rhiIbo),
+        pipeline(other.pipeline),
         dirty(other.dirty),
         lastRebuiltVertices(other.lastRebuiltVertices)
     {
         other.maxSize = 0;
         other.texture = nullptr;
+        other.rhiTexture = nullptr;
+        other.device = nullptr;
+        other.rhiVbo = nullptr;
+        other.rhiIbo = nullptr;
+        other.pipeline = nullptr;
         other.dirty = false;
         other.lastRebuiltVertices = 0;
     }
@@ -23,13 +33,23 @@ namespace BlazeBolt {
             maxSize = other.maxSize;
             spriteEntities = std::move(other.spriteEntities);
             texture = other.texture;
+            rhiTexture = other.rhiTexture;
             vao = std::move(other.vao);
             vbo = std::move(other.vbo);
             ibo = std::move(other.ibo);
+            device = other.device;
+            rhiVbo = other.rhiVbo;
+            rhiIbo = other.rhiIbo;
+            pipeline = other.pipeline;
             dirty = other.dirty;
             lastRebuiltVertices = other.lastRebuiltVertices;
             other.maxSize = 0;
             other.texture = nullptr;
+            other.rhiTexture = nullptr;
+            other.device = nullptr;
+            other.rhiVbo = nullptr;
+            other.rhiIbo = nullptr;
+            other.pipeline = nullptr;
             other.dirty = false;
             other.lastRebuiltVertices = 0;
         }
@@ -40,9 +60,14 @@ namespace BlazeBolt {
         maxSize(maxSize > 0 ? maxSize : 25),
         spriteEntities(),
         texture(nullptr),
+        rhiTexture(nullptr),
         vao(),
         vbo(),
         ibo(),
+        device(nullptr),
+        rhiVbo(nullptr),
+        rhiIbo(nullptr),
+        pipeline(nullptr),
         dirty(false),
         lastRebuiltVertices(0)
     {
@@ -52,6 +77,37 @@ namespace BlazeBolt {
         size_t vertexBufferSize = this->maxSize * 4 * sizeof(BatchVertex);
         this->vbo.bind(GL_ARRAY_BUFFER);
         glBufferData(GL_ARRAY_BUFFER, vertexBufferSize, nullptr, GL_DYNAMIC_DRAW);
+    }
+
+    void SpriteBatch2D::init(IRenderDevice* dev) {
+        this->device = dev;
+
+        BufferDesc vbDesc;
+        vbDesc.size = this->maxSize * 4 * sizeof(BatchVertex);
+        vbDesc.type = BufferType::VERTEX;
+        vbDesc.usage = BufferUsage::DYNAMIC;
+        this->rhiVbo = dev->createBuffer(vbDesc);
+
+        BufferDesc ibDesc;
+        ibDesc.size = this->maxSize * 6 * sizeof(uint16_t);
+        ibDesc.type = BufferType::INDEX;
+        ibDesc.usage = BufferUsage::STATIC;
+        this->rhiIbo = dev->createBuffer(ibDesc);
+
+        size_t indexCount = this->maxSize * 6;
+        uint16_t* indices = new uint16_t[indexCount];
+        for (uint32_t i = 0; i < this->maxSize; i++) {
+            uint16_t base = i * 4;
+            uint16_t offset = i * 6;
+            indices[offset + 0] = base + 0;
+            indices[offset + 1] = base + 1;
+            indices[offset + 2] = base + 2;
+            indices[offset + 3] = base + 0;
+            indices[offset + 4] = base + 2;
+            indices[offset + 5] = base + 3;
+        }
+        this->rhiIbo->upload(indices, indexCount * sizeof(uint16_t), 0);
+        delete[] indices;
     }
 
     void SpriteBatch2D::buildIndexBuffer() {
@@ -112,6 +168,25 @@ namespace BlazeBolt {
         }
         glBufferData(GL_ELEMENT_ARRAY_BUFFER, indexCount * sizeof(GLushort), indices, GL_STATIC_DRAW);
         delete[] indices;
+
+        if (this->device != nullptr) {
+            if (this->rhiVbo != nullptr) this->device->destroyBuffer(this->rhiVbo);
+            if (this->rhiIbo != nullptr) this->device->destroyBuffer(this->rhiIbo);
+
+            BufferDesc vbDesc;
+            vbDesc.size = vertexBufferSize;
+            vbDesc.type = BufferType::VERTEX;
+            vbDesc.usage = BufferUsage::DYNAMIC;
+            this->rhiVbo = this->device->createBuffer(vbDesc);
+
+            BufferDesc ibDesc;
+            ibDesc.size = this->maxSize * 6 * sizeof(uint16_t);
+            ibDesc.type = BufferType::INDEX;
+            ibDesc.usage = BufferUsage::STATIC;
+            this->rhiIbo = this->device->createBuffer(ibDesc);
+
+            this->rhiIbo->upload(indices, this->maxSize * 6 * sizeof(uint16_t), 0);
+        }
     }
 
     uint32_t SpriteBatch2D::getMaxSize() const {
@@ -122,8 +197,24 @@ namespace BlazeBolt {
         this->texture = &tex;
     }
 
+    void SpriteBatch2D::setTexture(ITexture* tex) {
+        this->rhiTexture = tex;
+    }
+
     const GL::Texture2D* SpriteBatch2D::getTexture() const {
         return this->texture;
+    }
+
+    ITexture* SpriteBatch2D::getTextureRHI() const {
+        return this->rhiTexture;
+    }
+
+    void SpriteBatch2D::setPipeline(IPipeline* p) {
+        this->pipeline = p;
+    }
+
+    IPipeline* SpriteBatch2D::getPipeline() const {
+        return this->pipeline;
     }
 
     bool SpriteBatch2D::add(Entity entity) {
@@ -218,6 +309,10 @@ namespace BlazeBolt {
         if (vertexIndex > 0) {
             this->vbo.bind(GL_ARRAY_BUFFER);
             glBufferSubData(GL_ARRAY_BUFFER, 0, vertexIndex * sizeof(BatchVertex), vertices);
+
+            if (this->rhiVbo != nullptr) {
+                this->rhiVbo->upload(vertices, vertexIndex * sizeof(BatchVertex), 0);
+            }
         }
 
         delete[] vertices;
@@ -238,5 +333,28 @@ namespace BlazeBolt {
         }
 
         glDrawElements(GL_TRIANGLES, spriteCount * 6, GL_UNSIGNED_SHORT, nullptr);
+    }
+
+    void SpriteBatch2D::draw(IRenderContext* context, ITexture* defaultTexture) const {
+        uint32_t spriteCount = this->lastRebuiltVertices / 4;
+        if (spriteCount == 0) return;
+
+        if (this->pipeline != nullptr) {
+            context->bindPipeline(this->pipeline);
+        }
+
+        if (this->rhiVbo != nullptr) {
+            context->bindVertexBuffer(this->rhiVbo, sizeof(BatchVertex));
+        }
+        if (this->rhiIbo != nullptr) {
+            context->bindIndexBuffer(this->rhiIbo);
+        }
+
+        ITexture* tex = this->rhiTexture != nullptr ? this->rhiTexture : defaultTexture;
+        if (tex != nullptr) {
+            context->bindTexture(0, tex);
+        }
+
+        context->drawIndexed(spriteCount * 6);
     }
 }

@@ -35,6 +35,9 @@
 #include <engine/luaSceneManager.hpp>
 #include <sceneFormat.hpp>
 
+#include <graphics/renderer/RenderDevice.h>
+#include <graphics/renderer/RenderContext.h>
+
 namespace LuaEngine {
 
     class LuaEngine {
@@ -80,6 +83,11 @@ namespace LuaEngine {
 
         // Main window pointer
         Window* mainWindow;
+
+        // Render device & context (RHI)
+        IRenderDevice* renderDevice;
+        IRenderContext* renderContext;
+        std::string m_currentAPI = "opengl";
     private:
         Matrix3x3 projectionViewMatrix2D;
         BlazeBolt::QuadVertexBufferObject2D quadVertexBufferObject;
@@ -105,7 +113,7 @@ namespace LuaEngine {
         void registerCFunctions();
         bool parseScriptsList(const std::string& listPath);
     public:
-        LuaEngine(Window &window);
+        LuaEngine(Window &window, IRenderDevice* device = nullptr);
         ~LuaEngine();
 
         // Main window management
@@ -437,6 +445,8 @@ namespace LuaEngine {
         lua_State* getState();
         bool isInitialized() const;
         Audio& getAudio();
+        void setCurrentAPI(const std::string& api) { m_currentAPI = api; }
+        std::string getCurrentAPI() const { return m_currentAPI; }
 
         void drawAll();
         void updateAll(float deltaTime);
