@@ -130,6 +130,11 @@ void VkRenderContext::updateDescriptorSet(uint32_t slot, VkImageView imageView, 
 
 bool VkRenderContext::beginFrame()
 {
+    if (!swapChain->acquireNextImage())
+    {
+        return false;
+    }
+
     vkResetCommandBuffer(commandBuffer, 0);
 
     VkCommandBufferBeginInfo beginInfo{};

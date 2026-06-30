@@ -9,22 +9,264 @@
 #include <graphics/vk/VkUtils.h>
 #include <algorithm>
 #include <fstream>
+#include <sstream>
 #include <stdexcept>
 #include <cstring>
+#include <cstdlib>
+#include <cstdio>
 
-static std::vector<char> readSpirvFile(const std::string& path)
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#include <windows.h>
+
+// ----------------------------------------------------------------
+// Convert GLSL #version 410 (desktop) to Vulkan-compatible GLSL.
+//   - Changes #version 410 -> #version 450
+//   - Wraps non-sampler uniforms in layout(push_constant) uniform PushBlock { ... } push;
+//   - Adds layout(binding = 0) to sampler2D uniforms
+//   - Replaces uniform variable references with push.<name>
+// ----------------------------------------------------------------
+static std::string convertGlslToVulkan(const std::string& source)
 {
-    std::ifstream file(path, std::ios::ate | std::ios::binary);
-    if (!file.is_open())
+    std::string result = source;
+
+    // 1. Replace #version
     {
-        std::fprintf(stderr, "VkRenderDevice: failed to open SPIR-V file: %s\n", path.c_str());
-        return {};
+        size_t pos = result.find("#version 410");
+        if (pos != std::string::npos)
+            result.replace(pos, 12, "#version 450");
     }
-    size_t size = static_cast<size_t>(file.tellg());
-    std::vector<char> buffer(size);
-    file.seekg(0);
-    file.read(buffer.data(), static_cast<std::streamsize>(size));
-    return buffer;
+
+    // 2. Collect non-sampler uniform declarations and build push constant block
+    std::vector<std::string> uniformNames;
+    std::vector<std::string> uniformDecls;
+    std::ostringstream pushBlock;
+
+    std::istringstream stream(source);
+    std::string line;
+    bool hasNonSamplerUniforms = false;
+
+    while (std::getline(stream, line))
+    {
+        // Trim leading whitespace
+        size_t start = line.find_first_not_of(" \t");
+        if (start == std::string::npos) continue;
+        std::string trimmed = line.substr(start);
+
+        // Check if this is a non-sampler uniform declaration
+        if (trimmed.find("uniform ") == 0 &&
+            trimmed.find("sampler") == std::string::npos)
+        {
+            // Extract variable name (remove trailing ;)
+            std::string decl = trimmed;
+            if (!decl.empty() && decl.back() == ';')
+                decl.pop_back();
+
+            // Extract name after last space
+            size_t lastSpace = decl.find_last_of(" \t");
+            std::string varName;
+            if (lastSpace != std::string::npos)
+            {
+                varName = decl.substr(lastSpace + 1);
+                // Remove array brackets for the name
+                size_t bracket = varName.find('[');
+                if (bracket != std::string::npos)
+                    varName = varName.substr(0, bracket);
+            }
+
+            if (!varName.empty())
+            {
+                uniformNames.push_back(varName);
+                // Remove 'uniform ' prefix and add to push block
+                std::string pushDecl = decl.substr(8); // remove "uniform "
+                pushBlock << "    " << pushDecl << ";\n";
+                hasNonSamplerUniforms = true;
+            }
+        }
+    }
+
+    // 3. Modify the source:
+    //    a) Wrap non-sampler uniforms in push constant block
+    //    b) Add layout(binding=0) to sampler2D
+    //    c) Replace variable references
+
+    if (hasNonSamplerUniforms)
+    {
+        // Replace uniform declarations with push constant block
+        // We insert the block before the first non-sampler uniform
+        // and remove all individual non-sampler uniform lines
+
+        std::string processed;
+        std::istringstream inStream(result);
+        bool pushBlockInserted = false;
+
+        while (std::getline(inStream, line))
+        {
+            std::string trimmed = line;
+            size_t firstNonSpace = trimmed.find_first_not_of(" \t");
+            if (firstNonSpace != std::string::npos)
+                trimmed = trimmed.substr(firstNonSpace);
+
+            bool isNonSamplerUniform = (trimmed.find("uniform ") == 0 &&
+                                        trimmed.find("sampler") == std::string::npos);
+
+            if (isNonSamplerUniform)
+            {
+                if (!pushBlockInserted)
+                {
+                    processed += "layout(push_constant) uniform PushBlock {\n";
+                    processed += pushBlock.str();
+                    processed += "} push;\n\n";
+                    pushBlockInserted = true;
+                }
+                // Skip this line (it's now in the push constant block)
+                continue;
+            }
+
+            processed += line + "\n";
+        }
+
+        result = processed;
+
+        // Replace variable references: u_Name -> push.u_Name
+        for (const auto& name : uniformNames)
+        {
+            size_t pos = 0;
+            while ((pos = result.find(name, pos)) != std::string::npos)
+            {
+                // Check if already prefixed with "push."
+                if (pos >= 5 && result.substr(pos - 5, 5) == "push.")
+                {
+                    pos += name.size();
+                    continue;
+                }
+                // Check preceding char: should be non-alphanumeric
+                if (pos > 0)
+                {
+                    char prev = result[pos - 1];
+                    if (std::isalnum(prev) || prev == '_')
+                    {
+                        pos += name.size();
+                        continue;
+                    }
+                }
+                result.insert(pos, "push.");
+                pos += name.size() + 5;
+            }
+        }
+    }
+
+    // Add layout(binding=0) to sampler2D uniforms
+    {
+        size_t pos = 0;
+        while ((pos = result.find("uniform sampler2D", pos)) != std::string::npos)
+        {
+            size_t lineStart = result.rfind('\n', pos);
+            if (lineStart == std::string::npos) lineStart = 0;
+            else lineStart++;
+
+            std::string prefix = "layout(binding = 0) ";
+            result.insert(lineStart, prefix);
+            pos = lineStart + prefix.size() + 1;
+        }
+    }
+
+    return result;
+}
+
+static VkShader* compileGLSL(VkDevice device, VkShaderStageFlagBits stage, const std::string& source)
+{
+    if (source.empty()) return nullptr;
+
+    std::string vulkanSource = convertGlslToVulkan(source);
+
+    // Resolve glslc path from VULKAN_SDK environment variable
+    const char* sdkPath = std::getenv("VULKAN_SDK");
+    if (!sdkPath)
+    {
+        std::fprintf(stderr, "VkShaderProgram: VULKAN_SDK environment variable not set\n");
+        return nullptr;
+    }
+    std::string glslcPath = std::string(sdkPath) + "\\Bin\\glslc.exe";
+
+    // Create unique temp file names in system temp directory
+    char tempPath[MAX_PATH];
+    if (GetTempPathA(MAX_PATH, tempPath) == 0)
+        std::strcpy(tempPath, ".");
+    char tempName[MAX_PATH];
+    if (GetTempFileNameA(tempPath, "BB", 0, tempName) == 0)
+    {
+        std::fprintf(stderr, "VkShaderProgram: failed to generate temp file name\n");
+        return nullptr;
+    }
+    std::string base = tempName;
+    std::string srcFile = base + ((stage == VK_SHADER_STAGE_VERTEX_BIT) ? ".vert" : ".frag");
+    std::string spvFile = base + ".spv";
+
+    // Write converted GLSL to temp source file
+    {
+        std::ofstream out(srcFile, std::ios::binary);
+        if (!out)
+        {
+            std::fprintf(stderr, "VkShaderProgram: failed to create temp source file\n");
+            return nullptr;
+        }
+        out << vulkanSource;
+    }
+
+    // Invoke glslc as a subprocess
+    std::string cmd = "\"" + glslcPath + "\" \"" + srcFile + "\" -o \"" + spvFile + "\"";
+    int ret = std::system(cmd.c_str());
+    if (ret != 0)
+    {
+        std::fprintf(stderr, "VkShaderProgram: glslc compilation failed (exit code %d)\n", ret);
+        std::remove(base.c_str());
+        std::remove(srcFile.c_str());
+        std::remove(spvFile.c_str());
+        return nullptr;
+    }
+
+    // Read compiled SPIR-V binary
+    std::ifstream in(spvFile, std::ios::binary | std::ios::ate);
+    if (!in)
+    {
+        std::fprintf(stderr, "VkShaderProgram: failed to read compiled SPIR-V\n");
+        std::remove(base.c_str());
+        std::remove(srcFile.c_str());
+        std::remove(spvFile.c_str());
+        return nullptr;
+    }
+    size_t fileSize = static_cast<size_t>(in.tellg());
+    in.seekg(0);
+    std::vector<uint32_t> spirv(fileSize / sizeof(uint32_t));
+    in.read(reinterpret_cast<char*>(spirv.data()), static_cast<std::streamsize>(fileSize));
+    in.close();
+
+    // Clean up temp files
+    std::remove(base.c_str());
+    std::remove(srcFile.c_str());
+    std::remove(spvFile.c_str());
+
+    if (spirv.empty()) return nullptr;
+
+    // Create Vulkan shader module from SPIR-V
+    VkShaderModuleCreateInfo createInfo{};
+    createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+    createInfo.codeSize = spirv.size() * sizeof(uint32_t);
+    createInfo.pCode = spirv.data();
+
+    VkShaderModule module;
+    if (vkCreateShaderModule(device, &createInfo, nullptr, &module) != VK_SUCCESS)
+    {
+        std::fprintf(stderr, "VkShaderProgram: failed to create shader module\n");
+        return nullptr;
+    }
+
+    return new VkShader(device, stage, module);
 }
 
 struct VkShaderProgram : IShader
@@ -32,15 +274,11 @@ struct VkShaderProgram : IShader
     VkShader* vertShader;
     VkShader* fragShader;
 
-    VkShaderProgram(VkDevice device, const std::string& vsPath, const std::string& fsPath)
+    VkShaderProgram(VkDevice device, const std::string& vsSource, const std::string& fsSource)
         : vertShader(nullptr), fragShader(nullptr)
     {
-        std::vector<char> vsCode = readSpirvFile(vsPath);
-        std::vector<char> fsCode = readSpirvFile(fsPath);
-        if (!vsCode.empty())
-            vertShader = new VkShader(device, VK_SHADER_STAGE_VERTEX_BIT, vsCode);
-        if (!fsCode.empty())
-            fragShader = new VkShader(device, VK_SHADER_STAGE_FRAGMENT_BIT, fsCode);
+        vertShader = compileGLSL(device, VK_SHADER_STAGE_VERTEX_BIT, vsSource);
+        fragShader = compileGLSL(device, VK_SHADER_STAGE_FRAGMENT_BIT, fsSource);
     }
 
     ~VkShaderProgram() override
@@ -112,7 +350,7 @@ void VkRenderDevice::cleanup()
         vkDestroyDevice(device, nullptr);
         device = VK_NULL_HANDLE;
     }
-    if (debugMessenger != VK_NULL_HANDLE)
+    if (debugMessenger != VK_NULL_HANDLE && g_hasDebugUtilsExtension)
     {
         auto func = (PFN_vkDestroyDebugUtilsMessengerEXT)
             vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT");
@@ -141,7 +379,43 @@ void VkRenderDevice::createInstance()
     appInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
     appInfo.apiVersion = VK_API_VERSION_1_0;
 
-    std::vector<const char*> extensions = getRequiredExtensions(g_enableValidationLayers);
+    // Check if validation layers are actually available
+    bool useValidation = g_enableValidationLayers;
+    if (useValidation) {
+        uint32_t layerCount;
+        vkEnumerateInstanceLayerProperties(&layerCount, nullptr);
+        std::vector<VkLayerProperties> availableLayers(layerCount);
+        vkEnumerateInstanceLayerProperties(&layerCount, availableLayers.data());
+        bool found = false;
+        for (const auto& layer : availableLayers) {
+            if (std::strcmp(layer.layerName, "VK_LAYER_KHRONOS_validation") == 0) {
+                found = true;
+                break;
+            }
+        }
+        if (!found) {
+            std::fprintf(stderr, "VK_LAYER_KHRONOS_validation not found, disabling validation\n");
+            useValidation = false;
+        }
+    }
+
+    // Check VK_EXT_debug_utils support before adding it, to avoid VK_ERROR_EXTENSION_NOT_PRESENT
+    bool debugUtilsSupported = false;
+    if (useValidation) {
+        uint32_t extCount;
+        vkEnumerateInstanceExtensionProperties(nullptr, &extCount, nullptr);
+        std::vector<VkExtensionProperties> availableExts(extCount);
+        vkEnumerateInstanceExtensionProperties(nullptr, &extCount, availableExts.data());
+        for (const auto& ext : availableExts) {
+            if (std::strcmp(ext.extensionName, VK_EXT_DEBUG_UTILS_EXTENSION_NAME) == 0) {
+                debugUtilsSupported = true;
+                break;
+            }
+        }
+    }
+
+    std::vector<const char*> extensions = getRequiredExtensions(useValidation && debugUtilsSupported);
+    g_hasDebugUtilsExtension = useValidation && debugUtilsSupported;
 
     VkInstanceCreateInfo createInfo{};
     createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
@@ -149,20 +423,33 @@ void VkRenderDevice::createInstance()
     createInfo.enabledExtensionCount = static_cast<uint32_t>(extensions.size());
     createInfo.ppEnabledExtensionNames = extensions.data();
 
-    if (g_enableValidationLayers)
+    if (useValidation)
     {
         const char* validationLayer = "VK_LAYER_KHRONOS_validation";
         createInfo.enabledLayerCount = 1;
         createInfo.ppEnabledLayerNames = &validationLayer;
     }
 
-    if (vkCreateInstance(&createInfo, nullptr, &instance) != VK_SUCCESS)
+    VkResult result = vkCreateInstance(&createInfo, nullptr, &instance);
+    if (result == VK_ERROR_LAYER_NOT_PRESENT && useValidation) {
+        std::fprintf(stderr, "VK_LAYER_KHRONOS_validation not present, retrying without\n");
+        useValidation = false;
+        g_hasDebugUtilsExtension = false;
+        extensions = getRequiredExtensions(false);
+        createInfo.enabledExtensionCount = static_cast<uint32_t>(extensions.size());
+        createInfo.ppEnabledExtensionNames = extensions.data();
+        createInfo.enabledLayerCount = 0;
+        createInfo.ppEnabledLayerNames = nullptr;
+        result = vkCreateInstance(&createInfo, nullptr, &instance);
+    }
+
+    if (result != VK_SUCCESS)
         throw std::runtime_error("VkRenderDevice: failed to create instance");
 }
 
 void VkRenderDevice::setupDebugMessenger()
 {
-    if (!g_enableValidationLayers) return;
+    if (!g_hasDebugUtilsExtension) return;
 
     VkDebugUtilsMessengerCreateInfoEXT createInfo{};
     createInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
@@ -178,13 +465,22 @@ void VkRenderDevice::setupDebugMessenger()
     auto func = reinterpret_cast<PFN_vkCreateDebugUtilsMessengerEXT>(
         vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT"));
     if (func)
-        func(instance, &createInfo, nullptr, &debugMessenger);
+    {
+        VkResult res = func(instance, &createInfo, nullptr, &debugMessenger);
+        if (res != VK_SUCCESS)
+            std::fprintf(stderr, "VkRenderDevice: failed to set up debug messenger (VkResult=%d)\n", static_cast<int>(res));
+    }
 }
 
 void VkRenderDevice::createSurface()
 {
-    if (glfwCreateWindowSurface(instance, window, nullptr, &surface) != VK_SUCCESS)
-        throw std::runtime_error("VkRenderDevice: failed to create window surface");
+    VkResult res = glfwCreateWindowSurface(instance, window, nullptr, &surface);
+    if (res != VK_SUCCESS) {
+        char buf[256];
+        std::snprintf(buf, sizeof(buf),
+            "VkRenderDevice: failed to create window surface (VkResult=%d)", static_cast<int>(res));
+        throw std::runtime_error(buf);
+    }
 }
 
 void VkRenderDevice::pickPhysicalDevice()

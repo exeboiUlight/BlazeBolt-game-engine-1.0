@@ -16,6 +16,9 @@ inline const char* renderAPIToString(RenderAPI api) {
 }
 
 inline RenderAPI renderAPIFromString(const std::string& str) {
-    if (str == "vulkan") return RenderAPI::Vulkan;
+    std::string trimmed = str;
+    while (!trimmed.empty() && (trimmed.back() == '\r' || trimmed.back() == ' ' || trimmed.back() == '\t' || trimmed.back() == '\n'))
+        trimmed.pop_back();
+    if (trimmed == "vulkan") return RenderAPI::Vulkan;
     return RenderAPI::OpenGL;
 }

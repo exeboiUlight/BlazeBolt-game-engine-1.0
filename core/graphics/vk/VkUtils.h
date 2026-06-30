@@ -23,7 +23,8 @@ inline std::vector<const char*> getRequiredExtensions(bool enableValidationLayer
     return extensions;
 }
 
-constexpr bool g_enableValidationLayers = false;
+constexpr bool g_enableValidationLayers = true;
+static bool g_hasDebugUtilsExtension = false;
 
 static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
     VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,

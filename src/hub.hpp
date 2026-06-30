@@ -45,6 +45,7 @@ private:
     bool m_show_error = false;
     ProjectType m_new_project_type = ProjectType::Code;
     RenderAPI m_currentAPI = RenderAPI::OpenGL;
+    RenderAPI m_textureAPI = RenderAPI::OpenGL;  // which API GL textures were loaded for
 
     int m_current_theme = 2;
 

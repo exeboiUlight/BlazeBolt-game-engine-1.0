@@ -7,6 +7,7 @@
 #include <sstream>
 #include <algorithm>
 #include <graphics/renderer/RenderAPI.h>
+#include <graphics/renderer/RenderBackend.h>
 
 #ifdef PLATFORM_WINDOWS
 #include <windows.h>
@@ -67,35 +68,40 @@ Hub::Hub(fs::path engine_root)
     LoadProjects();
     LoadTheme();
 
-    // Load logo
-    fs::path logo_path = engine_root / "logo.png";
-    if (!fs::exists(logo_path))
-        logo_path = engine_root / "assets/icon.png";
-    if (fs::exists(logo_path)) {
-        int w, h, ch;
-        unsigned char* data = stbi_load(logo_path.string().c_str(), &w, &h, &ch, 4);
-        if (data) {
-            GLuint tex;
-            glGenTextures(1, &tex);
-            glBindTexture(GL_TEXTURE_2D, tex);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
-            m_logo_texture = (ImTextureID)(intptr_t)tex;
-            m_logo_w = w;
-            m_logo_h = h;
-            stbi_image_free(data);
+    // Load logo (skip in Vulkan mode – ImTextureID semantics differ per backend)
+    if (RenderBackend::GetCurrentAPI() == RenderAPI::OpenGL) {
+        fs::path logo_path = engine_root / "logo.png";
+        if (!fs::exists(logo_path))
+            logo_path = engine_root / "assets/icon.png";
+        if (fs::exists(logo_path)) {
+            int w, h, ch;
+            unsigned char* data = stbi_load(logo_path.string().c_str(), &w, &h, &ch, 4);
+            if (data) {
+                GLuint tex;
+                glGenTextures(1, &tex);
+                glBindTexture(GL_TEXTURE_2D, tex);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+                glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
+                m_logo_texture = (ImTextureID)(intptr_t)tex;
+                m_logo_w = w;
+                m_logo_h = h;
+                stbi_image_free(data);
+            }
         }
     }
 }
 
 Hub::~Hub() {
-    for (auto& p : m_projects) UnloadIcon(p);
-    if (m_logo_texture) {
-        GLuint tex = (GLuint)(intptr_t)m_logo_texture;
-        glDeleteTextures(1, &tex);
+    // Only clean up GL textures if GL context is still alive
+    if (RenderBackend::GetCurrentAPI() == RenderAPI::OpenGL) {
+        for (auto& p : m_projects) UnloadIcon(p);
+        if (m_logo_texture) {
+            GLuint tex = (GLuint)(intptr_t)m_logo_texture;
+            glDeleteTextures(1, &tex);
+        }
     }
 }
 
@@ -171,6 +177,12 @@ void Hub::CreateProject(const std::string& name, const std::string& path, Projec
 }
 
 void Hub::LoadIcon(Project& proj) {
+    // Skip in Vulkan mode – ImTextureID semantics differ per backend
+    if (RenderBackend::GetCurrentAPI() != RenderAPI::OpenGL) {
+        proj.icon_texture = (ImTextureID)0;
+        return;
+    }
+
     fs::path icon_path = fs::path(proj.path) / "icon.png";
     if (!fs::exists(icon_path)) {
         proj.icon_texture = (ImTextureID)0;
@@ -201,11 +213,12 @@ void Hub::LoadIcon(Project& proj) {
 }
 
 void Hub::UnloadIcon(Project& proj) {
-    if (proj.icon_texture) {
-        GLuint tex = (GLuint)(intptr_t)proj.icon_texture;
-        glDeleteTextures(1, &tex);
-        proj.icon_texture = (ImTextureID)0;
-    }
+    if (!proj.icon_texture) return;
+    // Only delete GL textures if GL context is alive
+    if (RenderBackend::GetCurrentAPI() != RenderAPI::OpenGL) return;
+    GLuint tex = (GLuint)(intptr_t)proj.icon_texture;
+    glDeleteTextures(1, &tex);
+    proj.icon_texture = (ImTextureID)0;
 }
 
 bool Hub::ExtractZip(const fs::path& zip, const fs::path& dest) {
@@ -239,6 +252,8 @@ RenderAPI Hub::ParseAPIfromProject(const std::string& projectPath) {
     if (f.is_open()) {
         std::string line;
         while (std::getline(f, line)) {
+            while (!line.empty() && line.back() == '\r')
+                line.pop_back();
             if (line.find("render_api=") == 0) {
                 return renderAPIFromString(line.substr(11));
             }
@@ -248,8 +263,13 @@ RenderAPI Hub::ParseAPIfromProject(const std::string& projectPath) {
 }
 
 void Hub::SaveAPItoProject(const std::string& projectPath, RenderAPI api) {
-    fs::path apiFile = fs::path(projectPath) / "engine" / ".BlazeBoltProject";
+    fs::path apiDir = fs::path(projectPath) / "engine";
+    fs::path apiFile = apiDir / ".BlazeBoltProject";
     std::string apiStr = renderAPIToString(api);
+
+    if (!fs::exists(apiDir)) {
+        fs::create_directories(apiDir);
+    }
 
     std::vector<std::string> lines;
     std::ifstream in(apiFile);
@@ -257,6 +277,8 @@ void Hub::SaveAPItoProject(const std::string& projectPath, RenderAPI api) {
     if (in.is_open()) {
         std::string line;
         while (std::getline(in, line)) {
+            while (!line.empty() && line.back() == '\r')
+                line.pop_back();
             if (line.find("render_api=") == 0) {
                 lines.push_back("render_api=" + apiStr);
                 found = true;
@@ -270,8 +292,10 @@ void Hub::SaveAPItoProject(const std::string& projectPath, RenderAPI api) {
     }
 
     std::ofstream out(apiFile, std::ios::trunc);
-    for (size_t i = 0; i < lines.size(); i++) {
-        out << lines[i] << (i + 1 < lines.size() ? "\n" : "");
+    if (out.is_open()) {
+        for (size_t i = 0; i < lines.size(); i++) {
+            out << lines[i] << "\n";
+        }
     }
 }
 
@@ -381,6 +405,26 @@ void Hub::ApplyTheme(int idx) {
 }
 
 void Hub::Render() {
+    // Handle runtime API switch – reload or unload GL textures as needed
+    RenderAPI backendAPI = RenderBackend::GetCurrentAPI();
+    if (backendAPI != m_textureAPI) {
+        // Only clean up GL textures if we are still in OpenGL mode (GL context is alive).
+        // When switching TO Vulkan the GL context is already gone, so we just orphan
+        // the old textures; they will be recreated if/when we switch back.
+        if (m_textureAPI == RenderAPI::OpenGL && backendAPI == RenderAPI::OpenGL) {
+            if (m_logo_texture) {
+                GLuint tex = (GLuint)(intptr_t)m_logo_texture;
+                glDeleteTextures(1, &tex);
+                m_logo_texture = (ImTextureID)0;
+            }
+            for (auto& p : m_projects) UnloadIcon(p);
+        }
+        if (backendAPI == RenderAPI::OpenGL) {
+            LoadProjects();
+        }
+        m_textureAPI = backendAPI;
+    }
+
     ApplyTheme(m_current_theme);
 
     ImGuiStyle& hub_style = ImGui::GetStyle();
@@ -605,12 +649,17 @@ void Hub::Render() {
     if (ImGui::BeginCombo("##API", apis[currentAPI])) {
         for (int i = 0; i < 2; i++) {
             if (ImGui::Selectable(apis[i], currentAPI == i)) {
-                m_currentAPI = (RenderAPI)i;
+                if ((RenderAPI)i != m_currentAPI) {
+                    m_currentAPI = (RenderAPI)i;
+                    std::ofstream f(m_engine_root / "render_api.txt", std::ios::trunc);
+                    f << renderAPIToString(m_currentAPI);
+                    RenderBackend::RequestSwitch(m_currentAPI);
+                }
             }
         }
         ImGui::EndCombo();
     }
-    if (ImGui::IsItemHovered()) ImGui::SetTooltip("Render API for new projects");
+    if (ImGui::IsItemHovered()) ImGui::SetTooltip("Switch render API (takes effect immediately)");
 
     ImGui::SameLine(0, 40.0f);
     const char* themes[] = { "Dark", "Light", "Classic", "Cyberpunk", "Dracula" };

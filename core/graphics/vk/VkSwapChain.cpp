@@ -81,9 +81,10 @@ void VkSwapChain::createSwapChain(uint32_t width, uint32_t height)
     createInfo.clipped = VK_TRUE;
     createInfo.oldSwapchain = VK_NULL_HANDLE;
 
-    if (vkCreateSwapchainKHR(device, &createInfo, nullptr, &swapChain) != VK_SUCCESS)
+    VkResult swapResult = vkCreateSwapchainKHR(device, &createInfo, nullptr, &swapChain);
+    if (swapResult != VK_SUCCESS)
     {
-        throw std::runtime_error("Failed to create Vulkan swap chain");
+        throw std::runtime_error("Failed to create Vulkan swap chain (VkResult=" + std::to_string(swapResult) + ")");
     }
 
     vkGetSwapchainImagesKHR(device, swapChain, &imageCount, nullptr);
@@ -213,12 +214,12 @@ bool VkSwapChain::acquireNextImage()
                                             imageAvailableSemaphore, VK_NULL_HANDLE,
                                             &currentImageIndex);
 
-    if (result == VK_ERROR_OUT_OF_DATE_KHR)
+    if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR)
     {
         return false;
     }
 
-    if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR)
+    if (result != VK_SUCCESS)
     {
         return false;
     }
@@ -239,7 +240,16 @@ void VkSwapChain::present()
     presentInfo.pImageIndices = &currentImageIndex;
     presentInfo.pResults = nullptr;
 
-    vkQueuePresentKHR(presentQueue, &presentInfo);
+    VkResult result = vkQueuePresentKHR(presentQueue, &presentInfo);
+
+    if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR)
+    {
+        std::fprintf(stderr, "VkSwapChain: swapchain out of date during present\n");
+    }
+    else if (result != VK_SUCCESS)
+    {
+        std::fprintf(stderr, "VkSwapChain: vkQueuePresentKHR failed (VkResult=%d)\n", static_cast<int>(result));
+    }
 }
 
 void VkSwapChain::recreate(uint32_t newWidth, uint32_t newHeight)

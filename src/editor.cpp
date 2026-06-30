@@ -6,6 +6,7 @@
 #include <GLFW/glfw3.h>
 #include <graphics/window.h>
 #include <graphics/renderer/RenderAPI.h>
+#include <graphics/renderer/RenderBackend.h>
 #include <graphics/vk/VkRenderDevice.h>
 #include <graphics/gl/GLRenderDevice.h>
 #include <algorithm>
@@ -232,6 +233,8 @@ Editor::~Editor() {
 
 void Editor::OpenProject(fs::path project_path) {
     m_project_path = project_path;
+    m_currentAPI = ParseAPIfromProject(m_project_path.string());
+    m_currentAPIStr = renderAPIToString(m_currentAPI);
     fs::path engine_dir = project_path / "engine";
     if (!fs::exists(engine_dir)) {
         fs::create_directories(engine_dir);
@@ -778,9 +781,12 @@ void Editor::Render() {
         if (newAPI != m_currentAPI) {
             m_currentAPI = newAPI;
             SaveAPItoProject(m_project_path.string(), m_currentAPI);
+            std::ofstream f(m_engine_root / "render_api.txt", std::ios::trunc);
+            f << renderAPIToString(m_currentAPI);
             AddConsoleLog("[Editor] Render API changed to %s", IM_COL32(100, 200, 255, 255), renderAPIToString(m_currentAPI));
+            RenderBackend::RequestSwitch(m_currentAPI);
         }
-        ImGui::Text("API takes effect when game starts (Play).");
+        ImGui::Text("API takes effect immediately.");
         ImGui::Separator();
         if (ImGui::Button("Close", ImVec2(120, 0))) {
             m_show_project_settings = false;
@@ -1660,6 +1666,12 @@ void Editor::RenderGameViewportWindow() {
             ImVec2 image_max = ImVec2(image_min.x + draw_w, image_min.y + draw_h);
 
             dl->AddImage((ImTextureID)(intptr_t)m_game_texture, image_min, image_max, ImVec2(0, 1), ImVec2(1, 0));
+        } else if (m_game_playing && m_currentAPI == RenderAPI::Vulkan) {
+            dl->AddRectFilled(vp_min, ImVec2(vp_min.x + vp_sz.x, vp_min.y + vp_sz.y), IM_COL32(20, 20, 28, 255));
+            const char* msg = "Vulkan game running (output not visible in editor)";
+            ImVec2 ts = ImGui::CalcTextSize(msg);
+            ImVec2 text_pos = ImVec2(vp_min.x + (vp_sz.x - ts.x) * 0.5f, vp_min.y + (vp_sz.y - ts.y) * 0.5f);
+            dl->AddText(text_pos, IM_COL32(150, 150, 80, 255), msg);
         } else {
             dl->AddRectFilled(vp_min, ImVec2(vp_min.x + vp_sz.x, vp_min.y + vp_sz.y), IM_COL32(20, 20, 28, 255));
             const char* msg = m_game_playing ? "Loading..." : "Press Play or F5 to start";
@@ -2829,6 +2841,7 @@ void Editor::StartGame() {
         try {
             m_gameDevice = new VkRenderDevice(gameW, gameH, m_editor_window);
             AddConsoleLog("[Editor] Vulkan render device created", IM_COL32(100, 200, 255, 255));
+            AddConsoleLog("[Editor] Note: Vulkan game output is not visible in the editor viewport (renders to swapchain)", IM_COL32(200, 200, 100, 255));
         } catch (const std::exception& e) {
             AddConsoleLog("[Editor] Vulkan init failed: %s - falling back to OpenGL", IM_COL32(255, 100, 100, 255), e.what());
             delete m_game_window;
@@ -2843,24 +2856,26 @@ void Editor::StartGame() {
         AddConsoleLog("[Editor] OpenGL render device created", IM_COL32(100, 200, 255, 255));
     }
 
-    // Always create GL FBO for editor viewport rendering
-    glGenFramebuffers(1, &m_game_fbo);
-    glGenTextures(1, &m_game_texture);
-    AddConsoleLog("[Editor] StartGame: tex=%u fbo=%u", IM_COL32(200, 200, 210, 255), m_game_texture, m_game_fbo);
-    glBindTexture(GL_TEXTURE_2D, m_game_texture);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, gameW, gameH, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    glBindFramebuffer(GL_FRAMEBUFFER, m_game_fbo);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, m_game_texture, 0);
-    GLenum fboStatus = glCheckFramebufferStatus(GL_FRAMEBUFFER);
-    if (fboStatus != GL_FRAMEBUFFER_COMPLETE) {
-        AddConsoleLog("[Editor] FBO not complete! status=0x%x", IM_COL32(255, 100, 100, 255), fboStatus);
+    // Create GL FBO for editor viewport rendering (OpenGL only)
+    if (m_currentAPI != RenderAPI::Vulkan) {
+        glGenFramebuffers(1, &m_game_fbo);
+        glGenTextures(1, &m_game_texture);
+        AddConsoleLog("[Editor] StartGame: tex=%u fbo=%u", IM_COL32(200, 200, 210, 255), m_game_texture, m_game_fbo);
+        glBindTexture(GL_TEXTURE_2D, m_game_texture);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, gameW, gameH, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        glBindFramebuffer(GL_FRAMEBUFFER, m_game_fbo);
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, m_game_texture, 0);
+        GLenum fboStatus = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+        if (fboStatus != GL_FRAMEBUFFER_COMPLETE) {
+            AddConsoleLog("[Editor] FBO not complete! status=0x%x", IM_COL32(255, 100, 100, 255), fboStatus);
+        }
+        glBindTexture(GL_TEXTURE_2D, 0);
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
     }
-    glBindTexture(GL_TEXTURE_2D, 0);
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
     m_game_window->setClearColor(0.5803921f, 0.5803921f, 0.5803921f, 1.0f);
 
     m_game_engine = new LuaEngine::LuaEngine(*m_game_window, m_gameDevice);
@@ -2923,6 +2938,8 @@ void Editor::StopGame() {
         glDeleteTextures(1, &m_game_texture);
         m_game_texture = 0;
     }
+    if (m_game_tex_w != 0) m_game_tex_w = 0;
+    if (m_game_tex_h != 0) m_game_tex_h = 0;
 
     if (m_game_window) {
         m_game_window->release();
@@ -2948,6 +2965,15 @@ void Editor::TickGame(float dt, bool force_update) {
         m_game_engine->callUpdate(dt);
         m_game_engine->physicsStep();
         m_game_engine->updateAll(dt);
+    }
+
+    if (m_currentAPI == RenderAPI::Vulkan) {
+        // For Vulkan, render directly through the engine -- the output goes to
+        // the Vulkan swapchain and cannot be captured into the editor's GL texture.
+        m_game_engine->callDraw();
+        m_game_engine->drawAll();
+        Input::getInstance().postUpdate();
+        return;
     }
 
     GLint prevViewport[4];

@@ -26,6 +26,7 @@ set(IMGUI_SOURCES
     ${IMGUI_DIR}/imgui_widgets.cpp
     ${IMGUI_DIR}/backends/imgui_impl_glfw.cpp
     ${IMGUI_DIR}/backends/imgui_impl_opengl3.cpp
+    ${IMGUI_DIR}/backends/imgui_impl_vulkan.cpp
     ${IMGUI_DIR}/misc/freetype/imgui_freetype.cpp
     ${IMGUI_DIR}/texteditor/TextEditor.cpp
     ${IMGUI_DIR}/crude_json.cpp
@@ -37,6 +38,7 @@ set(ENGINE_SOURCES
     ${CMAKE_SOURCE_DIR}/src/editor.cpp
     ${GLAD_DIR}/glad.c
     ${CMAKE_SOURCE_DIR}/core/graphics/gl.cpp
+    ${CMAKE_SOURCE_DIR}/core/graphics/renderer/RenderBackend.cpp
     ${CMAKE_SOURCE_DIR}/core/graphics/window.cpp
     # RHI renderer interfaces
     ${CMAKE_SOURCE_DIR}/core/graphics/gl/GLBuffer.cpp

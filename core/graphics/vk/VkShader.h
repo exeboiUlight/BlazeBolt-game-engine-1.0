@@ -7,6 +7,7 @@
 class VkShader : public IShader {
 public:
     VkShader(VkDevice device, VkShaderStageFlagBits stage, const std::vector<char>& spirvCode);
+    VkShader(VkDevice device, VkShaderStageFlagBits stage, VkShaderModule module);
     ~VkShader() override;
 
     void bind() const;
@@ -20,4 +21,5 @@ private:
     VkDevice device;
     VkShaderModule shaderModule = VK_NULL_HANDLE;
     VkShaderStageFlagBits stage;
+    bool ownsModule;
 };

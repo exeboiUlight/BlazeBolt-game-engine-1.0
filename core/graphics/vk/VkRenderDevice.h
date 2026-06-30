@@ -33,10 +33,12 @@ public:
     ISwapChain* getSwapChain() override;
     int getMaxTextureSize() const override;
 
+    VkInstance getInstance() const { return instance; }
     VkDevice getDevice() const { return device; }
     VkPhysicalDevice getPhysicalDevice() const { return physicalDevice; }
     VkQueue getGraphicsQueue() const { return graphicsQueue; }
     VkQueue getPresentQueue() const { return presentQueue; }
+    uint32_t getGraphicsFamily() const { return graphicsFamily; }
     VkCommandPool getCommandPool() const { return commandPool; }
     VkPipelineLayout getPipelineLayout() const { return pipelineLayout; }
 

@@ -1,7 +1,7 @@
 #include "VkShader.h"
 
 VkShader::VkShader(VkDevice device, VkShaderStageFlagBits stage, const std::vector<char>& spirvCode)
-    : device(device), stage(stage)
+    : device(device), stage(stage), ownsModule(true)
 {
     VkShaderModuleCreateInfo createInfo{};
     createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
@@ -11,9 +11,14 @@ VkShader::VkShader(VkDevice device, VkShaderStageFlagBits stage, const std::vect
     vkCreateShaderModule(device, &createInfo, nullptr, &shaderModule);
 }
 
+VkShader::VkShader(VkDevice device, VkShaderStageFlagBits stage, VkShaderModule module)
+    : device(device), stage(stage), shaderModule(module), ownsModule(false)
+{
+}
+
 VkShader::~VkShader()
 {
-    if (shaderModule != VK_NULL_HANDLE)
+    if (shaderModule != VK_NULL_HANDLE && ownsModule)
     {
         vkDestroyShaderModule(device, shaderModule, nullptr);
     }
